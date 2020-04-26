@@ -195,6 +195,22 @@ class CNNModelv4(NNModel):
         output_channel_size = output_data.get_shape()[axis_no].value
         scale_ratio = input_channel_size / output_channel_size
 
+        output_data_indice_list = []
+        for output_data_index in range(0, output_channel_size):
+            target_index_no = min(round(output_data_index * scale_ratio), input_channel_size - 1)
+            output_data_indice_list.append(target_index_no)
+
+        return tf.gather(input_data, output_data_indice_list, axis=axis_no)
+
+    @staticmethod
+    # This method is kept for compatibility issues with older network models(before 27.04.20)
+    def __scale_input_to_output_legacy(input_data, output_data):
+        axis_no = 3
+
+        input_channel_size = input_data.get_shape()[axis_no].value
+        output_channel_size = output_data.get_shape()[axis_no].value
+        scale_ratio = input_channel_size / output_channel_size
+
         input_data_list = tf.unstack(input_data, axis=axis_no)
         output_data_list = []
         for output_data_index in range(0, output_channel_size):
