@@ -36,42 +36,54 @@ def main():
     parser.add_argument('--batch_size', nargs='?', type=int,
                         default=20,
                         help='Batch size')
+    parser.add_argument('--split_count', nargs='?', type=int,
+                        default=1,
+                        help='Split count')
+    parser.add_argument('--base_log_path', nargs='?', const=True, type=str,
+                        default=os.path.dirname(__file__),
+                        help='Base path for saving logs')
+
     flags, unparsed = parser.parse_known_args()
 
     loader_name = flags.loader_name
     data_path = flags.path
     neighborhood = flags.neighborhood
 
-    data_importer = InMemoryImporter.InMemoryImporter()
-    training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, scene_shape, color_list = \
-        data_importer.read_data_set(loader_name=loader_name, path=data_path,
-                                    test_data_ratio=0, neighborhood=neighborhood, normalize=False)
+    for run_index in range(flags.split_count):
+        print('Starting episode#%d' % run_index)
 
-    flattened_training_data = flatten_data(training_data_with_labels.data)
-    flattened_validation_data = flatten_data(validation_data_with_labels.data)
+        data_importer = InMemoryImporter.InMemoryImporter()
+        training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, scene_shape, color_list = \
+            data_importer.read_data_set(loader_name=loader_name, path=data_path,
+                                        test_data_ratio=0, neighborhood=neighborhood, normalize=False)
 
-    start_time = time.time()
-    estimator = RandomForestClassifier(n_estimators=50, n_jobs=8, max_features=int(2 * sqrt(144)), verbose=False)
-    # estimator = ExtraTreesClassifier(n_estimators=10000, n_jobs=8, verbose=1)
-    # estimator = SVC(kernel='poly', degree=1, cache_size=200, verbose=True)  # GRSS2013
-    # estimator = SVC(kernel='rbf', gamma=1e-09, C=10000, cache_size=200) # GRSS2013
-    # estimator = SVC(kernel='rbf', gamma=1e-06, C=1000000, cache_size=1000, verbose=True)  # GULFPORT
+        flattened_training_data = flatten_data(training_data_with_labels.data)
+        flattened_validation_data = flatten_data(validation_data_with_labels.data)
 
-    estimator.fit(flattened_training_data, training_data_with_labels.labels)
-    print('Completed training(%.3f sec)' % (time.time() - start_time))
-    predicted_validation_data = estimator.predict(flattened_validation_data)
+        start_time = time.time()
+        estimator = RandomForestClassifier(n_estimators=50, n_jobs=8, max_features=int(2 * sqrt(144)), verbose=False)
+        # estimator = ExtraTreesClassifier(n_estimators=10000, n_jobs=8, verbose=1)
+        # estimator = SVC(kernel='poly', degree=1, cache_size=200, verbose=True)  # GRSS2013
+        # estimator = SVC(kernel='rbf', gamma=1e-09, C=10000, cache_size=200) # GRSS2013
+        # estimator = SVC(kernel='rbf', gamma=1e-06, C=1000000, cache_size=1000, verbose=True)  # GULFPORT
 
-    overall_accuracy = accuracy_score(validation_data_with_labels.labels, predicted_validation_data)
-    average_accuracy = balanced_accuracy_score(validation_data_with_labels.labels, predicted_validation_data)
-    kappa = cohen_kappa_score(validation_data_with_labels.labels, predicted_validation_data)
-    conf_matrix = confusion_matrix(validation_data_with_labels.labels, predicted_validation_data)
-    print_output(average_accuracy, conf_matrix, kappa, overall_accuracy)
+        estimator.fit(flattened_training_data, training_data_with_labels.labels)
+        print('Completed training(%.3f sec)' % (time.time() - start_time))
+        predicted_validation_data = estimator.predict(flattened_validation_data)
 
-    if flags.hyperparamopt:
-        perform_hyperparamopt(flattened_training_data, training_data_with_labels)
+        overall_accuracy = accuracy_score(validation_data_with_labels.labels, predicted_validation_data)
+        average_accuracy = balanced_accuracy_score(validation_data_with_labels.labels, predicted_validation_data)
+        kappa = cohen_kappa_score(validation_data_with_labels.labels, predicted_validation_data)
+        conf_matrix = confusion_matrix(validation_data_with_labels.labels, predicted_validation_data)
+        print_output(estimator.get_params(), average_accuracy, conf_matrix, kappa, overall_accuracy, run_index,
+                     loader_name,
+                     flags.base_log_path)
 
-    if flags.fullscene:
-        perform_full_scene_classification(data_path, loader_name, neighborhood, estimator, flags.batch_size)
+        if flags.hyperparamopt:
+            perform_hyperparamopt(flattened_training_data, training_data_with_labels)
+
+        if flags.fullscene:
+            perform_full_scene_classification(data_path, loader_name, neighborhood, estimator, flags.batch_size)
 
 
 def perform_full_scene_classification(data_path, loader_name, neighborhood, estimator, batch_size):
@@ -130,12 +142,25 @@ def perform_hyperparamopt(flattened_training_data, training_data_with_labels):
           % (grid.best_params_, grid.best_score_))
 
 
-def print_output(average_accuracy, conf_matrix, kappa, overall_accuracy):
+def print_output(algorithm_params, average_accuracy, conf_matrix, kappa, overall_accuracy, index, name, base_log_path):
     print("OA:%5.5f" % overall_accuracy)
     print("AA:%5.5f" % average_accuracy)
     print("KAPPA:%5.5f" % kappa)
     print("Confusion Matrix:")
     print(conf_matrix)
+    file_id = name + "_run" + str(index)
+    log_directory = "log/"
+    log_path = os.path.join(base_log_path, log_directory + "confusion_matrix_" + file_id + ".csv")
+    numpy.savetxt(log_path, conf_matrix, fmt="%d", delimiter=",")
+
+    metrics_file = open(os.path.join(base_log_path, log_directory + "metrics_" + file_id + ".txt"), "w")
+    print("OA,AA,KAPPA", file=metrics_file)
+    print("%.6f,%.6f,%.6f" % (overall_accuracy, average_accuracy, kappa), file=metrics_file)
+    metrics_file.close()
+
+    params_file = open(os.path.join(base_log_path, log_directory + "params_" + file_id + ".json"), "w")
+    print(algorithm_params, file=params_file)
+    params_file.close()
 
 
 if __name__ == '__main__':
