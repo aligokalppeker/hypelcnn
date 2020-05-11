@@ -15,6 +15,9 @@ MATRIX_OA_INDEX = 0
 MATRIX_AA_INDEX = 1
 MATRIX_KAPPA_INDEX = 2
 
+PERFORMANCE_STR = "Performance"
+CLASSES_STR = "Classes (Train/Test)"
+
 
 def main():
     one_column = False
@@ -103,8 +106,9 @@ def print_row_wise_methods(method_name_list, class_dist_info_list, metrics_holde
     col_count = 1 + class_count + 3  # title + class count + (OA;AA;KAPPA)
     begin_tabular(table_info, col_count, one_column)
     draw_double_line()
+    print_combine_column(col_count, PERFORMANCE_STR, CLASSES_STR)
 
-    header_row_str = "Methods"
+    header_row_str = "\\cline{2-%i} " % col_count
     for class_dist_info in class_dist_info_list:
         header_row_str = header_row_str + " & " + class_dist_info
     header_row_str = header_row_str + " & OA & AA & KAPPA"
@@ -138,8 +142,9 @@ def print_column_wise_methods(method_name_list, class_dist_info_list, metrics_ho
     col_count = 1 + len(method_name_list)  # title + method list
     begin_tabular(table_info, col_count, one_column)
     draw_double_line()
+    print_combine_column(col_count, PERFORMANCE_STR, CLASSES_STR)
 
-    header_row_str = "Methods "
+    header_row_str = "\\cline{2-%i} " % col_count
     for metrics_instance_index in range(0, metrics_instance_count):
         header_row_str = header_row_str + "&" + method_name_list[metrics_instance_index] + " "
     print(header_row_str + "\\\\")
@@ -240,6 +245,16 @@ def draw_line():
 
 def draw_double_line():
     print("\\hline\\hline")
+
+
+def print_combine_column(col_count, combined_col_title, combined_row_title):
+    multi_row_len = 1.0 / col_count
+    multi_col_len = 1.0 - multi_row_len
+    multi_row = "\\multirow{2}{%.2f\\linewidth}{%s} & " % (
+        multi_row_len, combined_row_title)
+    multi_col = "\\multicolumn{%i}{>{\\centering\\arraybackslash}p{%.2f\\linewidth}}{%s}\\\\" % (
+        col_count - 1, multi_col_len, combined_col_title)
+    print(multi_row + multi_col)
 
 
 def begin_tabular(table_info, col_count, one_column):
