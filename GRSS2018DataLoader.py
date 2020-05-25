@@ -38,7 +38,7 @@ class GRSS2018DataLoader(DataLoader):
         return data_set
 
     @staticmethod
-    def __print_stats(data):
+    def print_stats(data):
         for band_index in range(1, data.shape[2]):
             band_data = data[:, :, band_index]
             print('Band mean:%.5f, band std:%.5f, min:%.5f, max:%.5f' % (

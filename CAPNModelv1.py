@@ -2,7 +2,6 @@ import numpy
 import tensorflow as tf
 from hyperopt import hp
 from tensorflow.contrib import slim as slim
-from tensorflow import initializers
 
 from NNModel import NNModel
 from common_nn_operations import ModelOutputTensors
@@ -60,26 +59,29 @@ class CAPNModelv1(NNModel):
 
         lrelu_func = lambda inp: slim.nn.leaky_relu(inp, alpha=algorithm_params["lrelu_alpha"])
         with tf.device(model_input_params.device_id):
-            with slim.arg_scope([slim.conv2d], trainable=model_input_params.is_training,
-                                weights_initializer=initializers.variance_scaling(scale=2.0)):
+            with slim.arg_scope([slim.conv2d], trainable=model_input_params.is_training
+                                # weights_initializer=initializers.variance_scaling(scale=2.0),
+                                # activation_fn=lrelu_func
+                                # weights_regularizer=slim.l2_regularizer(0.00001),
+                                # normalizer_fn=slim.batch_norm,
+                                ):
                 with tf.variable_scope('Conv1_layer') as scope:
                     image_output = slim.conv2d(model_input_params.x,
                                                num_outputs=feature_count,
-                                               activation_fn=lrelu_func,
                                                kernel_size=conv_layer_kernel_size,
                                                padding='VALID',
-                                               scope=scope)
+                                               scope=scope, normalizer_fn=slim.batch_norm)
 
                 with tf.variable_scope('PrimaryCaps_layer') as scope:
                     image_output = slim.conv2d(image_output,
                                                num_outputs=primary_capsule_count * primary_capsule_output_space,
-                                               kernel_size=primary_caps_kernel_size, stride=2,
-                                               padding='VALID', scope=scope,
-                                               activation_fn=lrelu_func)
+                                               kernel_size=primary_caps_kernel_size, stride=1,
+                                               padding='VALID',
+                                               scope=scope, normalizer_fn=slim.batch_norm)
                     data_size = (image_output.get_shape()[1] *
                                  image_output.get_shape()[2] *
-                                 image_output.get_shape()[3]).value
-                    data_size = int(data_size / primary_capsule_output_space)
+                                 image_output.get_shape()[3]).value / primary_capsule_output_space
+                    data_size = int(data_size)
                     image_output = tf.reshape(image_output, [batch_size, data_size, 1, primary_capsule_output_space])
 
                 with tf.variable_scope('DigitCaps_layer'):
@@ -90,7 +92,7 @@ class CAPNModelv1(NNModel):
                                             num_outputs=digit_capsule_count * digit_capsule_output_space,
                                             kernel_size=[1, 1],
                                             padding='VALID',
-                                            scope='DigitCaps_layer_w_' + str(i), activation_fn=lrelu_func)
+                                            scope='DigitCaps_layer_w_' + str(i), activation_fn=None)
                         u_hat = tf.reshape(u_hat,
                                            [batch_size, 1, digit_capsule_count, digit_capsule_output_space])
                         u_hats.append(u_hat)
@@ -108,13 +110,11 @@ class CAPNModelv1(NNModel):
 
                             image_output_groups = tf.split(axis=2, num_or_size_splits=digit_capsule_count,
                                                            value=image_output)
-
                             for i in range(digit_capsule_count):
                                 c_ij = tf.reshape(tf.tile(c_ij_groups[i], [1, digit_capsule_output_space]),
                                                   [c_ij_groups[i].get_shape()[0], 1, digit_capsule_output_space, 1])
                                 s_j = tf.nn.depthwise_conv2d(image_output_groups[i], c_ij, strides=[1, 1, 1, 1],
                                                              padding='VALID')
-
                                 # Squash function
                                 s_j = tf.reshape(s_j, [batch_size, digit_capsule_output_space])
                                 s_j_norm_square = tf.reduce_mean(tf.square(s_j), axis=1, keepdims=True)
@@ -186,6 +186,19 @@ class CAPNModelv1(NNModel):
         return total_loss
 
     def get_loss_func(self, tensor_output, label):
+        original_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=label, logits=tensor_output.y_conv)
+        if tensor_output.image_output is None:
+            total_loss = original_loss
+        else:
+            original_reshaped = tf.reshape(tensor_output.image_original,
+                                           [-1, tensor_output.image_output.get_shape()[1]])
+            reconstruction_err = tf.reduce_mean(tf.square(tensor_output.image_output - original_reshaped))
+            total_loss = original_loss + reconstruction_err
+            tf.losses.add_loss(total_loss)
+
+        return total_loss
+
+    def __get_loss_func(self, tensor_output, label):
         return self._capsule_loss(labels=label, logits=tensor_output.y_conv,
                                   x_output=tensor_output.image_output,
                                   x_original=tensor_output.image_original)

@@ -1,0 +1,9 @@
+{
+  "batch_size": 10,
+  "drop_out_ratio": 0.5,
+  "learning_rate": 0.001,
+  "learning_rate_decay_factor": 0.01,
+  "learning_rate_decay_step": 33333,
+  "filter_count": 128,
+  "optimizer": ["MomentumOptimizer",0.9]
+}

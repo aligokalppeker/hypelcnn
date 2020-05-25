@@ -1,16 +1,16 @@
 {
   "iter_routing": 3,
-  "conv_layer_kernel_size": 3,
-  "primary_caps_kernel_size": 3,
+  "conv_layer_kernel_size": 1,
+  "primary_caps_kernel_size": 1,
   "feature_count": 256,
   "primary_capsule_count": 32,
   "primary_capsule_output_space": 8,
   "digit_capsule_output_space": 16,
   "batch_size": 16,
   "optimizer": "AdamOptimizer",
-  "learning_rate": 0.00003,
+  "learning_rate": 0.0001,
   "learning_rate_decay_factor": 0.96,
   "learning_rate_decay_step": 350,
   "lrelu_alpha": 0.18,
-  "enable_decoding": false
+  "enable_decoding": true
 }
