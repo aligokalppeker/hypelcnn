@@ -65,7 +65,7 @@ class InitializerHook(tf.train.SessionRunHook):
 def load_op(batch_size, iteration_count):
     neighborhood = 0
     loader = GRSS2013DataLoader('C:/GoogleDriveBack/PHD/Tez/Source')
-    data_set = loader.load_data(neighborhood, )
+    data_set = loader.load_data(neighborhood, True)
 
     shadow_map, shadow_ratio = loader._load_shadow_map(neighborhood, data_set.concrete_data[:, :,
                                                                      0:data_set.concrete_data.shape[2] - 1])
@@ -82,32 +82,49 @@ def load_op(batch_size, iteration_count):
     #     loader,
     #     shadow_map)
 
-    normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:normal_data_as_matrix.shape[3] - 1]
-    shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:shadow_data_as_matrix.shape[3] - 1]
+    hsi_channel_len = normal_data_as_matrix.shape[3] - 1
+    normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:hsi_channel_len]
+    shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:hsi_channel_len]
 
     normal = tf.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape, name='x')
     shadow = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name='y')
 
     epoch = int((iteration_count * batch_size) / normal_data_as_matrix.shape[0])
     data_set = tf.data.Dataset.from_tensor_slices((normal, shadow)).apply(
-        shuffle_and_repeat(buffer_size=10000, count=epoch)).batch(batch_size)
+        shuffle_and_repeat(buffer_size=10000, count=epoch))
+    data_set = data_set.map(
+        lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_,
+                                                                     shadow_ratio[0:hsi_channel_len]),
+        num_parallel_calls=4)
+    data_set = data_set.batch(batch_size)
     data_set_itr = data_set.make_initializable_iterator()
 
     return InitializerHook(data_set_itr, normal, shadow, normal_data_as_matrix, shadow_data_as_matrix)
+
+
+def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_ratio):
+    with tf.name_scope('shadow_ratio_augmenter'):
+        with tf.device('/cpu:0'):
+            rand_number = tf.random_uniform([1], 0, 0.5)[0]
+            shadow_images = tf.cond(tf.less(rand_number, 0),
+                                    true_fn=lambda: shadow_images,
+                                    false_fn=lambda: (normal_images / shadow_ratio))
+
+    return normal_images, shadow_images
 
 
 def get_data_from_scene(data_set, loader, shadow_map):
     samples = SampleSet(training_targets=loader.read_targets("\\shadow_cycle_gan\\result_raw_941.tif"),
                         test_targets=None,
                         validation_targets=None)
-    firstMarginStart = 5
-    firstMarginEnd = data_set.concrete_data.shape[0] - 5
-    secondMarginStart = 5
-    secondMarginEnd = data_set.concrete_data.shape[1] - 5
+    first_margin_start = 5
+    first_margin_end = data_set.concrete_data.shape[0] - 5
+    second_margin_start = 5
+    second_margin_end = data_set.concrete_data.shape[1] - 5
     for target_index in range(0, samples.training_targets.shape[0]):
         current_target = samples.training_targets[target_index]
-        if not (firstMarginStart < current_target[1] < firstMarginEnd and
-                secondMarginStart < current_target[0] < secondMarginEnd):
+        if not (first_margin_start < current_target[1] < first_margin_end and
+                second_margin_start < current_target[0] < second_margin_end):
             current_target[2] = -1
     normal_data_as_matrix, shadow_data_as_matrix = GRSS2013DataLoader.get_targetbased_shadowed_normal_data(data_set,
                                                                                                            loader,

@@ -49,7 +49,7 @@ def main(_):
     # print_tensors_in_checkpoint_file(FLAGS.checkpoint_path, tensor_name='ModelX2Y', all_tensors=True)
 
     loader = GRSS2013DataLoader('C:/GoogleDriveBack/PHD/Tez/Source')
-    data_set = loader.load_data(0, )
+    data_set = loader.load_data(0, True)
 
     with tf.Session() as sess:
         create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
@@ -61,7 +61,7 @@ def main(_):
         total_band_ratio = numpy.zeros([1, 1, 144], dtype=float)
         for i in range(0, iteration_count):
             # Pick a random point
-            data_indice = random.randint(0, indices[0].size-1)
+            data_indice = random.randint(0, indices[0].size - 1)
 
             # test_x_data = numpy.random.rand(1, 1, 144)
 
