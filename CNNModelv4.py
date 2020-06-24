@@ -147,7 +147,7 @@ class CNNModelv4(NNModel):
                                                    data_format)
             # disabling the residual connection
             # compatibility issues with older network models(before 27.04.20)
-            # next_net = next_net + CNNModelv4.__scale_input_to_output(netinput, next_net)
+            next_net = next_net + CNNModelv4.__scale_input_to_output(netinput, next_net)
 
             next_net_conv = slim.conv2d(next_net, next_net.get_shape()[3], [1, 1],
                                         scope='connector_conv_' + str(index),
@@ -181,7 +181,9 @@ class CNNModelv4(NNModel):
             for patch_x_index in range(1, patch_size + 1):
                 for patch_y_index in range(1, patch_size + 1):
                     # compatibility issues with older network models(before 27.04.20)
-                    if patch_x_index % 2 == 1 and patch_y_index % 2 == 1 and patch_x_index == patch_y_index:
+                    index_valid = patch_x_index % 2 == 1 and patch_y_index % 2 == 1 and patch_x_index == patch_y_index
+                    # index_valid = True
+                    if index_valid:
                         scope_name = level_name + '_conv' + str(patch_x_index) + 'x' + str(patch_y_index)
                         level_element = slim.conv2d(input_data, level_filter_count, [patch_x_index, patch_y_index],
                                                     scope=scope_name,

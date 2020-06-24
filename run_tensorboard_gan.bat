@@ -1,4 +1,3 @@
 PATH=%PATH%;C:\ProgramData\Anaconda3\envs\tensorflow;C:\ProgramData\Anaconda3\envs\tensorflow\Library\mingw-w64\bin;C:\ProgramData\Anaconda3\envs\tensorflow\Library\usr\bin;C:\ProgramData\Anaconda3\envs\tensorflow\Library\bin;C:\ProgramData\Anaconda3\envs\tensorflow\Scripts;
 start http://AGP-PC:6006
-tensorboard --logdir=successful_logs
-@echo tensorboard --logdir=log
+tensorboard --logdir=utilities\log
