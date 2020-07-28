@@ -1,13 +1,14 @@
 import argparse
+import gc
 import json
 import os
 import pickle
 import time
 
-import gc
 import tensorflow as tf
 from hyperopt import fmin, tpe, Trials, space_eval
 from numpy import std, mean
+from tensorflow.contrib import slim
 
 from cmd_parser import parse_cmd
 from common_nn_operations import create_graph, TrainingResult, AugmentationInfo, get_class
@@ -102,6 +103,10 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
 
             tf.summary.scalar('validation_average_accuracy', validation_nn_params.metrics.mean_per_class_accuracy)
             tf.summary.scalar('validation_kappa', validation_nn_params.metrics.kappa)
+
+            if flags.log_model_params:
+                for variable in slim.get_model_variables():
+                    tf.summary.histogram(variable.op.name, variable)
 
             episode_start_time = time.time()
 

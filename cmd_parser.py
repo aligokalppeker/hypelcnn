@@ -71,5 +71,8 @@ def parse_cmd(parser):
     parser.add_argument('--all_data_shuffle_ratio', nargs='?', type=float,
                         default=None,
                         help='If given as a valid ratio, validation and training data is shuffled and redistributed')
+    parser.add_argument('--log_model_params', nargs='?', const=True, type=bool,
+                        default=False,
+                        help='If added, logs model histogram to the tensorboard file.')
     flags, unparsed = parser.parse_known_args()
     return flags
