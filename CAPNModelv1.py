@@ -158,7 +158,8 @@ class CAPNModelv1(NNModel):
                                                                         activation_fn=tf.sigmoid,
                                                                         trainable=model_input_params.is_training)
 
-        return ModelOutputTensors(y_conv=y_conv, image_output=decoder_image_output, image_original=model_input_params.x)
+        return ModelOutputTensors(y_conv=y_conv, image_output=decoder_image_output, image_original=model_input_params.x,
+                                  histogram_tensors=[])
 
     @staticmethod
     def _capsule_loss(logits, labels, x_output, x_original):

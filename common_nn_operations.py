@@ -24,11 +24,18 @@ class ModelInputParams:
         self.x = x
 
 
+class HistogramTensorPair:
+    def __init__(self, tensor, name):
+        self.name = name
+        self.tensor = tensor
+
+
 class ModelOutputTensors:
-    def __init__(self, y_conv, image_output, image_original):
+    def __init__(self, y_conv, image_output, image_original, histogram_tensors):
         self.image_original = image_original
         self.image_output = image_output
         self.y_conv = y_conv
+        self.histogram_tensors = histogram_tensors
 
 
 class TrainingResult:

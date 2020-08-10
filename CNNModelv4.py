@@ -6,7 +6,7 @@ from tensorflow import initializers
 from tensorflow.contrib import slim as slim
 
 from NNModel import NNModel
-from common_nn_operations import ModelOutputTensors
+from common_nn_operations import ModelOutputTensors, HistogramTensorPair
 
 
 # hyperopt old result :
@@ -76,21 +76,23 @@ class CNNModelv4(NNModel):
                     net0 = model_input_params.x
 
                 spectral_hierarchy_level = algorithm_params["spectral_hierarchy_level"]
-                net1 = self.__create_spectral_nn_layers(data_format, level_filter_count, net0, spectral_hierarchy_level,
+                net1 = self.__create_spectral_nn_layers(data_format, level_filter_count, net0,
+                                                        spectral_hierarchy_level,
                                                         True)
-                net1 = net1 + CNNModelv4.__scale_input_to_output(net0, net1)
+                net1_acc = net1 + CNNModelv4.__scale_input_to_output(net0, net1)
 
-                net2 = self.__create_spectral_nn_layers(data_format, level_filter_count, net1, spectral_hierarchy_level,
+                net2 = self.__create_spectral_nn_layers(data_format, level_filter_count, net1_acc,
+                                                        spectral_hierarchy_level,
                                                         False)
-                net2 = net2 + CNNModelv4.__scale_input_to_output(net1, net2)
+                net2_acc = net2 + CNNModelv4.__scale_input_to_output(net1, net2)
 
                 spatial_hierarchy_level = algorithm_params["spatial_hierarchy_level"]
                 net3 = self.__create_levels_as_blocks(data_format,
-                                                      int(net2.get_shape()[3].value / 2),
-                                                      net2, spatial_hierarchy_level)
-                net3 = net3 + CNNModelv4.__scale_input_to_output(net2, net3)
+                                                      int(net2_acc.get_shape()[3].value / 2),
+                                                      net2_acc, spatial_hierarchy_level)
+                net3_acc = net3 + CNNModelv4.__scale_input_to_output(net2_acc, net3)
 
-                net4 = slim.flatten(net3)
+                net4 = slim.flatten(net3_acc)
 
                 degradation_coeff = algorithm_params["degradation_coeff"]
                 net5 = self.__create_fc_block(algorithm_params, class_count, degradation_coeff, model_input_params,
@@ -111,7 +113,11 @@ class CNNModelv4(NNModel):
                     image_gen_net4 = slim.fully_connected(image_gen_net3, image_size, weights_regularizer=None,
                                                           activation_fn=tf.sigmoid,
                                                           scope='image_gen_net_4')
-        return ModelOutputTensors(y_conv=net6, image_output=image_gen_net4, image_original=net0)
+        return ModelOutputTensors(y_conv=net6, image_output=image_gen_net4, image_original=net0,
+                                  histogram_tensors=[HistogramTensorPair(net1, "spectral_expansion"),
+                                                     HistogramTensorPair(net2, "spectral_reduction"),
+                                                     HistogramTensorPair(net3, "spatial"),
+                                                     HistogramTensorPair(net5, "classification")])
 
     def get_loss_func(self, tensor_output, label):
         original_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=label, logits=tensor_output.y_conv)

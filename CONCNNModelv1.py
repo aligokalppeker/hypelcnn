@@ -49,7 +49,7 @@ class CONCNNModelv1(NNModel):
 
                 net_33 = slim.flatten(net33)
                 net_fc = slim.fully_connected(net_33, class_count, activation_fn=None, scope='fc')
-        return ModelOutputTensors(y_conv=net_fc, image_output=None, image_original=None)
+        return ModelOutputTensors(y_conv=net_fc, image_output=None, image_original=None, histogram_tensors=[])
 
     def get_loss_func(self, tensor_output, label):
         return tf.nn.softmax_cross_entropy_with_logits_v2(labels=label,

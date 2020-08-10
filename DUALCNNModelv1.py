@@ -55,7 +55,7 @@ class CNNModelv5(NNModel):
                 net = tf.concat(axis=1, values=[slim.flatten(hs_net), slim.flatten(lidar_net)])
                 net = self._create_fc_tensor_branch(algorithm_params, bn_training_params, class_count, lrelu,
                                                     model_input_params, net)
-        return ModelOutputTensors(y_conv=net, image_output=None, image_original=None)
+        return ModelOutputTensors(y_conv=net, image_output=None, image_original=None, histogram_tensors=[])
 
     @staticmethod
     def _create_lidar_tensor_branch(bn_training_params, lidar_group, lrelu, model_input_params):
