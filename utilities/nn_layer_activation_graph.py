@@ -9,8 +9,80 @@ import numpy
 import tensorflow as tf
 from tensorflow.contrib import slim
 
+from DataImporter import DataImporter
+from GeneratorImporter import GeneratorDataTensor, GeneratorImporter
 from cmd_parser import parse_cmd
 from common_nn_operations import get_class, simple_nn_iterator, ModelInputParams, NNParams
+
+
+class ControlledDataImporter(DataImporter):
+
+    def __init__(self):
+        self.target_class = []
+        self.target_data = []
+        self.generator_importer = GeneratorImporter()
+
+    def read_data_set(self, loader_name, path, test_data_ratio, neighborhood, normalize):
+        training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, \
+        scene_shape, color_list = \
+            self.generator_importer.read_data_set(loader_name=loader_name, path=path, test_data_ratio=test_data_ratio,
+                                                  neighborhood=neighborhood, normalize=normalize)
+        loader = get_class(loader_name + '.' + loader_name)(path)
+        shape = loader.get_data_shape(training_data_with_labels.dataset)
+        for index in range(0, 5000):
+            self.target_class.append(0)
+            element_data = numpy.zeros(shape=shape, dtype=numpy.float)
+            element_data[:, :, -1] = numpy.ones(element_data[:, :, -1].shape)
+            self.target_data.append(element_data)
+
+        return training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, \
+               scene_shape, color_list
+
+    def convert_data_to_tensor(self, test_data_with_labels, training_data_with_labels, validation_data_with_labels,
+                               class_range):
+        tensor_type_info = (tf.float32, tf.uint8)
+        training_data_set = tf.data.Dataset.from_generator(
+            lambda: self._iterator_function(), tensor_type_info,
+            (tf.TensorShape(training_data_with_labels.loader.get_data_shape(training_data_with_labels.dataset)),
+             tf.TensorShape([])))
+        class_count = class_range.stop
+        training_data_set = training_data_set.map(
+            lambda image, label: GeneratorImporter.extract_fn(image, label, class_count, 'training'),
+            num_parallel_calls=8)
+
+        testing_data_set = tf.data.Dataset.from_generator(
+            lambda: self._iterator_function(), tensor_type_info,
+            (tf.TensorShape(test_data_with_labels.loader.get_data_shape(test_data_with_labels.dataset)),
+             tf.TensorShape([])))
+        testing_data_set = testing_data_set.map(
+            lambda image, label: GeneratorImporter.extract_fn(image, label, class_count, 'testing'),
+            num_parallel_calls=8)
+
+        validation_data_set = tf.data.Dataset.from_generator(
+            lambda: self._iterator_function(), tensor_type_info,
+            (tf.TensorShape(validation_data_with_labels.loader.get_data_shape(validation_data_with_labels.dataset)),
+             tf.TensorShape([])))
+        validation_data_set = validation_data_set.map(
+            lambda image, label: GeneratorImporter.extract_fn(image, label, class_count, 'validation'),
+            num_parallel_calls=8)
+
+        return GeneratorDataTensor(dataset=testing_data_set, importer=self), \
+               GeneratorDataTensor(dataset=training_data_set, importer=self), \
+               GeneratorDataTensor(dataset=validation_data_set, importer=self)
+
+    def perform_tensor_initialize(self, session, tensor, nn_params):
+        session.run(nn_params.input_iterator.initializer)
+
+    def requires_separate_validation_branch(self):
+        return self.generator_importer.requires_separate_validation_branch()
+
+    def create_all_scene_data(self, scene_shape, data_with_labels_to_copy):
+        return self.generator_importer.create_all_scene_data(scene_shape=scene_shape,
+                                                             data_with_labels_to_copy=data_with_labels_to_copy)
+
+    def _iterator_function(self):
+        for data, tar_class in zip(self.target_data, self.target_class):
+            yield data, tar_class
 
 
 def calculate_tensor_size(tensor):
@@ -34,7 +106,8 @@ def main(_):
         algorithm_params = json.load(open(flags.algorithm_param_path, 'r'))
 
     importer_name = flags.importer_name
-    data_importer = get_class(importer_name + '.' + importer_name)()
+    # data_importer = get_class(importer_name + '.' + importer_name)()
+    data_importer = ControlledDataImporter()
 
     training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, \
     scene_shape, color_list = \
