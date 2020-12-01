@@ -6,7 +6,7 @@ from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet
 
-DataSet = namedtuple('DataSet', ['shadow_creator_dict', 'casi', 'lidar', 'neighborhood'])
+DataSet = namedtuple('DataSet', ['shadow_creator_dict', 'casi', 'lidar', 'neighborhood', 'casi_min', 'casi_max'])
 
 
 def __assign_func(data_array, neighborhood, point):
@@ -37,14 +37,20 @@ class GULFPORTDataLoader(DataLoader):
         pad_size = ((neighborhood, neighborhood), (neighborhood, neighborhood), (0, 0))
         lidar = numpy.pad(lidar, pad_size, mode='symmetric')
         casi = numpy.pad(casi, pad_size, mode='symmetric')  # Half the pad ???
+
+        casi_min = None
+        casi_max = None
         if normalize:
             # Normalization
             lidar -= numpy.min(lidar)
             lidar = lidar / numpy.max(lidar)
-            casi -= numpy.min(casi, axis=(0, 1))
-            casi = casi / numpy.max(casi, axis=(0, 1)).astype(numpy.float32)
+            casi_min = numpy.min(casi, axis=(0, 1))
+            casi -= casi_min
+            casi_max = numpy.max(casi, axis=(0, 1))
+            casi = casi / casi_max.astype(numpy.float32)
 
-        return DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood)
+        return DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
+                       casi_min=casi_min, casi_max=casi_max)
 
     def load_samples(self, test_data_ratio):
         targets = imread(self.get_model_base_dir() + 'muulf_gt.tif').astype(numpy.int8)

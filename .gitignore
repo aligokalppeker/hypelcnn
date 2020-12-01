@@ -313,3 +313,8 @@ successful_logs/gulfport/svm/Results_1x1.txt
 /successful_logs/grss2018/random_forest/result_colorized.tif
 /successful_logs/grss2013/hypel_cnn/spectral_3_spatial_3_degrade_3/cnnv4_run_accuracy_0903_0x0_filter480_generator/
 /successful_logs/
+/2018_DFTC/20170218_UH_CASI_S4_NAD83.hdr
+/2013_DFTC/shadow_cycle_gan/modelv3/model.ckpt-12699.meta
+/2013_DFTC/shadow_cycle_gan/modelv3/model.ckpt-12699.index
+/2013_DFTC/shadow_cycle_gan/modelv3/model.ckpt-12699.data-00000-of-00001
+/2013_DFTC/shadow_cycle_gan/modelv3/graph.pbtxt

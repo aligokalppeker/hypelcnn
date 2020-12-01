@@ -10,7 +10,7 @@ from tifffile import imread
 from DataLoader import DataLoader, SampleSet, ShadowOperationStruct
 from shadow_data_generator import construct_inference_graph, model_forward_generator_name, create_generator_restorer
 
-DataSet = namedtuple('DataSet', ['concrete_data', 'shadow_creator_dict', 'neighborhood'])
+DataSet = namedtuple('DataSet', ['concrete_data', 'shadow_creator_dict', 'neighborhood', 'casi_min', 'casi_max'])
 
 
 class GRSS2013DataLoader(DataLoader):
@@ -57,11 +57,15 @@ class GRSS2013DataLoader(DataLoader):
         lidar = numpy.pad(lidar, pad_size, mode='symmetric')
         casi = numpy.pad(casi, pad_size, mode='symmetric')
 
+        casi_min = None
+        casi_max = None
         if normalize:
             lidar -= numpy.min(lidar)
             lidar = lidar / numpy.max(lidar)
-            casi -= numpy.min(casi, axis=(0, 1))
-            casi = casi / numpy.max(casi, axis=(0, 1)).astype(numpy.float32)
+            casi_min = numpy.min(casi, axis=(0, 1))
+            casi -= casi_min
+            casi_max = numpy.max(casi, axis=(0, 1))
+            casi = casi / casi_max.astype(numpy.float32)
 
         concrete_data = numpy.zeros([casi.shape[0], casi.shape[1], casi.shape[2] + 1], dtype=numpy.float32)
         concrete_data[:, :, 0:concrete_data.shape[2] - 1] = casi
@@ -79,7 +83,8 @@ class GRSS2013DataLoader(DataLoader):
                        'simple': ShadowOperationStruct(shadow_op=simple_shadow_func,
                                                        shadow_op_creater=lambda: None,
                                                        shadow_op_initializer=lambda restorer, session: None)}
-        return DataSet(shadow_creator_dict=shadow_dict, concrete_data=concrete_data, neighborhood=neighborhood)
+        return DataSet(shadow_creator_dict=shadow_dict, concrete_data=concrete_data, neighborhood=neighborhood,
+                       casi_min=casi_min, casi_max=casi_max)
 
     def _load_shadow_map(self, neighborhood, casi):
         shadow_map = scipy.io.loadmat(self.get_model_base_dir() + 'ShadowMap.mat').get('shadow_map')

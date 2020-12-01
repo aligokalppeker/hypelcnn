@@ -7,7 +7,7 @@ from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet
 
-DataSet = namedtuple('DataSet', ['shadow_creator_dict', 'casi', 'lidar', 'neighborhood'])
+DataSet = namedtuple('DataSet', ['shadow_creator_dict', 'casi', 'lidar', 'neighborhood', 'casi_min', 'casi_max'])
 
 
 class GRSS2018DataLoader(DataLoader):
@@ -16,7 +16,7 @@ class GRSS2018DataLoader(DataLoader):
         self.base_dir = base_dir
 
     def load_data(self, neighborhood, normalize):
-        casi = imread(self.get_model_base_dir() + '20170218_UH_CASI_S4_NAD83.tiff')
+        casi = imread(self.get_model_base_dir() + '20170218_UH_CASI_S4_NAD83.tiff')[:, :, 0:-2]
         lidar = imread(self.get_model_base_dir() + 'UH17c_GEF051.tif')[:, :, numpy.newaxis]
         lidar[numpy.where(lidar > 300)] = 0  # Eliminate unacceptable values
         # lidar = downscale_local_mean(lidar, (2, 2, 1))
@@ -26,14 +26,19 @@ class GRSS2018DataLoader(DataLoader):
         lidar = numpy.pad(lidar, pad_size, mode='symmetric')
         casi = numpy.pad(casi, pad_size, mode='symmetric')  # Half the pad ???
 
+        casi_min = None
+        casi_max = None
         if normalize:
             # Normalization
             lidar -= numpy.min(lidar)
             lidar = lidar / numpy.max(lidar)
-            casi -= numpy.min(casi, axis=(0, 1))
-            casi = casi / numpy.max(casi, axis=(0, 1)).astype(numpy.float32)
+            casi_min = numpy.min(casi, axis=(0, 1))
+            casi -= casi_min
+            casi_max = numpy.max(casi, axis=(0, 1))
+            casi = casi / casi_max.astype(numpy.float32)
 
-        data_set = DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood)
+        data_set = DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
+                           casi_min=casi_min, casi_max=casi_max)
 
         return data_set
 
