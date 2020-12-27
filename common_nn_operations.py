@@ -364,9 +364,19 @@ def get_class(kls):
     return m
 
 
-def create_colored_image(image, color_list):
-    image_colorized = numpy.zeros([image.shape[0], image.shape[1], 3], dtype=numpy.uint8)
-    for col_index in range(0, image.shape[0]):
-        for row_index in range(0, image.shape[1]):
-            image_colorized[col_index, row_index] = color_list[image[col_index, row_index]]
+def create_colored_image(target_image, color_list):
+    image_colorized = numpy.zeros([target_image.shape[0], target_image.shape[1], 3], dtype=numpy.uint8)
+    for col_index in range(0, target_image.shape[0]):
+        for row_index in range(0, target_image.shape[1]):
+            target_value = target_image[col_index, row_index]
+            if target_value < len(color_list):
+                image_colorized[col_index, row_index] = color_list[target_value]
     return image_colorized
+
+
+def create_target_image_via_samples(sample_set, scene_shape):
+    image = numpy.full([scene_shape[0], scene_shape[1]], 255, dtype=numpy.uint8)
+    targets = numpy.vstack([sample_set.training_targets, sample_set.test_targets, sample_set.validation_targets])
+    for point in targets.astype(int):
+        image[point[1], point[0]] = point[2]
+    return image
