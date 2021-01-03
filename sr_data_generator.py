@@ -40,60 +40,84 @@ def _srdata_generator_model(netinput, is_training=True):
             # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
             # activation_fn=(lambda inp: slim.nn.leaky_relu(inp)),
             trainable=is_training,
-            data_format="NHWC"
-    ):
-        # net = slim.conv2d(netinput, 72, [1, 1])
-        # net = slim.conv2d(netinput, 144, [10, 10], padding='VALID')
-        # net = slim.conv2d(net, 24, [1, 1])
-        # net = slim.conv2d(net, 12, [7, 7])
-        # net = slim.conv2d(net, 12, [5, 5])
-        # net = slim.conv2d(net, 12, [3, 3])
-        # net = slim.conv2d(net, 24, [1, 1])
-        # net = slim.conv2d(net, 48, [1, 1])
-        # net = slim.conv2d(net, 72, [1, 1])
-        # net = slim.conv2d(net, 144, [10, 10], activation_fn=None, weights_regularizer=None, normalizer_fn=None,
-        #                   normalizer_params=None)
-        # net = tf.reshape(netinput, [-1, 100, 144])
-        # net_hats = []
-        # for index in range(0, 144):
-        #     net_hats.append(slim.conv2d(expand_dims(netinput[:, :, :, index], axis=3), 1, [10, 10]))
-        # net_hats.append(slim.fully_connected(net[:, :, index], 10 * 10))
-        # net = tf.concat(net_hats, axis=3)
-        # net = tf.reshape(net, [-1, 10, 10, 144])
-
-        net_hats = []
-        for first_index in range(0, 10):
-            net_internal_hats = []
-            for second_index in range(0, 10):
-                net_internal_hats.append(
-                    slim.conv2d(expand_dims(expand_dims(netinput[:, first_index, second_index, :], axis=1), axis=1),
-                                144, [1, 1], activation_fn=None))
-            net_hats.append(tf.concat(net_internal_hats, axis=2))
-        net = tf.concat(net_hats, axis=1)
+            data_format="NHWC"):
+        net = gen_net_method3(netinput)
         return net
 
 
-def _srdata_discriminator_model(generated_data, generator_input):
-    # bn_training_params = {'is_training': is_training, 'decay': 0.95}
-    # normalizer_fn=slim.batch_norm,
+def gen_net_method4(netinput):
+    return slim.conv2d(netinput, 144, [10, 10],
+                       activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
+
+
+def gen_net_method3(netinput):
+    net_hats = []
+    for index in range(0, 144):
+        level = expand_dims(netinput[:, :, :, index], axis=3)
+        level = slim.conv2d(level, 1, [1, 1], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
+        level = slim.conv2d(level, 1, [3, 3], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
+        level = slim.conv2d(level, 1, [5, 5], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
+        level = slim.conv2d(level, 1, [10, 10], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)),
+                            normalizer_fn=None,
+                            normalizer_params=None,
+                            weights_regularizer=None)
+        net_hats.append(level)
+
+    net = tf.concat(net_hats, axis=3)
+    return net
+
+
+def gen_net_method2(netinput):
+    net = tf.reshape(netinput, [-1, 100, 144])
+    net_hats = []
+    for index in range(0, 144):
+        net_hats.append(expand_dims(slim.fully_connected(net[:, :, index], 10 * 10), axis=2))
+    net = tf.concat(net_hats, axis=2)
+    net = tf.reshape(net, [-1, 10, 10, 144])
+    return net
+
+
+def gen_net_method1(netinput):
+    net_hats = []
+    for first_index in range(0, 10):
+        net_internal_hats = []
+        for second_index in range(0, 10):
+            net_internal_hats.append(
+                slim.conv2d(expand_dims(expand_dims(netinput[:, first_index, second_index, :], axis=1), axis=1),
+                            144, [1, 1], activation_fn=None))
+        net_hats.append(tf.concat(net_internal_hats, axis=2))
+    net = tf.concat(net_hats, axis=1)
+    return net
+
+
+def _srdata_discriminator_model(generated_data, generator_input, is_training=True):
     with slim.arg_scope([slim.fully_connected],
                         weights_initializer=initializers.variance_scaling(scale=2.0),
                         weights_regularizer=slim.l2_regularizer(0.001),
                         # normalizer_fn=slim.batch_norm,
                         # normalizer_params={'is_training': is_training, 'decay': 0.95},
-                        # normalizer_fn=slim.instance_norm,
-                        # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
+                        normalizer_fn=slim.instance_norm,
+                        normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
                         activation_fn=(lambda inp: slim.nn.leaky_relu(inp))):
-        net = tf.concat(axis=3, values=[generated_data, generator_input])
+        # net = tf.concat(axis=3, values=[generated_data, generator_input])
+        #
+        # net = slim.flatten(net)
+        # net = slim.fully_connected(net, 768 * 2, scope='fc2')
+        # net = slim.fully_connected(net, 384 * 2, scope='fc2')
+        # net = slim.fully_connected(net, 192 * 2, scope='fc3')
+        # net = slim.fully_connected(net, 128, scope='fc4')
+        # net = slim.fully_connected(net, 96, scope='fc5')
+        # net = slim.fully_connected(net, 64, scope='fc6')
+        net_hats = []
+        for index in range(0, 144):
+            level = expand_dims(generated_data[:, :, :, index], axis=3)
+            level = slim.conv2d(level, 1, [5, 5], padding='VALID')
+            level = slim.conv2d(level, 1, [3, 3], padding='VALID')
+            level = slim.conv2d(level, 1, [1, 1], padding='VALID',
+                                activation_fn=None, normalizer_fn=None, normalizer_params=None)
+            net_hats.append(level)
+        net = tf.concat(net_hats, axis=3)
 
-        net = slim.flatten(net)
-        net = slim.fully_connected(net, 384 * 2, scope='fc2')
-        net = slim.fully_connected(net, 192 * 2, scope='fc3')
-        net = slim.fully_connected(net, 128, scope='fc4')
-        net = slim.fully_connected(net, 96, scope='fc5')
-        net = slim.fully_connected(net, 64, scope='fc6')
-        net = slim.fully_connected(net, 48, scope='fc7')
-        net = slim.fully_connected(net, 32, scope='fc8')
     return net
 
 

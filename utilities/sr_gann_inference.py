@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import os
 
+import distutils
 import cv2
 import numpy
 import tensorflow as tf
@@ -16,7 +17,11 @@ from GRSS2018DataLoader import GRSS2018DataLoader
 from sr_data_generator import construct_inference_graph, model_forward_generator_name, \
     model_backward_generator_name, create_generator_restorer, extract_common_normalizer
 
-tfgan = tf.contrib.gan
+required_tensorflow_version = "1.14.0"
+if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
+    tfgan = tf.contrib.gan
+else:
+    import tensorflow_gan as tfgan
 
 flags.DEFINE_string('checkpoint_path', '',
                     'CycleGAN checkpoint path created by sr_gann_train.py. '
@@ -24,6 +29,8 @@ flags.DEFINE_string('checkpoint_path', '',
 flags.DEFINE_string('output_path', '',
                     'Output path to create tiff files. '
                     '(e.g. "/mylogdir/")')
+flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
+                    'Directory where to read the image inputs.')
 
 FLAGS = flags.FLAGS
 
@@ -54,10 +61,10 @@ def main(_):
     images_x_hwc_pl, generated_y = make_inference_graph(model_forward_generator_name, 10)
     images_y_hwc_pl, generated_x = make_inference_graph(model_backward_generator_name, 10)
 
-    grss2013_loader = GRSS2013DataLoader('C:/GoogleDriveBack/PHD/Tez/Source')
+    grss2013_loader = GRSS2013DataLoader(FLAGS.path)
     grss2013_data_set = grss2013_loader.load_data(0, False)
 
-    grss2018_loader = GRSS2018DataLoader('C:/GoogleDriveBack/PHD/Tez/Source')
+    grss2018_loader = GRSS2018DataLoader(FLAGS.path)
     grss2018_data_set = grss2018_loader.load_data(0, False)
 
     hsi2013_global_minimum, hsi2018_global_minimum, hsi2013_global_maximum, hsi2018_global_maximum = \

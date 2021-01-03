@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import distutils
 import math
 import os
 from math import floor, ceil
@@ -17,8 +18,11 @@ from GRSS2013DataLoader import GRSS2013DataLoader
 from GRSS2018DataLoader import GRSS2018DataLoader
 from sr_data_generator import _srdata_generator_model, _srdata_discriminator_model, extract_common_normalizer
 
-tfgan = tf.contrib.gan
-layers = tf.contrib.layers
+required_tensorflow_version = "1.14.0"
+if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
+    tfgan = tf.contrib.gan
+else:
+    import tensorflow_gan as tfgan
 
 flags.DEFINE_integer('batch_size', 3, 'The number of images in each batch.')
 
@@ -30,13 +34,13 @@ flags.DEFINE_string('train_log_dir', os.path.join(os.path.dirname(__file__), 'lo
 flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
                     'Directory where to read the image inputs.')
 
-flags.DEFINE_float('generator_lr', 0.002,
+flags.DEFINE_float('generator_lr', 0.0002,
                    'The compression model learning rate.')
 
-flags.DEFINE_float('discriminator_lr', 0.001,
+flags.DEFINE_float('discriminator_lr', 0.0002,
                    'The discriminator learning rate.')
 
-flags.DEFINE_integer('max_number_of_steps', 25000,
+flags.DEFINE_integer('max_number_of_steps', 5000,
                      'The maximum number of gradient steps.')
 
 flags.DEFINE_integer(
@@ -82,7 +86,7 @@ def _matched_data_generator(hsi_grss2013, hsi_grss2018, hsi_2013_spatial_repeat,
                              axis=1), hsi_2013_spatial_repeat, axis=0)
 
             # mean_list.append(numpy.mean(numpy.mean(hsi_2013_data / hsi_2018_data, axis=0), axis=0))
-            yield hsi_2013_data, hsi_2013_data / 2
+            yield hsi_2013_data, hsi_2018_data
 
 
 def get_grss2018_data(hsi_grss2018, hsi2013_x_idx, hsi2013_y_idx, scale, spatial_repeat, spectral_repeat):
@@ -198,7 +202,7 @@ def _define_model(images_x, images_y):
     """
     cyclegan_model = tfgan.cyclegan_model(
         generator_fn=lambda netinput: _srdata_generator_model(netinput, True),
-        discriminator_fn=lambda gendata, geninput: _srdata_discriminator_model(gendata, geninput),
+        discriminator_fn=lambda gendata, geninput: _srdata_discriminator_model(gendata, geninput, True),
         data_x=images_x,
         data_y=images_y)
 
@@ -320,7 +324,7 @@ def main(_):
         tfgan.gan_train(
             train_ops,
             FLAGS.train_log_dir,
-            save_checkpoint_secs=120,
+            save_checkpoint_secs=60*10,
             get_hooks_fn=tfgan.get_sequential_train_hooks(train_steps),
             hooks=[
                 initializer_hook,
