@@ -7,6 +7,8 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops.metrics_impl import metric_variable
 from tqdm import tqdm
 
+INVALID_TARGET_VALUE = 255
+
 
 class NNParams:
     def __init__(self, input_iterator, data_with_labels, metrics, predict_tensor):
@@ -375,7 +377,7 @@ def create_colored_image(target_image, color_list):
 
 
 def create_target_image_via_samples(sample_set, scene_shape):
-    image = numpy.full([scene_shape[0], scene_shape[1]], 255, dtype=numpy.uint8)
+    image = numpy.full([scene_shape[0], scene_shape[1]], INVALID_TARGET_VALUE, dtype=numpy.uint8)
     targets = numpy.vstack([sample_set.training_targets, sample_set.test_targets, sample_set.validation_targets])
     for point in targets.astype(int):
         image[point[1], point[0]] = point[2]

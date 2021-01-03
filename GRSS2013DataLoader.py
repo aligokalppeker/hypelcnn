@@ -88,7 +88,10 @@ class GRSS2013DataLoader(DataLoader):
 
     def _load_shadow_map(self, neighborhood, casi):
         shadow_map = scipy.io.loadmat(self.get_model_base_dir() + 'ShadowMap.mat').get('shadow_map')
-        shadow_ratio = self.calculate_shadow_ratio(casi, shadow_map)
+        shadow_ratio = self.calculate_shadow_ratio(casi,
+                                                   shadow_map,
+                                                   numpy.logical_not(shadow_map).astype(int))
+        shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
         shadow_map = numpy.pad(shadow_map, neighborhood, mode='symmetric')
         return shadow_map, shadow_ratio
 
@@ -183,16 +186,17 @@ class GRSS2013DataLoader(DataLoader):
         return color_list
 
     @staticmethod
-    def calculate_shadow_ratio(casi, shadow_map):
-        ratio_per_band = numpy.zeros(casi.shape[2] + 1, numpy.float64)
-        shadow_map_inverse = numpy.logical_not(shadow_map).astype(int)
+    def calculate_shadow_ratio(casi, shadow_map, shadow_map_inverse):
         shadow_map_inverse_mean = (shadow_map_inverse / numpy.sum(shadow_map_inverse))
         shadow_map_mean = (shadow_map / numpy.sum(shadow_map))
-        for band_index in range(0, casi.shape[2]):
-            current_band_data = casi[:, :, band_index]
-            ratio_per_band[band_index] = \
-                numpy.sum(current_band_data * shadow_map_inverse_mean) / numpy.sum(current_band_data * shadow_map_mean)
-        ratio_per_band[casi.shape[2]] = 1
+
+        shadow_map_mean = \
+            numpy.repeat(numpy.expand_dims(shadow_map_mean, axis=2), repeats=casi.shape[2], axis=2)
+        shadow_map_inverse_mean = \
+            numpy.repeat(numpy.expand_dims(shadow_map_inverse_mean, axis=2), repeats=casi.shape[2], axis=2)
+
+        ratio_per_band = numpy.sum(casi * shadow_map_inverse_mean, axis=(0, 1)) / numpy.sum(casi * shadow_map_mean,
+                                                                                            axis=(0, 1))
         return ratio_per_band.astype(numpy.float32)
 
     @staticmethod
