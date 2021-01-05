@@ -40,6 +40,7 @@ def main():
     target_classes_as_image = create_target_image_via_samples(sample_set, scene_shape)
 
     shadow_map = get_shadow_map(target_classes_as_image)
+    imwrite("muulf_shadow_map.tif", shadow_map, planarconfig='contig')
     create_shadow_corrected_image(data_set.casi, loader.load_data(0, False).casi, shadow_map)
     draw_targets(loader.get_target_color_list(), target_classes_as_image, "Targets")
 
@@ -75,9 +76,11 @@ def main():
             target_classes_as_image[image] = final_neigh_target
             print("shadow converted to neighboring target %d" % final_neigh_target)
 
-    imwrite("muulf_gt_shadow_corrected.tif", target_classes_as_image, planarconfig='contig')
-
     draw_targets(loader.get_target_color_list(), target_classes_as_image, "Targets after shadow correction")
+    # increase target level as one
+    target_classes_as_image[target_classes_as_image != INVALID_TARGET_VALUE] = target_classes_as_image[
+                                                                                   target_classes_as_image != INVALID_TARGET_VALUE] + 1
+    imwrite("muulf_gt_shadow_corrected.tif", target_classes_as_image, planarconfig='contig')
 
 
 def draw_targets(color_list, target_classes_as_image, figure_name):

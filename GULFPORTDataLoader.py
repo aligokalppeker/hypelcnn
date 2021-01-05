@@ -53,15 +53,7 @@ class GULFPORTDataLoader(DataLoader):
                        casi_min=casi_min, casi_max=casi_max)
 
     def load_samples(self, test_data_ratio):
-        targets = imread(self.get_model_base_dir() + 'muulf_gt.tif').astype(numpy.int8)
-        result = numpy.array([], dtype=int).reshape(0, 3)
-
-        for target_index in range(1, 12):
-            target_locations = numpy.where(targets == target_index)
-            target_locations_as_array = numpy.transpose(
-                numpy.vstack((target_locations[1].astype(int), target_locations[0].astype(int))))
-            target_index_as_array = numpy.full((len(target_locations_as_array), 1), target_index - 1)  # TargetIdx 0..11
-            result = numpy.vstack([result, numpy.hstack((target_locations_as_array, target_index_as_array))])
+        result = self._convert_samplemap_to_array(imread(self.get_model_base_dir() + 'muulf_gt.tif').astype(numpy.int8))
 
         validation_data_ratio = 0.90
         shuffler = StratifiedShuffleSplit(n_splits=1, test_size=validation_data_ratio)
@@ -78,6 +70,16 @@ class GULFPORTDataLoader(DataLoader):
                 train_set = train_set[train_index]
 
         return SampleSet(training_targets=train_set, test_targets=test_set, validation_targets=validation_set)
+
+    def _convert_samplemap_to_array(self, targets):
+        result = numpy.array([], dtype=int).reshape(0, 3)
+        for target_index in range(1, 12):
+            target_locations = numpy.where(targets == target_index)
+            target_locations_as_array = numpy.transpose(
+                numpy.vstack((target_locations[1].astype(int), target_locations[0].astype(int))))
+            target_index_as_array = numpy.full((len(target_locations_as_array), 1), target_index - 1)  # TargetIdx 0..11
+            result = numpy.vstack([result, numpy.hstack((target_locations_as_array, target_index_as_array))])
+        return result
 
     def get_class_count(self):
         return range(0, 11)
