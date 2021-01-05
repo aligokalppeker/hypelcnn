@@ -318,3 +318,6 @@ successful_logs/gulfport/svm/Results_1x1.txt
 /2013_DFTC/shadow_cycle_gan/modelv3/model.ckpt-12699.index
 /2013_DFTC/shadow_cycle_gan/modelv3/model.ckpt-12699.data-00000-of-00001
 /2013_DFTC/shadow_cycle_gan/modelv3/graph.pbtxt
+/GULFPORT/muulf_hsi_shadow_corrected.tif
+/GULFPORT/muulf_gt_shadow_corrected.tif
+/GULFPORT/muulf_shadow_map.tif
