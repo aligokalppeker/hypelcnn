@@ -81,6 +81,9 @@ class GULFPORTDataLoader(DataLoader):
             result = numpy.vstack([result, numpy.hstack((target_locations_as_array, target_index_as_array))])
         return result
 
+    def load_shadow_map(self, neighborhood, data_set):
+        pass
+    
     def get_class_count(self):
         return range(0, 11)
 

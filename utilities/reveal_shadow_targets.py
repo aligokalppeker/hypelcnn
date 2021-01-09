@@ -15,10 +15,9 @@ BUILDING_SHADOW_CLASS = 6
 
 
 def create_shadow_corrected_image(casi_normalized, casi, shadow_map):
-    non_shadow_map = numpy.logical_not(shadow_map)
     ratio = GRSS2013DataLoader.calculate_shadow_ratio(casi,
                                                       shadow_map,
-                                                      non_shadow_map.astype(int))
+                                                      numpy.logical_not(shadow_map).astype(int))
     add_coef = numpy.repeat(numpy.expand_dims(shadow_map, axis=2), casi_normalized.shape[2], axis=2) * (ratio - 1)
     final_casi = casi + (casi * add_coef)
     imwrite("muulf_hsi_shadow_corrected.tif", final_casi.astype(numpy.float32), planarconfig='contig')

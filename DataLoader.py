@@ -15,6 +15,10 @@ class DataLoader(ABC):
         pass
 
     @abstractmethod
+    def load_shadow_map(self, neighborhood, data_set):
+        pass
+
+    @abstractmethod
     def get_point_value(self, data_set, point):
         pass
 

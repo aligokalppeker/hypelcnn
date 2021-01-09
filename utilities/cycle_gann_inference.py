@@ -8,7 +8,7 @@ import numpy
 import tensorflow as tf
 from absl import flags
 
-from GRSS2013DataLoader import GRSS2013DataLoader
+from common_nn_operations import get_class
 from shadow_data_generator import construct_inference_graph, model_forward_generator_name, \
     model_backward_generator_name, create_generator_restorer
 
@@ -18,11 +18,17 @@ flags.DEFINE_string('checkpoint_path', '',
                     'CycleGAN checkpoint path created by cycle_gann_train.py. '
                     '(e.g. "/mylogdir/model.ckpt-18442")')
 
+flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",
+                    'Directory where to read the image inputs.')
+
+flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
+                    'Directory where to read the image inputs.')
+
 FLAGS = flags.FLAGS
 
 
-def make_inference_graph(model_name, clip_invalid_values=True):
-    input_tensor = tf.placeholder(dtype=tf.float32, shape=[1, 1, 144], name='x')
+def make_inference_graph(model_name, element_size, clip_invalid_values=True):
+    input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
     generated = construct_inference_graph(input_tensor, model_name, clip_invalid_values)
     return input_tensor, generated
 
@@ -43,22 +49,28 @@ def main(_):
 
     _validate_flags()
 
-    images_x_hwc_pl, generated_y = make_inference_graph(model_forward_generator_name, clip_invalid_values=False)
-    images_y_hwc_pl, generated_x = make_inference_graph(model_backward_generator_name, clip_invalid_values=False)
+    loader_name = FLAGS.loader_name
+    loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
+    data_set = loader.load_data(0, True)
+
+    element_size = loader.get_data_shape(data_set)
+    element_size = [element_size[0], element_size[1], element_size[2] - 1]
+    images_x_hwc_pl, generated_y = make_inference_graph(model_forward_generator_name, element_size,
+                                                        clip_invalid_values=False)
+    images_y_hwc_pl, generated_x = make_inference_graph(model_backward_generator_name, element_size,
+                                                        clip_invalid_values=False)
 
     # print_tensors_in_checkpoint_file(FLAGS.checkpoint_path, tensor_name='ModelX2Y', all_tensors=True)
-
-    loader = GRSS2013DataLoader('C:/GoogleDriveBack/PHD/Tez/Source')
-    data_set = loader.load_data(0, True)
 
     with tf.Session() as sess:
         create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
 
-        shadow_map, shadow_ratio = loader._load_shadow_map(0, data_set.concrete_data)
+        shadow_map, shadow_ratio = loader.load_shadow_map(0, data_set)
         indices = numpy.where(shadow_map == 0)
 
         iteration_count = 1000
-        total_band_ratio = numpy.zeros([1, 1, 144], dtype=float)
+        band_size = element_size[2]
+        total_band_ratio = numpy.zeros([1, 1, band_size], dtype=float)
         for i in range(0, iteration_count):
             # Pick a random point
             data_indice = random.randint(0, indices[0].size - 1)
@@ -67,13 +79,13 @@ def main(_):
 
             test_indice = [indices[1][data_indice], indices[0][data_indice]]
             test_x_data = loader.get_point_value(data_set, test_indice)
-            test_x_data = test_x_data[:, :, 0:144]
+            test_x_data = test_x_data[:, :, 0:band_size]
 
             generated_y_data = export(sess, images_x_hwc_pl, test_x_data, generated_y)
             generated_x_data = export(sess, images_y_hwc_pl, generated_y_data, generated_x)
 
             band_ratio = generated_y_data / test_x_data
-            shadow_calc_ratio = band_ratio * shadow_ratio[0:144]
+            shadow_calc_ratio = band_ratio * shadow_ratio[0:band_size]
 
             is_there_inf = numpy.any(numpy.isinf(band_ratio))
             if is_there_inf:
@@ -87,7 +99,7 @@ def main(_):
         print("Mean total ratio")
         print(total_band_ratio / iteration_count)
         print("Mean Generated vs Original Ratio")
-        print(total_band_ratio / iteration_count * shadow_ratio[0:144])
+        print(total_band_ratio / iteration_count * shadow_ratio[0:band_size])
 
         # normal_data_as_matrix, shadow_data_as_matrix = loader.get_targetbased_shadowed_normal_data(data_set,
         #                                                                                            loader,

@@ -10,6 +10,7 @@ from tensorflow.contrib.data import shuffle_and_repeat
 
 from DataLoader import SampleSet
 from GRSS2013DataLoader import GRSS2013DataLoader
+from common_nn_operations import get_class, get_all_shadowed_normal_data
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
 
 tfgan = tf.contrib.gan
@@ -30,6 +31,12 @@ flags.DEFINE_float('discriminator_lr', 0.0001,
 
 flags.DEFINE_integer('max_number_of_steps', 500000,
                      'The maximum number of gradient steps.')
+
+flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",
+                    'Directory where to read the image inputs.')
+
+flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
+                    'Directory where to read the image inputs.')
 
 flags.DEFINE_integer(
     'ps_tasks', 0,
@@ -62,25 +69,26 @@ class InitializerHook(tf.train.SessionRunHook):
                                self.normal_placeholder: self.normal_data})
 
 
-def load_op(batch_size, iteration_count):
+def load_op(batch_size, iteration_count, loader_name, path):
     neighborhood = 0
-    loader = GRSS2013DataLoader('C:/GoogleDriveBack/PHD/Tez/Source')
+    loader = get_class(loader_name + '.' + loader_name)(path)
     data_set = loader.load_data(neighborhood, True)
 
-    shadow_map, shadow_ratio = loader._load_shadow_map(neighborhood, data_set.concrete_data[:, :,
-                                                                     0:data_set.concrete_data.shape[2] - 1])
+    shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
 
     # normal_data_as_matrix, shadow_data_as_matrix = GRSS2013DataLoader.get_targetbased_shadowed_normal_data(data_set,
     #                                                                                     loader,
     #                                                                                     shadow_map,
     #                                                                                     loader.load_samples(0.1))
 
-    normal_data_as_matrix, shadow_data_as_matrix = get_data_from_scene(data_set, loader, shadow_map)
-
-    # normal_data_as_matrix, shadow_data_as_matrix = GRSS2013DataLoader.get_all_shadowed_normal_data(
-    #     data_set,
-    #     loader,
-    #     shadow_map)
+    create_map_using_targets = False
+    if create_map_using_targets:
+        normal_data_as_matrix, shadow_data_as_matrix = get_data_from_scene(data_set, loader, shadow_map)
+    else:
+        normal_data_as_matrix, shadow_data_as_matrix = get_all_shadowed_normal_data(
+            data_set,
+            loader,
+            shadow_map)
 
     hsi_channel_len = normal_data_as_matrix.shape[3] - 1
     normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:hsi_channel_len]
@@ -235,7 +243,7 @@ def main(_):
 
     with tf.device(tf.train.replica_device_setter(FLAGS.ps_tasks)):
         with tf.name_scope('inputs'):
-            initializer_hook = load_op(FLAGS.batch_size, FLAGS.max_number_of_steps)
+            initializer_hook = load_op(FLAGS.batch_size, FLAGS.max_number_of_steps, FLAGS.loader_name, FLAGS.path)
             training_input_iter = initializer_hook.input_itr
             images_x, images_y = training_input_iter.get_next()
             # Set batch size for summaries.

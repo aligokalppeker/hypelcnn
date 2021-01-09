@@ -50,8 +50,6 @@ class GRSS2013DataLoader(DataLoader):
         casi = imread(self.get_model_base_dir() + '2013_IEEE_GRSS_DF_Contest_CASI.tif')
         lidar = imread(self.get_model_base_dir() + '2013_IEEE_GRSS_DF_Contest_LiDAR.tif')[:, :, numpy.newaxis]
 
-        shadow_map, shadow_ratio = self._load_shadow_map(neighborhood, casi)
-
         # Padding part
         pad_size = ((neighborhood, neighborhood), (neighborhood, neighborhood), (0, 0))
         lidar = numpy.pad(lidar, pad_size, mode='symmetric')
@@ -71,6 +69,10 @@ class GRSS2013DataLoader(DataLoader):
         concrete_data[:, :, 0:concrete_data.shape[2] - 1] = casi
         concrete_data[:, :, concrete_data.shape[2] - 1] = lidar[:, :, 0]
 
+        data_set_for_shadowing = DataSet(shadow_creator_dict=None, concrete_data=concrete_data,
+                                         neighborhood=neighborhood, casi_min=casi_min, casi_max=casi_max)
+        _, shadow_ratio = self.load_shadow_map(neighborhood, data_set_for_shadowing)
+
         cyclegan_shadow_func = lambda inp: (self.construct_cyclegan_inference_graph_randomized(inp))
         cyclegan_shadow_op_creater = create_generator_restorer
         cyclegan_shadow_op_initializer = lambda restorer, session: (
@@ -86,11 +88,10 @@ class GRSS2013DataLoader(DataLoader):
         return DataSet(shadow_creator_dict=shadow_dict, concrete_data=concrete_data, neighborhood=neighborhood,
                        casi_min=casi_min, casi_max=casi_max)
 
-    def _load_shadow_map(self, neighborhood, casi):
+    def load_shadow_map(self, neighborhood, data_set):
+        casi = data_set.concrete_data[:, :, 0:data_set.concrete_data.shape[2] - 1]
         shadow_map = scipy.io.loadmat(self.get_model_base_dir() + 'ShadowMap.mat').get('shadow_map')
-        shadow_ratio = self.calculate_shadow_ratio(casi,
-                                                   shadow_map,
-                                                   numpy.logical_not(shadow_map).astype(int))
+        shadow_ratio = self.calculate_shadow_ratio(casi, shadow_map, numpy.logical_not(shadow_map).astype(int))
         shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
         shadow_map = numpy.pad(shadow_map, neighborhood, mode='symmetric')
         return shadow_map, shadow_ratio
@@ -270,35 +271,4 @@ class GRSS2013DataLoader(DataLoader):
                 shadow_data_as_matrix = shadow_point_expanded_values
             else:
                 shadow_data_as_matrix = numpy.vstack([shadow_data_as_matrix, shadow_point_expanded_values])
-        return normal_data_as_matrix, shadow_data_as_matrix
-
-    @staticmethod
-    def get_all_shadowed_normal_data(data_set, loader, shadow_map):
-        data_shape_info = loader.get_data_shape(data_set)
-        shadow_element_count = numpy.sum(shadow_map)
-        normal_element_count = shadow_map.shape[0] * shadow_map.shape[1] - shadow_element_count
-        shadow_data_as_matrix = numpy.zeros(numpy.concatenate([[shadow_element_count], data_shape_info]),
-                                            dtype=numpy.float32)
-        normal_data_as_matrix = numpy.zeros(numpy.concatenate([[normal_element_count], data_shape_info]),
-                                            dtype=numpy.float32)
-        shadow_element_index = 0
-        normal_element_index = 0
-        for x_index in range(0, shadow_map.shape[0]):
-            for y_index in range(0, shadow_map.shape[1]):
-                point_value = loader.get_point_value(data_set, [y_index, x_index])
-                if shadow_map[x_index, y_index] == 1:
-                    shadow_data_as_matrix[shadow_element_index, :, :, :] = point_value
-                    shadow_element_index = shadow_element_index + 1
-                else:
-                    normal_data_as_matrix[normal_element_index, :, :, :] = point_value
-                    normal_element_index = normal_element_index + 1
-
-        # Data Multiplication Part
-        # shadow_data_multiplier = int(normal_element_count / shadow_element_count)
-        # shadow_data_as_matrix = numpy.repeat(shadow_data_as_matrix,
-        #                                      repeats=int(normal_element_count / shadow_element_count), axis=0)
-        # shadow_element_count = shadow_element_count * shadow_data_multiplier
-
-        normal_data_as_matrix = normal_data_as_matrix[0:shadow_element_count, :, :, :]
-
         return normal_data_as_matrix, shadow_data_as_matrix

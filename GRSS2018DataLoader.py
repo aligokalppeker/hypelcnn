@@ -77,6 +77,9 @@ class GRSS2018DataLoader(DataLoader):
 
         return SampleSet(training_targets=train_set, test_targets=test_set, validation_targets=validation_set)
 
+    def load_shadow_map(self, neighborhood, data_set):
+        pass
+
     def get_class_count(self):
         return range(0, 20)
 
