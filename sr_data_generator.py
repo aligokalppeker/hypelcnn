@@ -53,15 +53,18 @@ def gen_net_method4(netinput):
 def gen_net_method3(netinput):
     net_hats = []
     for index in range(0, 144):
-        level = expand_dims(netinput[:, :, :, index], axis=3)
-        level = slim.conv2d(level, 1, [1, 1], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
-        level = slim.conv2d(level, 1, [3, 3], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
-        level = slim.conv2d(level, 1, [5, 5], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
-        level = slim.conv2d(level, 1, [10, 10], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)),
-                            normalizer_fn=None,
-                            normalizer_params=None,
-                            weights_regularizer=None)
-        net_hats.append(level)
+        level0 = expand_dims(netinput[:, :, :, index], axis=3)
+        level1 = slim.conv2d(level0, 1, [1, 1], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
+        # level1 = level1 + level0
+        level2 = slim.conv2d(level1, 1, [3, 3], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
+        # level2 = level2 + level1
+        level3 = slim.conv2d(level2, 1, [5, 5], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)))
+        # level3 = level3 + level2
+        level4 = slim.conv2d(level3, 1, [10, 10], activation_fn=(lambda inp: slim.nn.leaky_relu(inp)),
+                             normalizer_fn=None,
+                             normalizer_params=None,
+                             weights_regularizer=None)
+        net_hats.append(level4)
 
     net = tf.concat(net_hats, axis=3)
     return net
@@ -110,14 +113,19 @@ def _srdata_discriminator_model(generated_data, generator_input, is_training=Tru
         # net = slim.fully_connected(net, 64, scope='fc6')
         net_hats = []
         for index in range(0, 144):
-            level = expand_dims(generated_data[:, :, :, index], axis=3)
-            level = slim.conv2d(level, 1, [5, 5], padding='VALID')
-            level = slim.conv2d(level, 1, [3, 3], padding='VALID')
-            level = slim.conv2d(level, 1, [1, 1], padding='VALID',
-                                activation_fn=None, normalizer_fn=None, normalizer_params=None)
-            net_hats.append(level)
+            level0 = expand_dims(generated_data[:, :, :, index], axis=3)
+            level1 = slim.conv2d(level0, 1, [5, 5], padding='VALID')
+            level2 = slim.conv2d(level1, 1, [3, 3], padding='VALID')
+            level3 = slim.conv2d(level2, 1, [1, 1], padding='VALID',
+                                 activation_fn=None, normalizer_fn=None, normalizer_params=None)
+            net_hats.append(level3)
         net = tf.concat(net_hats, axis=3)
-
+        # net = slim.flatten(net)
+        # net = slim.fully_connected(net, 4 * 4 * 144, scope='fc1')
+        # net = slim.dropout(net, is_training=is_training)
+        # net = slim.fully_connected(net, 4 * 4 * 144, scope='fc2',
+        #                            activation_fn=None, normalizer_fn=None, normalizer_params=None)
+        # net = tf.reshape(net, [-1, 2, 2, 144])
     return net
 
 

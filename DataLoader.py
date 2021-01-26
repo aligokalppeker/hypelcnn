@@ -41,3 +41,7 @@ class DataLoader(ABC):
     @abstractmethod
     def get_target_color_list(self):
         pass
+
+    @abstractmethod
+    def get_original_data_type(self):
+        pass

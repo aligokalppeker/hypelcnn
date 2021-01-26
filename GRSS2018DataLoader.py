@@ -15,6 +15,9 @@ class GRSS2018DataLoader(DataLoader):
     def __init__(self, base_dir):
         self.base_dir = base_dir
 
+    def get_original_data_type(self):
+        return numpy.uint16
+    
     def load_data(self, neighborhood, normalize):
         casi = imread(self.get_model_base_dir() + '20170218_UH_CASI_S4_NAD83.tiff')[:, :, 0:-2]
         lidar = imread(self.get_model_base_dir() + 'UH17c_GEF051.tif')[:, :, numpy.newaxis]

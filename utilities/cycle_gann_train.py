@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import os
 
+import numpy
 import tensorflow as tf
 from absl import flags
 from tensorflow.contrib.data import shuffle_and_repeat
@@ -54,6 +55,15 @@ flags.DEFINE_float('cycle_consistency_loss_weight', 10.0,
 FLAGS = flags.FLAGS
 
 
+def create_dummy_shadowed_normal_data(data_set, loader):
+    data_shape_info = loader.get_data_shape(data_set)
+    element_count = 2000
+    shadow_data_as_matrix = numpy.full(numpy.concatenate([[element_count], data_shape_info]),
+                                       fill_value=0.5, dtype=numpy.float32)
+
+    return shadow_data_as_matrix*2, shadow_data_as_matrix
+
+
 class InitializerHook(tf.train.SessionRunHook):
 
     def __init__(self, input_itr, normal_placeholder, shadow_placeholder, normal_data, shadow_data):
@@ -88,7 +98,9 @@ def load_op(batch_size, iteration_count, loader_name, path):
         normal_data_as_matrix, shadow_data_as_matrix = get_all_shadowed_normal_data(
             data_set,
             loader,
-            shadow_map)
+            shadow_map, multiply_shadowed_data=False)
+
+    # normal_data_as_matrix, shadow_data_as_matrix = create_dummy_shadowed_normal_data(data_set, loader)
 
     hsi_channel_len = normal_data_as_matrix.shape[3] - 1
     normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:hsi_channel_len]
@@ -114,7 +126,7 @@ def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_rati
     with tf.name_scope('shadow_ratio_augmenter'):
         with tf.device('/cpu:0'):
             rand_number = tf.random_uniform([1], 0, 0.5)[0]
-            shadow_images = tf.cond(tf.less(rand_number, 0),
+            shadow_images = tf.cond(tf.less(rand_number, 1),
                                     true_fn=lambda: shadow_images,
                                     false_fn=lambda: (normal_images / shadow_ratio))
 

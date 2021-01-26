@@ -6,16 +6,11 @@ from DataLoader import SampleSet, ShadowOperationStruct
 from GRSS2013DataLoader import GRSS2013DataLoader
 from GULFPORTDataLoader import GULFPORTDataLoader, DataSet
 from common_nn_operations import INVALID_TARGET_VALUE
+from shadow_data_generator import construct_simple_shadow_inference_graph, create_generator_restorer, \
+    construct_cyclegan_inference_graph_randomized
 
 
 class GULFPORTALTDataLoader(GULFPORTDataLoader):
-
-    @staticmethod
-    def construct_simple_shadow_inference_graph(input_data, shadow_ratio):
-        # coin = tf.less(tf.random_uniform([1], 0, 1.0)[0], 0.5)
-        # images = tf.cond(coin, lambda: input_data / shadow_ratio, lambda: input_data * shadow_ratio)
-        images = input_data / shadow_ratio
-        return images
 
     def __init__(self, base_dir):
         super().__init__(base_dir)
@@ -27,10 +22,15 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         # Add extra lidar ratio as 1
         shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
 
-        simple_shadow_func = lambda inp: (self.construct_simple_shadow_inference_graph(inp, shadow_ratio))
-        shadow_dict = {'cycle_gan': ShadowOperationStruct(shadow_op=None,
-                                                          shadow_op_creater=None,
-                                                          shadow_op_initializer=None),
+        cyclegan_shadow_func = lambda inp: (construct_cyclegan_inference_graph_randomized(inp))
+        cyclegan_shadow_op_creater = create_generator_restorer
+        cyclegan_shadow_op_initializer = lambda restorer, session: (
+            restorer.restore(session, self.get_model_base_dir() + 'shadow_cycle_gan/v1/model.ckpt-14121'))
+
+        simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, shadow_ratio))
+        shadow_dict = {'cycle_gan': ShadowOperationStruct(shadow_op=cyclegan_shadow_func,
+                                                          shadow_op_creater=cyclegan_shadow_op_creater,
+                                                          shadow_op_initializer=cyclegan_shadow_op_initializer),
                        'simple': ShadowOperationStruct(shadow_op=simple_shadow_func,
                                                        shadow_op_creater=lambda: None,
                                                        shadow_op_initializer=lambda restorer, session: None)}

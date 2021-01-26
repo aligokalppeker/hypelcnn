@@ -29,6 +29,9 @@ class GULFPORTDataLoader(DataLoader):
     def __init__(self, base_dir):
         self.base_dir = base_dir
 
+    def get_original_data_type(self):
+        return numpy.float32
+
     def load_data(self, neighborhood, normalize):
         casi = imread(self.get_model_base_dir() + 'muulf_hsi.tif')
         lidar = numpy.expand_dims(imread(self.get_model_base_dir() + 'muulf_lidar.tif'), axis=2)
@@ -83,7 +86,7 @@ class GULFPORTDataLoader(DataLoader):
 
     def load_shadow_map(self, neighborhood, data_set):
         pass
-    
+
     def get_class_count(self):
         return range(0, 11)
 

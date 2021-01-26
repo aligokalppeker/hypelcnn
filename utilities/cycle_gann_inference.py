@@ -68,18 +68,18 @@ def main(_):
         shadow_map, shadow_ratio = loader.load_shadow_map(0, data_set)
         indices = numpy.where(shadow_map == 0)
 
-        iteration_count = 1000
+        iteration_count = 3000
         band_size = element_size[2]
         total_band_ratio = numpy.zeros([1, 1, band_size], dtype=float)
         for i in range(0, iteration_count):
             # Pick a random point
             data_indice = random.randint(0, indices[0].size - 1)
 
-            # test_x_data = numpy.random.rand(1, 1, 144)
-
             test_indice = [indices[1][data_indice], indices[0][data_indice]]
             test_x_data = loader.get_point_value(data_set, test_indice)
             test_x_data = test_x_data[:, :, 0:band_size]
+
+            # test_x_data = numpy.full([1, 1, band_size], fill_value=1.0, dtype=float)
 
             generated_y_data = export(sess, images_x_hwc_pl, test_x_data, generated_y)
             generated_x_data = export(sess, images_y_hwc_pl, generated_y_data, generated_x)

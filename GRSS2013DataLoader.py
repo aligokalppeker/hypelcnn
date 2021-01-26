@@ -2,13 +2,13 @@ from collections import namedtuple
 
 import numpy
 import scipy.io
-import tensorflow as tf
 from numba import jit
 from sklearn.model_selection import StratifiedShuffleSplit
 from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet, ShadowOperationStruct
-from shadow_data_generator import construct_inference_graph, model_forward_generator_name, create_generator_restorer
+from shadow_data_generator import create_generator_restorer, construct_cyclegan_inference_graph_randomized, \
+    construct_simple_shadow_inference_graph
 
 DataSet = namedtuple('DataSet', ['concrete_data', 'shadow_creator_dict', 'neighborhood', 'casi_min', 'casi_max'])
 
@@ -18,33 +18,8 @@ class GRSS2013DataLoader(DataLoader):
     def __init__(self, base_dir):
         self.base_dir = base_dir
 
-    @staticmethod
-    def construct_cyclegan_inference_graph(input_data, model_name):
-        with tf.device('/cpu:0'):
-            axis_id = 2
-            band_size = input_data.get_shape()[axis_id].value
-            hs_lidar_groups = tf.split(axis=axis_id, num_or_size_splits=[band_size - 1, 1],
-                                       value=input_data)
-            hs_converted = construct_inference_graph(hs_lidar_groups[0], model_name, clip_invalid_values=False)
-        return tf.concat(axis=axis_id, values=[hs_converted, hs_lidar_groups[1]])
-
-    @staticmethod
-    def construct_cyclegan_inference_graph_randomized(input_data):
-        # coin = tf.less(tf.random_uniform([1], 0, 1.0)[0], 0.5)
-        # images = tf.cond(coin,
-        #                  lambda: GRSS2013DataLoader.construct_cyclegan_inference_graph(input_data,
-        #                                                                                model_forward_generator_name),
-        #                  lambda: GRSS2013DataLoader.construct_cyclegan_inference_graph(input_data,
-        #                                                                                model_backward_generator_name))
-        images = GRSS2013DataLoader.construct_cyclegan_inference_graph(input_data, model_forward_generator_name)
-        return images
-
-    @staticmethod
-    def construct_simple_shadow_inference_graph(input_data, shadow_ratio):
-        # coin = tf.less(tf.random_uniform([1], 0, 1.0)[0], 0.5)
-        # images = tf.cond(coin, lambda: input_data / shadow_ratio, lambda: input_data * shadow_ratio)
-        images = input_data / shadow_ratio
-        return images
+    def get_original_data_type(self):
+        return numpy.uint16
 
     def load_data(self, neighborhood, normalize):
         casi = imread(self.get_model_base_dir() + '2013_IEEE_GRSS_DF_Contest_CASI.tif')
@@ -73,12 +48,12 @@ class GRSS2013DataLoader(DataLoader):
                                          neighborhood=neighborhood, casi_min=casi_min, casi_max=casi_max)
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set_for_shadowing)
 
-        cyclegan_shadow_func = lambda inp: (self.construct_cyclegan_inference_graph_randomized(inp))
+        cyclegan_shadow_func = lambda inp: (construct_cyclegan_inference_graph_randomized(inp))
         cyclegan_shadow_op_creater = create_generator_restorer
         cyclegan_shadow_op_initializer = lambda restorer, session: (
             restorer.restore(session, self.get_model_base_dir() + 'shadow_cycle_gan/modelv2/model.ckpt-5668'))
 
-        simple_shadow_func = lambda inp: (self.construct_simple_shadow_inference_graph(inp, shadow_ratio))
+        simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, shadow_ratio))
         shadow_dict = {'cycle_gan': ShadowOperationStruct(shadow_op=cyclegan_shadow_func,
                                                           shadow_op_creater=cyclegan_shadow_op_creater,
                                                           shadow_op_initializer=cyclegan_shadow_op_initializer),
@@ -89,11 +64,13 @@ class GRSS2013DataLoader(DataLoader):
                        casi_min=casi_min, casi_max=casi_max)
 
     def load_shadow_map(self, neighborhood, data_set):
-        casi = data_set.concrete_data[:, :, 0:data_set.concrete_data.shape[2] - 1]
-        shadow_map = scipy.io.loadmat(self.get_model_base_dir() + 'ShadowMap.mat').get('shadow_map')
-        shadow_ratio = self.calculate_shadow_ratio(casi, shadow_map, numpy.logical_not(shadow_map).astype(int))
-        shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
+        shadow_map = imread(self.get_model_base_dir() + 'shadow_map.tif')
         shadow_map = numpy.pad(shadow_map, neighborhood, mode='symmetric')
+        shadow_ratio = None
+        if data_set is not None:
+            shadow_ratio = self.calculate_shadow_ratio(data_set.concrete_data[:, :, 0:data_set.concrete_data.shape[2] - 1],
+                                                       shadow_map, numpy.logical_not(shadow_map).astype(int))
+            shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
         return shadow_map, shadow_ratio
 
     def load_samples(self, test_data_ratio):
