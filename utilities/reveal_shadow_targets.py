@@ -6,18 +6,18 @@ import matplotlib.pyplot as plt
 import numpy
 from tifffile import imwrite
 
-from GRSS2013DataLoader import GRSS2013DataLoader
 from cmd_parser import parse_cmd
-from common_nn_operations import get_class, create_target_image_via_samples, INVALID_TARGET_VALUE, create_colored_image
+from common_nn_operations import get_class, create_target_image_via_samples, INVALID_TARGET_VALUE, create_colored_image, \
+    calculate_shadow_ratio
 
 BUILDING_CLASS = 7
 BUILDING_SHADOW_CLASS = 6
 
 
 def create_shadow_corrected_image(casi_normalized, casi, shadow_map):
-    ratio = GRSS2013DataLoader.calculate_shadow_ratio(casi,
-                                                      shadow_map,
-                                                      numpy.logical_not(shadow_map).astype(int))
+    ratio = calculate_shadow_ratio(casi,
+                                   shadow_map,
+                                   numpy.logical_not(shadow_map).astype(int))
     add_coef = numpy.repeat(numpy.expand_dims(shadow_map, axis=2), casi_normalized.shape[2], axis=2) * (ratio - 1)
     final_casi = casi + (casi * add_coef)
     imwrite("muulf_hsi_shadow_corrected.tif", final_casi.astype(numpy.float32), planarconfig='contig')

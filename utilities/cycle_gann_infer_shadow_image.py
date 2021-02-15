@@ -53,7 +53,7 @@ def _validate_flags():
 def main(_):
     _validate_flags()
     convert_only_the_convenient_pixels = True
-    make_them_shadow = False
+    make_them_shadow = True
 
     loader_name = FLAGS.loader_name
     loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
@@ -65,7 +65,7 @@ def main(_):
     if multiplier is None:
         multiplier = 1
     target_data_type = loader.get_original_data_type()
-    shadow_map, _ = loader.load_shadow_map(0, data_set)
+    shadow_map, shadow_ratio = loader.load_shadow_map(0, data_set)
 
     scene_shape = loader.get_scene_shape(data_set)
     element_size = loader.get_data_shape(data_set)
