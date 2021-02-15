@@ -1,12 +1,12 @@
 from collections import namedtuple
 
 import numpy
-import scipy.io
 from numba import jit
 from sklearn.model_selection import StratifiedShuffleSplit
 from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet, ShadowOperationStruct
+from common_nn_operations import calculate_shadow_ratio
 from shadow_data_generator import create_generator_restorer, construct_cyclegan_inference_graph_randomized, \
     construct_simple_shadow_inference_graph
 
@@ -68,8 +68,9 @@ class GRSS2013DataLoader(DataLoader):
         shadow_map = numpy.pad(shadow_map, neighborhood, mode='symmetric')
         shadow_ratio = None
         if data_set is not None:
-            shadow_ratio = self.calculate_shadow_ratio(data_set.concrete_data[:, :, 0:data_set.concrete_data.shape[2] - 1],
-                                                       shadow_map, numpy.logical_not(shadow_map).astype(int))
+            shadow_ratio = calculate_shadow_ratio(
+                data_set.concrete_data[:, :, 0:data_set.concrete_data.shape[2] - 1],
+                shadow_map, numpy.logical_not(shadow_map).astype(int))
             shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
         return shadow_map, shadow_ratio
 
@@ -162,20 +163,6 @@ class GRSS2013DataLoader(DataLoader):
         # Running track
         color_list[14, :] = [207, 18, 56]
         return color_list
-
-    @staticmethod
-    def calculate_shadow_ratio(casi, shadow_map, shadow_map_inverse):
-        shadow_map_inverse_mean = (shadow_map_inverse / numpy.sum(shadow_map_inverse))
-        shadow_map_mean = (shadow_map / numpy.sum(shadow_map))
-
-        shadow_map_mean = \
-            numpy.repeat(numpy.expand_dims(shadow_map_mean, axis=2), repeats=casi.shape[2], axis=2)
-        shadow_map_inverse_mean = \
-            numpy.repeat(numpy.expand_dims(shadow_map_inverse_mean, axis=2), repeats=casi.shape[2], axis=2)
-
-        ratio_per_band = numpy.sum(casi * shadow_map_inverse_mean, axis=(0, 1)) / numpy.sum(casi * shadow_map_mean,
-                                                                                            axis=(0, 1))
-        return ratio_per_band.astype(numpy.float32)
 
     @staticmethod
     def get_targetbased_shadowed_normal_data(data_set, loader, shadow_map, samples):

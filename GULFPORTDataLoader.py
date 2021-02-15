@@ -74,7 +74,8 @@ class GULFPORTDataLoader(DataLoader):
 
         return SampleSet(training_targets=train_set, test_targets=test_set, validation_targets=validation_set)
 
-    def _convert_samplemap_to_array(self, targets):
+    @staticmethod
+    def _convert_samplemap_to_array(targets):
         result = numpy.array([], dtype=int).reshape(0, 3)
         for target_index in range(1, 12):
             target_locations = numpy.where(targets == target_index)

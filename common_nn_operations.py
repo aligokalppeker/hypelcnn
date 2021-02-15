@@ -414,3 +414,16 @@ def get_all_shadowed_normal_data(data_set, loader, shadow_map, multiply_shadowed
     normal_data_as_matrix = normal_data_as_matrix[0:shadow_element_count, :, :, :]
 
     return normal_data_as_matrix, shadow_data_as_matrix
+
+
+def calculate_shadow_ratio(casi, shadow_map, shadow_map_inverse):
+    shadow_map_multi = \
+        numpy.repeat(numpy.expand_dims(shadow_map == 0, axis=2), repeats=casi.shape[2], axis=2)
+    shadow_map_inverse_multi = \
+        numpy.repeat(numpy.expand_dims(shadow_map_inverse == 0, axis=2), repeats=casi.shape[2], axis=2)
+
+    data_in_shadow_map = numpy.ma.array(data=casi, mask=shadow_map_multi)
+    data_in_non_shadow_map = numpy.ma.array(data=casi, mask=shadow_map_inverse_multi)
+
+    ratio_per_band = data_in_non_shadow_map.mean(axis=(0, 1)) / data_in_shadow_map.mean(axis=(0, 1))
+    return ratio_per_band.filled().astype(numpy.float32)
