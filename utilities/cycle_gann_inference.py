@@ -88,8 +88,9 @@ def main(_):
             shadow_calc_ratio = band_ratio * shadow_ratio[0:band_size]
 
             is_there_inf = numpy.any(numpy.isinf(band_ratio))
-            if is_there_inf:
-                print("inf value")
+            is_there_nan = numpy.any(numpy.isnan(band_ratio))
+            if is_there_inf or is_there_nan:
+                print("inf or nan value")
             else:
                 total_band_ratio = total_band_ratio + band_ratio
 
