@@ -30,7 +30,7 @@ flags.DEFINE_float('generator_lr', 0.0002,
 flags.DEFINE_float('discriminator_lr', 0.0001,
                    'The discriminator learning rate.')
 
-flags.DEFINE_integer('max_number_of_steps', 500000,
+flags.DEFINE_integer('max_number_of_steps', 50000,
                      'The maximum number of gradient steps.')
 
 flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",
