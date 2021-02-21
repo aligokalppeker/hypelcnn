@@ -323,3 +323,14 @@ successful_logs/gulfport/svm/Results_1x1.txt
 /GULFPORT/muulf_shadow_map.tif
 /2013_DFTC/shadow_map.tif
 /2013_DFTC/shadow_map_no_test.tif
+/GULFPORT/shadow_cycle_gan/v1/
+/GULFPORT/shadow_cycle_gan/v1/events.out.tfevents.1613590680.AGP-PC
+/GULFPORT/shadow_cycle_gan/v1/graph.pbtxt
+/GULFPORT/shadow_cycle_gan/v1/model.ckpt-22519.data-00000-of-00001
+/GULFPORT/shadow_cycle_gan/v1/model.ckpt-22519.index
+/GULFPORT/shadow_cycle_gan/v1/model.ckpt-22519.meta
+/GULFPORT/shadow_cycle_gan/graph.pbtxt
+/GULFPORT/shadow_cycle_gan/model.ckpt-935.data-00000-of-00001
+/GULFPORT/shadow_cycle_gan/model.ckpt-935.index
+/GULFPORT/shadow_cycle_gan/model.ckpt-935.meta
+/GULFPORT/shadow_cycle_gan/v1/
