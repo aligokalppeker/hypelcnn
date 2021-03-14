@@ -61,6 +61,7 @@ class CNNModelv4(NNModel):
         with tf.device(model_input_params.device_id):
             data_format = None  # 'NHWC'
             bn_training_params = {'is_training': model_input_params.is_training, 'decay': algorithm_params["bn_decay"]}
+            use_residual = algorithm_params["use_residual"]
             lrelu = lambda inp: slim.nn.leaky_relu(inp, alpha=algorithm_params["lrelu_alpha"])
             with slim.arg_scope([slim.conv2d, slim.fully_connected],
                                 weights_initializer=initializers.variance_scaling(scale=2.0),
@@ -77,22 +78,26 @@ class CNNModelv4(NNModel):
 
                 spectral_hierarchy_level = algorithm_params["spectral_hierarchy_level"]
                 net1 = self.__create_spectral_nn_layers(data_format, level_filter_count, net0,
-                                                        spectral_hierarchy_level,
+                                                        spectral_hierarchy_level, use_residual,
                                                         True)
-                net1_acc = net1 + CNNModelv4.__scale_input_to_output(net0, net1)
+                if use_residual:
+                    net1 = net1 + CNNModelv4.__scale_input_to_output(net0, net1)
 
-                net2 = self.__create_spectral_nn_layers(data_format, level_filter_count, net1_acc,
-                                                        spectral_hierarchy_level,
+                net2 = self.__create_spectral_nn_layers(data_format, level_filter_count, net1,
+                                                        spectral_hierarchy_level, use_residual,
                                                         False)
-                net2_acc = net2 + CNNModelv4.__scale_input_to_output(net1, net2)
+                if use_residual:
+                    net2 = net2 + CNNModelv4.__scale_input_to_output(net1, net2)
 
                 spatial_hierarchy_level = algorithm_params["spatial_hierarchy_level"]
                 net3 = self.__create_levels_as_blocks(data_format,
-                                                      int(net2_acc.get_shape()[3].value / 2),
-                                                      net2_acc, spatial_hierarchy_level)
-                net3_acc = net3 + CNNModelv4.__scale_input_to_output(net2_acc, net3)
+                                                      int(net2.get_shape()[3].value / 2),
+                                                      net2, spatial_hierarchy_level,
+                                                      use_residual)
+                if use_residual:
+                    net3 = net3 + CNNModelv4.__scale_input_to_output(net2, net3)
 
-                net4 = slim.flatten(net3_acc)
+                net4 = slim.flatten(net3)
 
                 degradation_coeff = algorithm_params["degradation_coeff"]
                 net5 = self.__create_fc_block(algorithm_params, class_count, degradation_coeff, model_input_params,
@@ -146,23 +151,27 @@ class CNNModelv4(NNModel):
         return netinput
 
     @staticmethod
-    def __create_levels_as_blocks(data_format, level_final_filter_count, netinput, block_level_count):
+    def __create_levels_as_blocks(data_format, level_final_filter_count, netinput, block_level_count, use_residual):
         for index in range(0, block_level_count):
             next_net = CNNModelv4.__create_a_level(int(level_final_filter_count / pow(2, index)), netinput,
                                                    'connector_' + str(index),
                                                    data_format)
             # disabling the residual connection
             # compatibility issues with older network models(before 27.04.20)
-            next_net = next_net + CNNModelv4.__scale_input_to_output(netinput, next_net)
+            if use_residual:
+                next_net = next_net + CNNModelv4.__scale_input_to_output(netinput, next_net)
 
             next_net_conv = slim.conv2d(next_net, next_net.get_shape()[3], [1, 1],
                                         scope='connector_conv_' + str(index),
                                         data_format=data_format)
-            netinput = next_net_conv + next_net
+            if use_residual:
+                next_net_conv = next_net_conv + next_net
+
+            netinput = next_net_conv
         return netinput
 
     @staticmethod
-    def __create_spectral_nn_layers(data_format, level_final_filter_count, net0, count, is_encoding_layers):
+    def __create_spectral_nn_layers(data_format, level_final_filter_count, net0, count, use_residual, is_encoding_layers):
         net_input = net0
         for nn_index in range(0, count):
             if is_encoding_layers:
@@ -175,7 +184,9 @@ class CNNModelv4(NNModel):
             next_net = slim.conv2d(net_input, int(layer_filter_size), [1, 1],
                                    scope=conv_name + str(nn_index),
                                    data_format=data_format)
-            next_net = next_net + CNNModelv4.__scale_input_to_output(net_input, next_net)
+            if use_residual:
+                next_net = next_net + CNNModelv4.__scale_input_to_output(net_input, next_net)
+
             net_input = next_net
         return net_input
 
