@@ -5,6 +5,7 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet
+from common_nn_operations import read_targets_from_image
 
 DataSet = namedtuple('DataSet', ['shadow_creator_dict', 'casi', 'lidar', 'neighborhood', 'casi_min', 'casi_max'])
 
@@ -56,7 +57,7 @@ class GULFPORTDataLoader(DataLoader):
                        casi_min=casi_min, casi_max=casi_max)
 
     def load_samples(self, test_data_ratio):
-        result = self._convert_samplemap_to_array(imread(self.get_model_base_dir() + 'muulf_gt.tif').astype(numpy.int8))
+        result = self.read_targets('muulf_gt.tif')
 
         validation_data_ratio = 0.90
         shuffler = StratifiedShuffleSplit(n_splits=1, test_size=validation_data_ratio)
@@ -74,16 +75,13 @@ class GULFPORTDataLoader(DataLoader):
 
         return SampleSet(training_targets=train_set, test_targets=test_set, validation_targets=validation_set)
 
+    def read_targets(self, target_image_path):
+        targets = imread(self.get_model_base_dir() + target_image_path)
+        return self._convert_targets_aux(targets)
+
     @staticmethod
-    def _convert_samplemap_to_array(targets):
-        result = numpy.array([], dtype=int).reshape(0, 3)
-        for target_index in range(1, 12):
-            target_locations = numpy.where(targets == target_index)
-            target_locations_as_array = numpy.transpose(
-                numpy.vstack((target_locations[1].astype(int), target_locations[0].astype(int))))
-            target_index_as_array = numpy.full((len(target_locations_as_array), 1), target_index - 1)  # TargetIdx 0..11
-            result = numpy.vstack([result, numpy.hstack((target_locations_as_array, target_index_as_array))])
-        return result
+    def _convert_targets_aux(targets):
+        return read_targets_from_image(targets, range(1, 12)) - [0, 0, 1]
 
     def load_shadow_map(self, neighborhood, data_set):
         pass

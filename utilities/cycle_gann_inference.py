@@ -14,6 +14,7 @@ from shadow_data_generator import construct_inference_graph, model_forward_gener
 
 tfgan = tf.contrib.gan
 
+flags.DEFINE_integer('neighborhood', 0, 'Neighborhood of samples.')
 flags.DEFINE_string('checkpoint_path', '',
                     'CycleGAN checkpoint path created by cycle_gann_train.py. '
                     '(e.g. "/mylogdir/model.ckpt-18442")')
@@ -46,12 +47,13 @@ def _validate_flags():
 
 def main(_):
     numpy.set_printoptions(precision=5, suppress=True)
+    neighborhood = FLAGS.neighborhood
 
     _validate_flags()
 
     loader_name = FLAGS.loader_name
     loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
-    data_set = loader.load_data(0, True)
+    data_set = loader.load_data(neighborhood, True)
 
     element_size = loader.get_data_shape(data_set)
     element_size = [element_size[0], element_size[1], element_size[2] - 1]
@@ -65,10 +67,14 @@ def main(_):
     with tf.Session() as sess:
         create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
 
-        shadow_map, shadow_ratio = loader.load_shadow_map(0, data_set)
-        indices = numpy.where(shadow_map == 0)
+        shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
+        # neighborhood aware indice finder
+        if neighborhood > 0:
+            indices = numpy.where(shadow_map[neighborhood:-neighborhood, neighborhood:-neighborhood] == 0)
+        else:
+            indices = numpy.where(shadow_map == 0)
 
-        iteration_count = 3000
+        iteration_count = 3000*2
         band_size = element_size[2]
         total_band_ratio = numpy.zeros([1, 1, band_size], dtype=float)
         for i in range(0, iteration_count):
@@ -84,7 +90,7 @@ def main(_):
             generated_y_data = export(sess, images_x_hwc_pl, test_x_data, generated_y)
             generated_x_data = export(sess, images_y_hwc_pl, generated_y_data, generated_x)
 
-            band_ratio = generated_y_data / test_x_data
+            band_ratio = numpy.mean(generated_y_data / test_x_data, axis=(0, 1))
             shadow_calc_ratio = band_ratio * shadow_ratio[0:band_size]
 
             is_there_inf = numpy.any(numpy.isinf(band_ratio))

@@ -3,7 +3,6 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from tifffile import imread
 
 from DataLoader import SampleSet, ShadowOperationStruct
-from GRSS2013DataLoader import GRSS2013DataLoader
 from GULFPORTDataLoader import GULFPORTDataLoader, DataSet
 from common_nn_operations import INVALID_TARGET_VALUE, calculate_shadow_ratio
 from shadow_data_generator import construct_simple_shadow_inference_graph, create_generator_restorer, \
@@ -25,7 +24,7 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         cyclegan_shadow_func = lambda inp: (construct_cyclegan_inference_graph_randomized(inp))
         cyclegan_shadow_op_creater = create_generator_restorer
         cyclegan_shadow_op_initializer = lambda restorer, session: (
-            restorer.restore(session, self.get_model_base_dir() + 'shadow_cycle_gan/v2/model.ckpt-14186'))
+            restorer.restore(session, self.get_model_base_dir() + 'shadow_cycle_gan/v1/model.ckpt-22519'))
 
         simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, shadow_ratio))
         shadow_dict = {'cycle_gan': ShadowOperationStruct(shadow_op=cyclegan_shadow_func,
@@ -43,13 +42,14 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         shadow_map, _ = self.load_shadow_map(0, None)
 
         targets = imread(self.get_model_base_dir() + 'muulf_gt_shadow_corrected.tif')
+
         targets_with_shadow = numpy.copy(targets)
         targets_with_shadow[numpy.logical_not(shadow_map)] = INVALID_TARGET_VALUE
-        result_with_shadow = self._convert_samplemap_to_array(targets_with_shadow)
+        result_with_shadow = self._convert_targets_aux(targets_with_shadow)
 
         targets_in_clear_area = numpy.copy(targets)
         targets_in_clear_area[shadow_map.astype(bool)] = INVALID_TARGET_VALUE
-        result_in_clear_area = self._convert_samplemap_to_array(targets_in_clear_area)
+        result_in_clear_area = self._convert_targets_aux(targets_in_clear_area)
 
         train_data_ratio = 100
         validation_data_ratio = None
@@ -83,8 +83,8 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         shadow_ratio = None
         if data_set is not None:
             shadow_ratio = calculate_shadow_ratio(data_set.casi,
-                                                                     shadow_map,
-                                                                     numpy.logical_not(shadow_map).astype(int))
+                                                  shadow_map,
+                                                  numpy.logical_not(shadow_map).astype(int))
         return shadow_map, shadow_ratio
 
     def shuffle_training_data_using_size(self, result_in_clear_area, train_data_size, validation_size):

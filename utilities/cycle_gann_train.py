@@ -8,10 +8,10 @@ import numpy
 import tensorflow as tf
 from absl import flags
 from tensorflow.contrib.data import shuffle_and_repeat
+from tensorflow.contrib.gan.python import losses as tfgan_losses
 
 from DataLoader import SampleSet
-from GRSS2013DataLoader import GRSS2013DataLoader
-from common_nn_operations import get_class, get_all_shadowed_normal_data
+from common_nn_operations import get_class, get_all_shadowed_normal_data, get_targetbased_shadowed_normal_data
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
 
 tfgan = tf.contrib.gan
@@ -39,6 +39,9 @@ flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",
 flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
                     'Directory where to read the image inputs.')
 
+flags.DEFINE_bool('use_target_map', False,
+                  'Whether to use target map to create train data pairs.')
+
 flags.DEFINE_integer(
     'ps_tasks', 0,
     'The number of parameter servers. If the value is 0, then the parameters '
@@ -61,7 +64,7 @@ def create_dummy_shadowed_normal_data(data_set, loader):
     shadow_data_as_matrix = numpy.full(numpy.concatenate([[element_count], data_shape_info]),
                                        fill_value=0.5, dtype=numpy.float32)
 
-    return shadow_data_as_matrix*2, shadow_data_as_matrix
+    return shadow_data_as_matrix * 2, shadow_data_as_matrix
 
 
 class InitializerHook(tf.train.SessionRunHook):
@@ -91,8 +94,7 @@ def load_op(batch_size, iteration_count, loader_name, path):
     #                                                                                     shadow_map,
     #                                                                                     loader.load_samples(0.1))
 
-    create_map_using_targets = False
-    if create_map_using_targets:
+    if FLAGS.use_target_map:
         normal_data_as_matrix, shadow_data_as_matrix = get_data_from_scene(data_set, loader, shadow_map)
     else:
         normal_data_as_matrix, shadow_data_as_matrix = get_all_shadowed_normal_data(
@@ -134,22 +136,20 @@ def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_rati
 
 
 def get_data_from_scene(data_set, loader, shadow_map):
-    samples = SampleSet(training_targets=loader.read_targets("\\shadow_cycle_gan\\result_raw_941.tif"),
+    samples = SampleSet(training_targets=loader.read_targets("\\shadow_cycle_gan\\class_result.tif"),
                         test_targets=None,
                         validation_targets=None)
     first_margin_start = 5
-    first_margin_end = data_set.concrete_data.shape[0] - 5
+    first_margin_end = loader.get_scene_shape(data_set)[0] - 5
     second_margin_start = 5
-    second_margin_end = data_set.concrete_data.shape[1] - 5
+    second_margin_end = loader.get_scene_shape(data_set)[1] - 5
     for target_index in range(0, samples.training_targets.shape[0]):
         current_target = samples.training_targets[target_index]
         if not (first_margin_start < current_target[1] < first_margin_end and
                 second_margin_start < current_target[0] < second_margin_end):
             current_target[2] = -1
-    normal_data_as_matrix, shadow_data_as_matrix = GRSS2013DataLoader.get_targetbased_shadowed_normal_data(data_set,
-                                                                                                           loader,
-                                                                                                           shadow_map,
-                                                                                                           samples)
+    normal_data_as_matrix, shadow_data_as_matrix = get_targetbased_shadowed_normal_data(data_set, loader, shadow_map,
+                                                                                        samples)
     return normal_data_as_matrix, shadow_data_as_matrix
 
 
@@ -268,6 +268,8 @@ def main(_):
         # Define CycleGAN loss.
         cyclegan_loss = tfgan.cyclegan_loss(
             cyclegan_model,
+            # generator_loss_fn=tfgan_losses.modified_generator_loss,
+            # discriminator_loss_fn=tfgan_losses.modified_discriminator_loss,
             cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
             tensor_pool_fn=tfgan.features.tensor_pool)
 
