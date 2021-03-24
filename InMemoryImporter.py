@@ -37,13 +37,13 @@ class InMemoryImporter(DataImporter):
 
         return Target(data=data_as_matrix, labels=label_as_matrix)
 
-    def read_data_set(self, loader_name, path, test_data_ratio, neighborhood, normalize):
+    def read_data_set(self, loader_name, path, train_data_ratio, test_data_ratio, neighborhood, normalize):
         start_time = time.time()
 
         loader = get_class(loader_name + '.' + loader_name)(path)
 
         data_set = loader.load_data(neighborhood, normalize)
-        sample_set = loader.load_samples(test_data_ratio)
+        sample_set = loader.load_samples(train_data_ratio, test_data_ratio)
 
         training_data_with_labels = self._get_data_with_labels(sample_set.training_targets, loader, data_set)
         validation_data_with_labels = self._get_data_with_labels(sample_set.validation_targets, loader, data_set)

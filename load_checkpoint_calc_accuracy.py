@@ -5,8 +5,8 @@ import time
 
 import numpy
 import tensorflow as tf
-from tifffile import imsave
 from tensorflow.contrib import slim
+from tifffile import imsave
 
 from cmd_parser import parse_cmd
 from common_nn_operations import get_class, simple_nn_iterator, ModelInputParams, NNParams, \
@@ -30,7 +30,8 @@ def main(_):
 
     training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, \
     scene_shape, color_list = \
-        data_importer.read_data_set(flags.loader_name, flags.path, flags.test_ratio, flags.neighborhood, True)
+        data_importer.read_data_set(flags.loader_name, flags.path, flags.train_ratio, flags.test_ratio,
+                                    flags.neighborhood, True)
 
     validation_data_with_labels = data_importer.create_all_scene_data(scene_shape,
                                                                       validation_data_with_labels)

@@ -2,11 +2,10 @@ from collections import namedtuple
 
 import numpy
 from numba import jit
-from sklearn.model_selection import StratifiedShuffleSplit
 from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet, ShadowOperationStruct
-from common_nn_operations import calculate_shadow_ratio, read_targets_from_image
+from common_nn_operations import calculate_shadow_ratio, read_targets_from_image, shuffle_test_data_using_ratio
 from shadow_data_generator import create_generator_restorer, construct_cyclegan_inference_graph_randomized, \
     construct_simple_shadow_inference_graph
 
@@ -74,17 +73,11 @@ class GRSS2013DataLoader(DataLoader):
             shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
         return shadow_map, shadow_ratio
 
-    def load_samples(self, test_data_ratio):
+    def load_samples(self, train_data_ratio, test_data_ratio):
         train_set = self.read_targets('2013_IEEE_GRSS_DF_Contest_Samples_TR.tif')
         validation_set = self.read_targets('2013_IEEE_GRSS_DF_Contest_Samples_VA.tif')
 
-        # Empty set for 0 ratio for testing
-        test_set = numpy.empty([0, train_set.shape[1]])
-        if test_data_ratio > 0:
-            shuffler = StratifiedShuffleSplit(n_splits=1, test_size=test_data_ratio, random_state=0)
-            for train_index, test_index in shuffler.split(train_set[:, 0:1], train_set[:, 2]):
-                test_set = train_set[test_index]
-                train_set = train_set[train_index]
+        test_set, train_set = shuffle_test_data_using_ratio(train_set, test_data_ratio)
 
         return SampleSet(training_targets=train_set, test_targets=test_set,
                          validation_targets=validation_set)
@@ -155,5 +148,3 @@ class GRSS2013DataLoader(DataLoader):
         # Running track
         color_list[14, :] = [207, 18, 56]
         return color_list
-
-

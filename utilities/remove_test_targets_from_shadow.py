@@ -18,7 +18,7 @@ def main():
     loader_name = flags.loader_name
     loader = get_class(loader_name + '.' + loader_name)(flags.path)
 
-    sample_set = loader.load_samples(0.1)
+    sample_set = loader.load_samples(0.1, 0.1)
     data_set = loader.load_data(0, True)
     shadow_map, _ = loader.load_shadow_map(0, data_set)
 

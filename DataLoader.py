@@ -11,7 +11,7 @@ class DataLoader(ABC):
         pass
 
     @abstractmethod
-    def load_samples(self, test_data_ratio):
+    def load_samples(self, train_data_ratio, test_data_ratio):
         pass
 
     @abstractmethod

@@ -20,13 +20,13 @@ class GeneratorImporter(DataImporter):
         for point in targets:
             yield (loader.get_point_value(data_set, point), point[2])
 
-    def read_data_set(self, loader_name, path, test_data_ratio, neighborhood, normalize):
+    def read_data_set(self, loader_name, path, train_data_ratio, test_data_ratio, neighborhood, normalize):
         start_time = time.time()
 
         loader = get_class(loader_name + '.' + loader_name)(path)
 
         data_set = loader.load_data(neighborhood, normalize)
-        sample_set = loader.load_samples(test_data_ratio)
+        sample_set = loader.load_samples(train_data_ratio, test_data_ratio)
 
         training_data_shape = numpy.concatenate(
             ([sample_set.training_targets.shape[0]], loader.get_data_shape(data_set)))

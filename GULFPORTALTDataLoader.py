@@ -1,10 +1,10 @@
 import numpy
-from sklearn.model_selection import StratifiedShuffleSplit
 from tifffile import imread
 
 from DataLoader import SampleSet, ShadowOperationStruct
 from GULFPORTDataLoader import GULFPORTDataLoader, DataSet
-from common_nn_operations import INVALID_TARGET_VALUE, calculate_shadow_ratio
+from common_nn_operations import INVALID_TARGET_VALUE, calculate_shadow_ratio, shuffle_training_data_using_ratio, \
+    shuffle_training_data_using_size
 from shadow_data_generator import construct_simple_shadow_inference_graph, create_generator_restorer, \
     construct_cyclegan_inference_graph_randomized
 
@@ -38,7 +38,7 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
                        neighborhood=data_set.neighborhood,
                        casi_min=data_set.casi_min, casi_max=data_set.casi_max)
 
-    def load_samples(self, test_data_ratio):
+    def load_samples(self, train_data_ratio, test_data_ratio):
         shadow_map, _ = self.load_shadow_map(0, None)
 
         targets = imread(self.get_model_base_dir() + 'muulf_gt_shadow_corrected.tif')
@@ -51,14 +51,15 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         targets_in_clear_area[shadow_map.astype(bool)] = INVALID_TARGET_VALUE
         result_in_clear_area = self._convert_targets_aux(targets_in_clear_area)
 
-        train_data_ratio = 100
-        validation_data_ratio = None
-
-        if isinstance(train_data_ratio, float):
-            train_set, validation_set = self.shuffle_training_data_using_ratio(result_in_clear_area, train_data_ratio)
+        # train_data_ratio = 100
+        if train_data_ratio < 1.0:
+            train_set, validation_set = shuffle_training_data_using_ratio(result_in_clear_area, train_data_ratio)
         else:
-            train_set, validation_set = self.shuffle_training_data_using_size(result_in_clear_area, train_data_ratio,
-                                                                              validation_data_ratio)
+            train_data_ratio = int(train_data_ratio)
+            train_set, validation_set = shuffle_training_data_using_size(self.get_class_count(),
+                                                                         result_in_clear_area,
+                                                                         train_data_ratio,
+                                                                         None)
         # Empty set for 0 ratio for testing
         test_set = numpy.empty([0, train_set.shape[1]])
 
@@ -66,16 +67,6 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         validation_set = numpy.vstack([validation_set, result_with_shadow])
 
         return SampleSet(training_targets=train_set, test_targets=test_set, validation_targets=validation_set)
-
-    @staticmethod
-    def shuffle_training_data_using_ratio(result_in_clear_area, train_data_ratio):
-        validation_set = None
-        train_set = None
-        shuffler = StratifiedShuffleSplit(n_splits=1, train_size=train_data_ratio)
-        for train_index, test_index in shuffler.split(result_in_clear_area[:, 0:1], result_in_clear_area[:, 2]):
-            validation_set = result_in_clear_area[test_index]
-            train_set = result_in_clear_area[train_index]
-        return train_set, validation_set
 
     def load_shadow_map(self, neighborhood, data_set):
         shadow_map = imread(self.get_model_base_dir() + 'muulf_shadow_map.tif')
@@ -86,25 +77,3 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
                                                   shadow_map,
                                                   numpy.logical_not(shadow_map).astype(int))
         return shadow_map, shadow_ratio
-
-    def shuffle_training_data_using_size(self, result_in_clear_area, train_data_size, validation_size):
-        sample_id_list = result_in_clear_area[:, 2]
-        train_set = numpy.empty([0, result_in_clear_area.shape[1]], dtype=numpy.int)
-        validation_set = numpy.empty([0, result_in_clear_area.shape[1]], dtype=numpy.int)
-        for sample_class in self.get_class_count():
-            id_for_class = numpy.where(sample_id_list == sample_class)[0]
-            class_sample_count = id_for_class.shape[0]
-            if class_sample_count > 0:
-                all_index = numpy.arange(class_sample_count)
-                train_index = numpy.random.choice(class_sample_count, train_data_size, replace=False)
-                validation_index = numpy.array([index for index in all_index if index not in train_index])
-                if validation_size is not None:
-                    validation_index_size = validation_index.shape[0]
-                    validation_size = min(validation_size, validation_index_size)
-                    rand_indices = numpy.random.choice(validation_index_size, validation_size, replace=False)
-                    validation_index = validation_index[rand_indices]
-                # add elements
-                train_set = numpy.vstack([train_set, result_in_clear_area[id_for_class[train_index], :]])
-                validation_set = numpy.vstack([validation_set, result_in_clear_area[id_for_class[validation_index], :]])
-
-        return train_set, validation_set

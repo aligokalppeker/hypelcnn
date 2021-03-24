@@ -5,7 +5,8 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet
-from common_nn_operations import read_targets_from_image
+from common_nn_operations import read_targets_from_image, shuffle_training_data_using_ratio, \
+    shuffle_training_data_using_size, shuffle_test_data_using_ratio
 
 DataSet = namedtuple('DataSet', ['shadow_creator_dict', 'casi', 'lidar', 'neighborhood', 'casi_min', 'casi_max'])
 
@@ -56,22 +57,19 @@ class GULFPORTDataLoader(DataLoader):
         return DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
                        casi_min=casi_min, casi_max=casi_max)
 
-    def load_samples(self, test_data_ratio):
+    def load_samples(self, train_data_ratio, test_data_ratio):
         result = self.read_targets('muulf_gt.tif')
 
-        validation_data_ratio = 0.90
-        shuffler = StratifiedShuffleSplit(n_splits=1, test_size=validation_data_ratio)
-        for train_index, test_index in shuffler.split(result[:, 0:1], result[:, 2]):
-            validation_set = result[test_index]
-            train_set = result[train_index]
+        if train_data_ratio < 1.0:
+            train_set, validation_set = shuffle_training_data_using_ratio(result, train_data_ratio)
+        else:
+            train_data_ratio = int(train_data_ratio)
+            train_set, validation_set = shuffle_training_data_using_size(self.get_class_count(),
+                                                                         result,
+                                                                         train_data_ratio,
+                                                                         None)
 
-        # Empty set for 0 ratio for testing
-        test_set = numpy.empty([0, train_set.shape[1]])
-        if test_data_ratio > 0:
-            train_shuffler = StratifiedShuffleSplit(n_splits=1, test_size=test_data_ratio, random_state=0)
-            for train_index, test_index in train_shuffler.split(train_set[:, 0:1], train_set[:, 2]):
-                test_set = train_set[test_index]
-                train_set = train_set[train_index]
+        test_set, train_set = shuffle_test_data_using_ratio(train_set, test_data_ratio)
 
         return SampleSet(training_targets=train_set, test_targets=test_set, validation_targets=validation_set)
 

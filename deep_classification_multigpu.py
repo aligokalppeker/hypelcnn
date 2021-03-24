@@ -23,7 +23,8 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
 
     training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, \
     scene_shape, color_list = \
-        data_importer.read_data_set(flags.loader_name, flags.path, flags.test_ratio, flags.neighborhood, True)
+        data_importer.read_data_set(flags.loader_name, flags.path, flags.train_ratio, flags.test_ratio,
+                                    flags.neighborhood, True)
 
     shadow_struct = None
     if flags.augment_data_with_shadow is not None:

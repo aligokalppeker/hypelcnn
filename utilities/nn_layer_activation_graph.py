@@ -22,10 +22,11 @@ class ControlledDataImporter(DataImporter):
         self.target_data = []
         self.generator_importer = GeneratorImporter()
 
-    def read_data_set(self, loader_name, path, test_data_ratio, neighborhood, normalize):
+    def read_data_set(self, loader_name, path, train_data_ratio, test_data_ratio, neighborhood, normalize):
         training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, \
         scene_shape, color_list = \
-            self.generator_importer.read_data_set(loader_name=loader_name, path=path, test_data_ratio=test_data_ratio,
+            self.generator_importer.read_data_set(loader_name=loader_name, path=path, train_data_ratio=train_data_ratio,
+                                                  test_data_ratio=test_data_ratio,
                                                   neighborhood=neighborhood, normalize=normalize)
         loader = get_class(loader_name + '.' + loader_name)(path)
         shape = loader.get_data_shape(training_data_with_labels.dataset)

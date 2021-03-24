@@ -2,10 +2,11 @@ from collections import namedtuple
 
 import numpy
 from numba import jit
-from sklearn.model_selection import StratifiedShuffleSplit
 from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet
+from common_nn_operations import shuffle_test_data_using_ratio, shuffle_training_data_using_ratio, \
+    shuffle_training_data_using_size
 
 DataSet = namedtuple('DataSet', ['shadow_creator_dict', 'casi', 'lidar', 'neighborhood', 'casi_min', 'casi_max'])
 
@@ -17,7 +18,7 @@ class GRSS2018DataLoader(DataLoader):
 
     def get_original_data_type(self):
         return numpy.uint16
-    
+
     def load_data(self, neighborhood, normalize):
         casi = imread(self.get_model_base_dir() + '20170218_UH_CASI_S4_NAD83.tiff')[:, :, 0:-2]
         lidar = imread(self.get_model_base_dir() + 'UH17c_GEF051.tif')[:, :, numpy.newaxis]
@@ -52,7 +53,7 @@ class GRSS2018DataLoader(DataLoader):
             print('Band mean:%.5f, band std:%.5f, min:%.5f, max:%.5f' % (
                 numpy.mean(band_data), numpy.std(band_data), numpy.min(band_data), numpy.max(band_data)))
 
-    def load_samples(self, test_data_ratio):
+    def load_samples(self, train_data_ratio, test_data_ratio):
         targets = imread(self.get_model_base_dir() + '2018_IEEE_GRSS_DFC_GT_TR.tif')
         result = numpy.array([], dtype=int).reshape(0, 3)
         y_delta = 1202
@@ -64,19 +65,16 @@ class GRSS2018DataLoader(DataLoader):
             target_index_as_array = numpy.full((len(target_locations_as_array), 1), target_index - 1)  # TargetIdx 0..20
             result = numpy.vstack([result, numpy.hstack((target_locations_as_array, target_index_as_array))])
 
-        validation_data_ratio = 0.90
-        shuffler = StratifiedShuffleSplit(n_splits=1, test_size=validation_data_ratio)
-        for train_index, test_index in shuffler.split(result[:, 0:1], result[:, 2]):
-            validation_set = result[test_index]
-            train_set = result[train_index]
+        if train_data_ratio < 1.0:
+            train_set, validation_set = shuffle_training_data_using_ratio(result, train_data_ratio)
+        else:
+            train_data_ratio = int(train_data_ratio)
+            train_set, validation_set = shuffle_training_data_using_size(self.get_class_count(),
+                                                                         result,
+                                                                         train_data_ratio,
+                                                                         None)
 
-        # Empty set for 0 ratio for testing
-        test_set = numpy.empty([0, train_set.shape[1]])
-        if test_data_ratio > 0:
-            train_shuffler = StratifiedShuffleSplit(n_splits=1, test_size=test_data_ratio, random_state=0)
-            for train_index, test_index in train_shuffler.split(train_set[:, 0:1], train_set[:, 2]):
-                test_set = train_set[test_index]
-                train_set = train_set[train_index]
+        test_set, train_set = shuffle_test_data_using_ratio(train_set, test_data_ratio)
 
         return SampleSet(training_targets=train_set, test_targets=test_set, validation_targets=validation_set)
 

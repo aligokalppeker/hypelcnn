@@ -30,7 +30,8 @@ def main(_):
 
     inmemoryimporter = get_class('InMemoryImporter.InMemoryImporter')()
     training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_ratio, class_count, scene_shape, color_list = \
-        inmemoryimporter.read_data_set(flags.loader_name, flags.path, flags.test_ratio, flags.neighborhood, True)
+        inmemoryimporter.read_data_set(flags.loader_name, flags.path, flags.train_ratio, flags.test_ratio,
+                                       flags.neighborhood, True)
 
     write_metadata_record(os.path.join(flags.target_path, 'metadata.tfrecord'),
                           training_data_with_labels.data, test_data_with_labels.data,

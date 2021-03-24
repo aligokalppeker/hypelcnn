@@ -1,5 +1,6 @@
 import numpy
 import tensorflow as tf
+from sklearn.model_selection import StratifiedShuffleSplit
 from tensorflow.contrib.data import shuffle_and_repeat, prefetch_to_device
 from tensorflow.contrib.metrics import cohen_kappa
 from tensorflow.contrib.slim.python.slim.learning import create_train_op
@@ -514,3 +515,46 @@ def get_targetbased_shadowed_normal_data(data_set, loader, shadow_map, samples):
         else:
             print("Shadow target key is not found in normal target list:", target_key)
     return normal_data_as_matrix, shadow_data_as_matrix
+
+
+def shuffle_training_data_using_ratio(result, train_data_ratio):
+    validation_set = None
+    train_set = None
+    shuffler = StratifiedShuffleSplit(n_splits=1, train_size=train_data_ratio)
+    for train_index, test_index in shuffler.split(result[:, 0:1], result[:, 2]):
+        validation_set = result[test_index]
+        train_set = result[train_index]
+    return train_set, validation_set
+
+
+def shuffle_training_data_using_size(class_count, result, train_data_size, validation_size):
+    sample_id_list = result[:, 2]
+    train_set = numpy.empty([0, result.shape[1]], dtype=numpy.int)
+    validation_set = numpy.empty([0, result.shape[1]], dtype=numpy.int)
+    for sample_class in class_count:
+        id_for_class = numpy.where(sample_id_list == sample_class)[0]
+        class_sample_count = id_for_class.shape[0]
+        if class_sample_count > 0:
+            all_index = numpy.arange(class_sample_count)
+            train_index = numpy.random.choice(class_sample_count, train_data_size, replace=False)
+            validation_index = numpy.array([index for index in all_index if index not in train_index])
+            if validation_size is not None:
+                validation_index_size = validation_index.shape[0]
+                validation_size = min(validation_size, validation_index_size)
+                rand_indices = numpy.random.choice(validation_index_size, validation_size, replace=False)
+                validation_index = validation_index[rand_indices]
+            # add elements
+            train_set = numpy.vstack([train_set, result[id_for_class[train_index], :]])
+            validation_set = numpy.vstack([validation_set, result[id_for_class[validation_index], :]])
+    return train_set, validation_set
+
+
+def shuffle_test_data_using_ratio(train_set, test_data_ratio):
+    # Empty set for 0 ratio for testing
+    test_set = numpy.empty([0, train_set.shape[1]])
+    if test_data_ratio > 0:
+        train_shuffler = StratifiedShuffleSplit(n_splits=1, test_size=test_data_ratio, random_state=0)
+        for train_index, test_index in train_shuffler.split(train_set[:, 0:1], train_set[:, 2]):
+            test_set = train_set[test_index]
+            train_set = train_set[train_index]
+    return test_set, train_set

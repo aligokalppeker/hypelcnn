@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class DataImporter(ABC):
     @abstractmethod
-    def read_data_set(self, loader_name, path, test_data_ratio, neighborhood, normalize):
+    def read_data_set(self, loader_name, path, train_data_ratio, test_data_ratio, neighborhood, normalize):
         pass
 
     @abstractmethod

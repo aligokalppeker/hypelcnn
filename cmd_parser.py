@@ -38,6 +38,9 @@ def parse_cmd(parser):
     parser.add_argument('--test_ratio', nargs='?', type=float,
                         default=0.05,
                         help='Ratio of training data to use in testing')
+    parser.add_argument('--train_ratio', nargs='?', type=float,
+                        default=0.10,
+                        help='Ratio of training data to use in validation, not accepted by all data set implementations')
     parser.add_argument('--split_count', nargs='?', type=int,
                         default=1,
                         help='Split count')
