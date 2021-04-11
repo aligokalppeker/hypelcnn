@@ -2,20 +2,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import distutils
 import os
 
 import numpy
 import tensorflow as tf
 from absl import flags
 from tensorflow.contrib.data import shuffle_and_repeat
-from tensorflow.contrib.gan.python import losses as tfgan_losses
 
 from DataLoader import SampleSet
 from common_nn_operations import get_class, get_all_shadowed_normal_data, get_targetbased_shadowed_normal_data
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
 
-tfgan = tf.contrib.gan
-layers = tf.contrib.layers
+required_tensorflow_version = "1.14.0"
+if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
+    tfgan = tf.contrib.gan
+else:
+    import tensorflow_gan as tfgan
 
 flags.DEFINE_integer('batch_size', 128 * 20, 'The number of images in each batch.')
 
@@ -89,11 +92,6 @@ def load_op(batch_size, iteration_count, loader_name, path):
 
     shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
 
-    # normal_data_as_matrix, shadow_data_as_matrix = GRSS2013DataLoader.get_targetbased_shadowed_normal_data(data_set,
-    #                                                                                     loader,
-    #                                                                                     shadow_map,
-    #                                                                                     loader.load_samples(0.1))
-
     if FLAGS.use_target_map:
         normal_data_as_matrix, shadow_data_as_matrix = get_data_from_scene(data_set, loader, shadow_map)
     else:
@@ -136,7 +134,7 @@ def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_rati
 
 
 def get_data_from_scene(data_set, loader, shadow_map):
-    samples = SampleSet(training_targets=loader.read_targets("\\shadow_cycle_gan\\class_result.tif"),
+    samples = SampleSet(training_targets=loader.read_targets("shadow_cycle_gan/class_result.tif"),
                         test_targets=None,
                         validation_targets=None)
     first_margin_start = 5
