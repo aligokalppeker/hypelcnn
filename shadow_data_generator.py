@@ -1,144 +1,98 @@
 import tensorflow as tf
-from tensorflow import initializers, reduce_mean, expand_dims
+from tensorflow import initializers, reduce_mean
 from tensorflow.contrib import slim
 
 model_forward_generator_name = 'ModelX2Y'
 model_backward_generator_name = 'ModelY2X'
 
 
-def _shadowdata_generator_model_v1(netinput, is_training=True):
-    with slim.arg_scope(
-            [slim.conv2d, slim.conv2d_transpose],
-            weights_initializer=initializers.variance_scaling(scale=2.0),
-            # weights_regularizer=slim.l2_regularizer(0.001),
-            # normalizer_fn=slim.batch_norm,
-            # normalizer_params={'is_training': is_training, 'decay': 0.95},
-            # normalizer_fn=slim.instance_norm,
-            # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
-            activation_fn=(lambda inp: slim.nn.leaky_relu(inp)),
-            trainable=is_training,
-            data_format="NHWC"
-    ):
-        net = slim.conv2d(netinput, 64, [1, 1])
-        net = slim.conv2d(net, 48, [1, 1])
-        net = slim.conv2d(net, 36, [1, 1])
-        net = slim.conv2d(net, 36, [1, 1])
-        net = slim.conv2d(net, 36, [1, 1])
-        net = slim.conv2d(net, 48, [1, 1])
-        net = slim.conv2d(net, 64, [1, 1])
-        return net
-
-
 def _shadowdata_generator_model(netinput, is_training=True):
     with slim.arg_scope(
-            [slim.conv2d, slim.conv2d_transpose, slim.separable_conv2d],
-            weights_initializer=initializers.variance_scaling(scale=2.0),
+            [slim.conv2d, slim.conv2d_transpose, slim.convolution1d],
+            # weights_initializer=initializers.variance_scaling(scale=2.0),
             # weights_regularizer=slim.l2_regularizer(0.001),
             # normalizer_fn=slim.batch_norm,
             # normalizer_params={'is_training': is_training, 'decay': 0.95},
             # normalizer_fn=slim.instance_norm,
             # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
-            activation_fn=(lambda inp: slim.nn.leaky_relu(inp)),
+            activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.01)),
             trainable=is_training,
             data_format="NHWC"
     ):
-        net = slim.separable_conv2d(netinput, 64, [1, 1], 64,
-                                    normalizer_fn=None,
-                                    normalizer_params=None,
-                                    weights_regularizer=None)
-        return net
-
-
-def _shadowdata_generator_model_v2(netinput, is_training=True):
-    with slim.arg_scope(
-            [slim.conv2d, slim.conv2d_transpose, slim.separable_conv2d],
-            weights_initializer=initializers.variance_scaling(scale=2.0),
-            weights_regularizer=slim.l2_regularizer(0.00001),
-            normalizer_fn=slim.batch_norm,
-            normalizer_params={'is_training': is_training, 'decay': 0.95},
-            # normalizer_fn=slim.instance_norm,
-            # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
-            activation_fn=(lambda inp: slim.nn.leaky_relu(inp)),
-            trainable=is_training
-    ):
-        net_hats = []
-        for index in range(0, 64):
-            level0 = expand_dims(netinput[:, :, :, index], axis=3)
-            level1 = slim.conv2d(level0, 1, [1, 1],
+        net = tf.squeeze(netinput, axis=[1, 2])
+        net = tf.expand_dims(net, axis=2)
+        band_size = 144
+        net = slim.convolution1d(net, 1, band_size, padding='SAME',
                                  normalizer_fn=None,
                                  normalizer_params=None,
-                                 weights_regularizer=None)
-            net_hats.append(level1)
-
-        net = tf.concat(net_hats, axis=3)
-        return net
+                                 weights_regularizer=None,
+                                 activation_fn=None)
+        net = slim.convolution1d(net, 1, band_size*2, padding='SAME',
+                                 normalizer_fn=None,
+                                 normalizer_params=None,
+                                 weights_regularizer=None,
+                                 activation_fn=None)
+        net = slim.convolution1d(net, 1, band_size, padding='SAME',
+                                 normalizer_fn=None,
+                                 normalizer_params=None,
+                                 weights_regularizer=None,
+                                 activation_fn=None)
+        net = tf.expand_dims(tf.expand_dims(slim.flatten(net), axis=1), axis=1)
+    return net
 
 
 def _shadowdata_discriminator_model(generated_data, generator_input, is_training=True):
-    # bn_training_params = {'is_training': is_training, 'decay': 0.95}
-    # normalizer_fn=slim.batch_norm,
-    with slim.arg_scope([slim.fully_connected, slim.separable_conv2d],
+    with slim.arg_scope([slim.fully_connected, slim.separable_conv2d, slim.convolution1d],
                         weights_initializer=initializers.variance_scaling(scale=2.0),
                         # weights_regularizer=slim.l2_regularizer(0.001),
                         # normalizer_fn=slim.batch_norm,
-                        # normalizer_params={'is_training': is_training, 'decay': 0.95},
+                        # normalizer_params={'is_training': is_training, 'decay': 0.999},
                         # normalizer_fn=slim.instance_norm,
                         # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
-                        activation_fn=(lambda inp: slim.nn.leaky_relu(inp))):
-        # net = tf.concat(axis=3, values=[generated_data, generator_input])
-        # net = slim.flatten(net)
-        # net = slim.fully_connected(net, 192, scope='fc1')
-        # net = slim.dropout(net, is_training=is_training)
-        # net = slim.fully_connected(net, 128, scope='fc2')
-        # net = slim.dropout(net, is_training=is_training)
-        # net = slim.fully_connected(net, 96, scope='fc3')
+                        activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.01))):
+        band_size = 144
 
-        # net_hats = []
-        # for index in range(0, 64):
-        #     level0 = expand_dims(generated_data[:, :, :, index], axis=3)
-        #     level1 = slim.conv2d(level0, 1, [1, 1], padding='VALID',
-        #                          activation_fn=None, normalizer_fn=None, normalizer_params=None)
-        #     net_hats.append(level1)
-        # net = tf.concat(net_hats, axis=3)
-        net = slim.separable_conv2d(generated_data, 64, [1, 1], 64,
-                                    normalizer_fn=None,
-                                    normalizer_params=None,
-                                    weights_regularizer=None)
+        net = tf.concat(axis=3, values=[generated_data, generator_input])
+        net = tf.squeeze(net, axis=[1, 2])
+        net = tf.expand_dims(net, axis=2)
+        size = band_size * 2
+        net = slim.convolution1d(net, size, size, padding='VALID',
+                                 normalizer_fn=None,
+                                 normalizer_params=None,
+                                 activation_fn=None)
+        net = tf.expand_dims(tf.expand_dims(slim.flatten(net), axis=1), axis=1)
     return net
 
 
 def construct_inference_graph(input_tensor, model_name, clip_invalid_values=True):
-    print("clip_invalid_values")
-    print(clip_invalid_values)
     shp = input_tensor.get_shape()
-    patch_size = shp[0] * shp[1]
 
-    input_tensor = tf.reshape(input_tensor, [patch_size, shp[2]])
-    input_tensor_groups = tf.split(axis=0, num_or_size_splits=patch_size, value=input_tensor)
-    output_tensor_group = []
-    for i in range(patch_size):
-        input_tensor = tf.expand_dims(input_tensor_groups[i], [0])
-        with tf.variable_scope(model_name):
-            with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
-                input_tensor = tf.expand_dims(input_tensor, [0])
-                generated_tensor = _shadowdata_generator_model(input_tensor, False)
-                if clip_invalid_values:
-                    input_mean = reduce_mean(input_tensor)
-                    generated_mean = reduce_mean(generated_tensor)
+    output_tensor_in_col = []
+    for first_dim in range(shp[0]):
+        output_tensor_in_row = []
+        for second_dim in range(shp[1]):
+            input_cell = tf.expand_dims(tf.expand_dims(tf.expand_dims(input_tensor[first_dim][second_dim], 0), 0), 0)
+            with tf.variable_scope(model_name):
+                with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
+                    generated_tensor = _shadowdata_generator_model(input_cell, False)
+                    if clip_invalid_values:
+                        input_mean = reduce_mean(input_cell)
+                        generated_mean = reduce_mean(generated_tensor)
 
-        if clip_invalid_values:
-            result_tensor = tf.cond(tf.less(generated_mean, input_mean),
-                                    lambda: generated_tensor,
-                                    lambda: input_tensor)
-        else:
-            result_tensor = generated_tensor
+            if clip_invalid_values:
+                result_tensor = tf.cond(tf.less(generated_mean, input_mean),
+                                        lambda: generated_tensor,
+                                        lambda: input_cell)
+            else:
+                result_tensor = generated_tensor
 
-        output_tensor_group.append(tf.squeeze(result_tensor, [0, 1]))
+            output_tensor_in_row.append(tf.squeeze(result_tensor, [0, 1]))
+        image_output_row = tf.concat(output_tensor_in_row, axis=0)
+        output_tensor_in_col.append(image_output_row)
 
-    image_output = tf.concat(output_tensor_group, axis=0)
-    image_output = tf.reshape(image_output, [shp[0], shp[1], shp[2]])
+    image_output_row = tf.stack(output_tensor_in_col)
 
-    return image_output
+    return image_output_row
 
 
 def create_generator_restorer():
