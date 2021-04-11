@@ -30,6 +30,9 @@ flags.DEFINE_string('output_path', '',
                     'Output path to create tiff files. '
                     '(e.g. "/mylogdir/")')
 
+flags.DEFINE_bool('make_them_shadow', True,
+                  'makes the scene shadowed, or not')
+
 FLAGS = flags.FLAGS
 
 
@@ -53,7 +56,7 @@ def _validate_flags():
 def main(_):
     _validate_flags()
     convert_only_the_convenient_pixels = True
-    make_them_shadow = True
+    make_them_shadow = FLAGS.make_them_shadow
 
     loader_name = FLAGS.loader_name
     loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
