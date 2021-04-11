@@ -1,5 +1,5 @@
 # HypeLCNN Overview
-This repository includes source codes for paper "A Deep Learning Classification Framework with Spectral and Spatial Feature Fusion Layers for Hyperspectral and Lidar Sensor Data"
+This repository includes source codes for paper "A Deep Learning Classification Framework with Spectral and Spatial Feature Fusion Layers for Hyperspectral and Lidar Sensor Data" (in review)
 
 Developed using Tensorflow 1.x(Tested on version 1.10 to 1.15). This repository includes a complete suite for hyperspectral and lidar, neural net based classification. Primary features :
 - Support for hyperparameter estimation
@@ -23,10 +23,10 @@ Work with Python 3.6. Library requirements are placed in "requirements.txt".
 # Source Files
 - PHD.ipynb : A sample notebook for executing the developed neural network application
 - NNModel.py : Neural Network definition interface, provides methods for declaring loss function, base parameter values, hyper parameter value range
-- CNNModelv2.py : Model declaration source code for CNN Model V2
 - CNNModelv4.py : Model declaration source code for CNN Model V4 ( Primary network model(HypeLCNN) for the paper )
-- CNNModelv5.py : Model declaration source code for CNN Model V5 ( Dual CNN )
-- CAPNModelv2.py : Capsule Network Model v2
+- DUALCNNModelv1.py : Model declaration source code for CNN Dual Model
+- CONCNNModelv1.py : Model declaration source code for Context CNN Model
+- CAPNModelv1.py : Capsule Network Model v2
 - class_ml_trainer : SVM and Random Forest Classifier implementation using scikit-learn
 - DataImporter.py : DataImporter interface class
 - InMemoryImporter.py : Tensorflow(1.x)-Placeholder based in memory data importer(fastest but memory inefficient implementation) 
@@ -36,7 +36,8 @@ Work with Python 3.6. Library requirements are placed in "requirements.txt".
 - GRSS2013DataLoader.py : GRSS2013 data set loader implementation
 - GRSS2018DataLoader.py : GRSS2018 data set loader implementation
 - GULFPORTDataLoader.py : Gulfport data set loader implementation
-- deep_classification_gpu.py : Main training execution class
+- GULFPORTALTDataLoader.py : Gulfport data set alternative loader implementation(shadow data augmentation)
+- deep_classification_multigpu.py : Main training execution class
 - load_checkpoint_calc_accuracy : Loads a checkpoint file and performs scene classification using a dataset
 - monitored_session_runner.py : Tensorflw(1.x) Monitored session runner implementation
 - *.json : Parameter value files
@@ -47,5 +48,5 @@ Work with Python 3.6. Library requirements are placed in "requirements.txt".
 # In progress
 - Data set file commit
 - Source code documentation
-- Refactoring for cleaner code
+- Refactoring for cleaner codeww
 - TF 2.x/Pytorch implementation
