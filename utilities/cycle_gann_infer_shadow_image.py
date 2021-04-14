@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import distutils
 import os
 
 import numpy
@@ -14,7 +15,11 @@ from common_nn_operations import get_class
 from shadow_data_generator import construct_inference_graph, model_forward_generator_name, \
     create_generator_restorer, model_backward_generator_name
 
-tfgan = tf.contrib.gan
+required_tensorflow_version = "1.14.0"
+if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
+    tfgan = tf.contrib.gan
+else:
+    import tensorflow_gan as tfgan
 
 flags.DEFINE_string('checkpoint_path', '',
                     'CycleGAN checkpoint path created by cycle_gann_train.py. '
