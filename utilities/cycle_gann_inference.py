@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import distutils
 import random
 
 import numpy
@@ -12,7 +13,11 @@ from common_nn_operations import get_class
 from shadow_data_generator import construct_inference_graph, model_forward_generator_name, \
     model_backward_generator_name, create_generator_restorer
 
-tfgan = tf.contrib.gan
+required_tensorflow_version = "1.14.0"
+if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
+    tfgan = tf.contrib.gan
+else:
+    pass
 
 flags.DEFINE_integer('neighborhood', 0, 'Neighborhood of samples.')
 flags.DEFINE_string('checkpoint_path', '',
@@ -74,7 +79,7 @@ def main(_):
         else:
             indices = numpy.where(shadow_map == 0)
 
-        iteration_count = 3000*2
+        iteration_count = 3000 * 2
         band_size = element_size[2]
         total_band_ratio = numpy.zeros([1, 1, band_size], dtype=float)
         for i in range(0, iteration_count):

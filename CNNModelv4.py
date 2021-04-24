@@ -6,7 +6,7 @@ from tensorflow import initializers
 from tensorflow.contrib import slim as slim
 
 from NNModel import NNModel
-from common_nn_operations import ModelOutputTensors, HistogramTensorPair
+from common_nn_operations import ModelOutputTensors, HistogramTensorPair, scale_input_to_output
 
 
 # hyperopt old result :
@@ -81,13 +81,13 @@ class CNNModelv4(NNModel):
                                                         spectral_hierarchy_level, use_residual,
                                                         True)
                 if use_residual:
-                    net1 = net1 + CNNModelv4.__scale_input_to_output(net0, net1)
+                    net1 = net1 + scale_input_to_output(net0, net1, axis_no=3)
 
                 net2 = self.__create_spectral_nn_layers(data_format, level_filter_count, net1,
                                                         spectral_hierarchy_level, use_residual,
                                                         False)
                 if use_residual:
-                    net2 = net2 + CNNModelv4.__scale_input_to_output(net1, net2)
+                    net2 = net2 + scale_input_to_output(net1, net2, axis_no=3)
 
                 spatial_hierarchy_level = algorithm_params["spatial_hierarchy_level"]
                 net3 = self.__create_levels_as_blocks(data_format,
@@ -95,7 +95,7 @@ class CNNModelv4(NNModel):
                                                       net2, spatial_hierarchy_level,
                                                       use_residual)
                 if use_residual:
-                    net3 = net3 + CNNModelv4.__scale_input_to_output(net2, net3)
+                    net3 = net3 + scale_input_to_output(net2, net3, axis_no=3)
 
                 net4 = slim.flatten(net3)
 
@@ -156,10 +156,8 @@ class CNNModelv4(NNModel):
             next_net = CNNModelv4.__create_a_level(int(level_final_filter_count / pow(2, index)), netinput,
                                                    'connector_' + str(index),
                                                    data_format)
-            # disabling the residual connection
-            # compatibility issues with older network models(before 27.04.20)
             if use_residual:
-                next_net = next_net + CNNModelv4.__scale_input_to_output(netinput, next_net)
+                next_net = next_net + scale_input_to_output(netinput, next_net, axis_no=3)
 
             next_net_conv = slim.conv2d(next_net, next_net.get_shape()[3], [1, 1],
                                         scope='connector_conv_' + str(index),
@@ -171,7 +169,8 @@ class CNNModelv4(NNModel):
         return netinput
 
     @staticmethod
-    def __create_spectral_nn_layers(data_format, level_final_filter_count, net0, count, use_residual, is_encoding_layers):
+    def __create_spectral_nn_layers(data_format, level_final_filter_count, net0, count, use_residual,
+                                    is_encoding_layers):
         net_input = net0
         for nn_index in range(0, count):
             if is_encoding_layers:
@@ -185,7 +184,7 @@ class CNNModelv4(NNModel):
                                    scope=conv_name + str(nn_index),
                                    data_format=data_format)
             if use_residual:
-                next_net = next_net + CNNModelv4.__scale_input_to_output(net_input, next_net)
+                next_net = next_net + scale_input_to_output(net_input, next_net, axis_no=3)
 
             net_input = next_net
         return net_input
@@ -209,35 +208,3 @@ class CNNModelv4(NNModel):
 
             net = tf.concat(axis=3, values=elements)
         return net
-
-    @staticmethod
-    def __scale_input_to_output(input_data, output_data):
-        axis_no = 3
-
-        input_channel_size = input_data.get_shape()[axis_no].value
-        output_channel_size = output_data.get_shape()[axis_no].value
-        scale_ratio = input_channel_size / output_channel_size
-
-        output_data_indice_list = []
-        for output_data_index in range(0, output_channel_size):
-            target_index_no = min(round(output_data_index * scale_ratio), input_channel_size - 1)
-            output_data_indice_list.append(target_index_no)
-
-        return tf.gather(input_data, output_data_indice_list, axis=axis_no)
-
-    @staticmethod
-    # This method is kept for compatibility issues with older network models(before 27.04.20)
-    def __scale_input_to_output_legacy(input_data, output_data):
-        axis_no = 3
-
-        input_channel_size = input_data.get_shape()[axis_no].value
-        output_channel_size = output_data.get_shape()[axis_no].value
-        scale_ratio = input_channel_size / output_channel_size
-
-        input_data_list = tf.unstack(input_data, axis=axis_no)
-        output_data_list = []
-        for output_data_index in range(0, output_channel_size):
-            target_index_no = min(round(output_data_index * scale_ratio), input_channel_size - 1)
-            output_data_list.append(input_data_list[target_index_no])
-
-        return tf.stack(output_data_list, axis=axis_no)

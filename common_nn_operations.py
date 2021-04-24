@@ -558,3 +558,16 @@ def shuffle_test_data_using_ratio(train_set, test_data_ratio):
             test_set = train_set[test_index]
             train_set = train_set[train_index]
     return test_set, train_set
+
+
+def scale_input_to_output(input_data, output_data, axis_no):
+    input_channel_size = input_data.get_shape()[axis_no].value
+    output_channel_size = output_data.get_shape()[axis_no].value
+    scale_ratio = input_channel_size / output_channel_size
+
+    output_data_indice_list = []
+    for output_data_index in range(0, output_channel_size):
+        target_index_no = min(round(output_data_index * scale_ratio), input_channel_size - 1)
+        output_data_indice_list.append(target_index_no)
+
+    return tf.gather(input_data, output_data_indice_list, axis=axis_no)

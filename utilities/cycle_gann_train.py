@@ -129,7 +129,6 @@ def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_rati
             shadow_images = tf.cond(tf.less(rand_number, 1),
                                     true_fn=lambda: shadow_images,
                                     false_fn=lambda: (normal_images / shadow_ratio))
-
     return normal_images, shadow_images
 
 
