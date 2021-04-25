@@ -10,35 +10,41 @@ def _shadowdata_generator_model(netinput, is_training=True):
     with slim.arg_scope(
             [slim.conv2d, slim.conv2d_transpose, slim.convolution1d],
             # weights_initializer=initializers.variance_scaling(scale=2.0),
-            # weights_regularizer=slim.l2_regularizer(0.001),
+            # weights_regularizer=slim.l1_l2_regularizer(),
             # normalizer_fn=slim.batch_norm,
             # normalizer_params={'is_training': is_training, 'decay': 0.95},
             # normalizer_fn=slim.instance_norm,
             # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
-            activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.01)),
+            activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.2)),
             trainable=is_training,
             data_format="NHWC"
     ):
-        net = tf.squeeze(netinput, axis=[1, 2])
-        net = tf.expand_dims(net, axis=2)
-        band_size = 144
-        net = slim.convolution1d(net, 1, band_size, padding='SAME',
-                                 normalizer_fn=None,
-                                 normalizer_params=None,
-                                 weights_regularizer=None,
-                                 activation_fn=None)
-        net = slim.convolution1d(net, 1, band_size*2, padding='SAME',
-                                 normalizer_fn=None,
-                                 normalizer_params=None,
-                                 weights_regularizer=None,
-                                 activation_fn=None)
-        net = slim.convolution1d(net, 1, band_size, padding='SAME',
-                                 normalizer_fn=None,
-                                 normalizer_params=None,
-                                 weights_regularizer=None,
-                                 activation_fn=None)
-        net = tf.expand_dims(tf.expand_dims(slim.flatten(net), axis=1), axis=1)
-    return net
+        band_size = netinput.get_shape()[3].value
+
+        net0 = tf.expand_dims(tf.squeeze(netinput, axis=[1, 2]), axis=2)
+        net1 = slim.convolution1d(net0, 1, band_size, padding='SAME',
+                                  normalizer_fn=None,
+                                  normalizer_params=None,
+                                  weights_regularizer=None)
+        net2 = slim.convolution1d(net1, 1, band_size * 2, padding='SAME',
+                                  normalizer_fn=None,
+                                  normalizer_params=None,
+                                  weights_regularizer=None)
+
+        # net3 = slim.convolution1d(net2, 1, band_size * 4, padding='SAME',
+        #                           normalizer_fn=None,
+        #                           normalizer_params=None,
+        #                           weights_regularizer=None)
+        # net4 = slim.convolution1d(net3, 1, band_size * 2, padding='SAME',
+        #                           normalizer_fn=None,
+        #                           normalizer_params=None,
+        #                           weights_regularizer=None)
+        net5 = slim.convolution1d(net2, 1, band_size, padding='SAME',
+                                  normalizer_fn=None,
+                                  normalizer_params=None,
+                                  weights_regularizer=None,
+                                  activation_fn=None)
+    return tf.expand_dims(tf.expand_dims(slim.flatten(net5), axis=1), axis=1)
 
 
 def _shadowdata_discriminator_model(generated_data, generator_input, is_training=True):
@@ -50,7 +56,7 @@ def _shadowdata_discriminator_model(generated_data, generator_input, is_training
                         # normalizer_fn=slim.instance_norm,
                         # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
                         activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.01))):
-        band_size = 144
+        band_size = generated_data.get_shape()[3].value
 
         net = tf.concat(axis=3, values=[generated_data, generator_input])
         net = tf.squeeze(net, axis=[1, 2])
