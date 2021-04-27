@@ -387,7 +387,7 @@ def create_target_image_via_samples(sample_set, scene_shape):
 
 def get_all_shadowed_normal_data(data_set, loader, shadow_map, multiply_shadowed_data):
     data_shape_info = loader.get_data_shape(data_set)
-    shadow_element_count = numpy.sum(shadow_map)
+    shadow_element_count = numpy.sum(shadow_map, dtype=numpy.int)
     normal_element_count = shadow_map.shape[0] * shadow_map.shape[1] - shadow_element_count
     shadow_data_as_matrix = numpy.zeros(numpy.concatenate([[shadow_element_count], data_shape_info]),
                                         dtype=numpy.float32)
