@@ -1,7 +1,6 @@
 from collections import namedtuple
 
 import numpy
-from sklearn.model_selection import StratifiedShuffleSplit
 from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet
@@ -56,6 +55,9 @@ class GULFPORTDataLoader(DataLoader):
 
         return DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
                        casi_min=casi_min, casi_max=casi_max)
+
+    def get_hsi_lidar_data(self, data_set):
+        return data_set.casi, data_set.lidar
 
     def load_samples(self, train_data_ratio, test_data_ratio):
         result = self.read_targets('muulf_gt.tif')
@@ -128,3 +130,6 @@ class GULFPORTDataLoader(DataLoader):
 
     def get_point_value(self, data_set, point):
         return get_point_value_impl(data_set, point)
+
+    def get_band_measurements(self):
+        return numpy.linspace(405, 1005, 64)

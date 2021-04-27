@@ -46,6 +46,9 @@ class GRSS2018DataLoader(DataLoader):
 
         return data_set
 
+    def get_hsi_lidar_data(self, data_set):
+        return data_set.casi, data_set.lidar
+
     @staticmethod
     def print_stats(data):
         for band_index in range(1, data.shape[2]):
@@ -174,3 +177,6 @@ class GRSS2018DataLoader(DataLoader):
         start_y = int(point[1] * scale) + neighborhood - actual_padding  # delta padding - actual padding
         start_x = int(point[0] * scale) + neighborhood - actual_padding  # delta padding - actual padding
         return start_x, start_y
+
+    def get_band_measurements(self):
+        return numpy.linspace(380, 1050, num=48)

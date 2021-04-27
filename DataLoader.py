@@ -45,3 +45,11 @@ class DataLoader(ABC):
     @abstractmethod
     def get_original_data_type(self):
         pass
+
+    @abstractmethod
+    def get_band_measurements(self):
+        pass
+
+    @abstractmethod
+    def get_hsi_lidar_data(self, data_set):
+        pass

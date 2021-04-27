@@ -40,7 +40,11 @@ def main():
 
     shadow_map = get_shadow_map(target_classes_as_image)
     imwrite("muulf_shadow_map.tif", shadow_map, planarconfig='contig')
-    create_shadow_corrected_image(data_set.casi, loader.load_data(0, False).casi, shadow_map)
+
+    casi_normalized, _ = loader.get_hsi_lidar_data(data_set)
+    casi, _ = loader.get_hsi_lidar_data(loader.load_data(0, False))
+
+    create_shadow_corrected_image(casi_normalized, casi, shadow_map)
     draw_targets(loader.get_target_color_list(), target_classes_as_image, "Targets")
 
     # retval, labels, stats, centroids = cv2.connectedComponentsWithStats(shadow_map)

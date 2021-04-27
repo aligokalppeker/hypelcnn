@@ -62,6 +62,10 @@ class GRSS2013DataLoader(DataLoader):
         return DataSet(shadow_creator_dict=shadow_dict, concrete_data=concrete_data, neighborhood=neighborhood,
                        casi_min=casi_min, casi_max=casi_max)
 
+    def get_hsi_lidar_data(self, data_set):
+        last_index = data_set.concrete_data.shape[2] - 1
+        return data_set.concrete_data[:, :, 0:last_index], data_set.concrete_data[:, :, last_index]
+
     def load_shadow_map(self, neighborhood, data_set):
         shadow_map = imread(self.get_model_base_dir() + 'shadow_map.tif')
         shadow_map = numpy.pad(shadow_map, neighborhood, mode='symmetric')
@@ -148,3 +152,6 @@ class GRSS2013DataLoader(DataLoader):
         # Running track
         color_list[14, :] = [207, 18, 56]
         return color_list
+
+    def get_band_measurements(self):
+        return numpy.linspace(380, 1050, num=144)
