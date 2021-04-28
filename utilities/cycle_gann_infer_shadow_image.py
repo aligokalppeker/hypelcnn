@@ -14,12 +14,13 @@ from tqdm import tqdm
 from common_nn_operations import get_class
 from shadow_data_generator import construct_inference_graph, model_forward_generator_name, \
     create_generator_restorer, model_backward_generator_name
+from utilities.hsi_rgb_converter import get_rgb_from_hsi
 
 required_tensorflow_version = "1.14.0"
 if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
     tfgan = tf.contrib.gan
 else:
-    import tensorflow_gan as tfgan
+    pass
 
 flags.DEFINE_string('checkpoint_path', '',
                     'CycleGAN checkpoint path created by cycle_gann_train.py. '
@@ -113,7 +114,14 @@ def main(_):
                 progress_bar.update(1)
 
         progress_bar.close()
-        imwrite(os.path.join(FLAGS.output_path, "shadow_image.tif"), hsi_image, planarconfig='contig')
+        imwrite(os.path.join(FLAGS.output_path, "shadow_image.tif"),
+                hsi_image, planarconfig='contig')
+
+        hsi_image = hsi_image.astype(float)
+        hsi_image -= offset
+        hsi_image /= multiplier
+        hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 256).astype(numpy.uint8)
+        imwrite(os.path.join(FLAGS.output_path, "shadow_image_rgb.tif"), hsi_as_rgb)
 
 
 if __name__ == '__main__':

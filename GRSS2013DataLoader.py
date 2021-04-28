@@ -36,8 +36,8 @@ class GRSS2013DataLoader(DataLoader):
             lidar = lidar / numpy.max(lidar)
             casi_min = numpy.min(casi, axis=(0, 1))
             casi -= casi_min
-            casi_max = numpy.max(casi, axis=(0, 1))
-            casi = casi / casi_max.astype(numpy.float32)
+            casi_max = numpy.max(casi, axis=(0, 1)).astype(numpy.float32)
+            casi = casi / casi_max
 
         concrete_data = numpy.zeros([casi.shape[0], casi.shape[1], casi.shape[2] + 1], dtype=numpy.float32)
         concrete_data[:, :, 0:concrete_data.shape[2] - 1] = casi
