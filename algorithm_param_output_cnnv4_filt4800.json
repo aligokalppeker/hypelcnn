@@ -1,0 +1,15 @@
+{
+  "batch_size": 48,
+  "drop_out_ratio": 0.70,
+  "filter_count": 1200,
+  "learning_rate": 0.00030,
+  "learning_rate_decay_factor": 0.96,
+  "learning_rate_decay_step": 350,
+  "lrelu_alpha": 0.18,
+  "optimizer": "AdamOptimizer",
+  "bn_decay": 0.95,
+  "l2regularizer_scale": 0.00001,
+  "spectral_hierarchy_level": 3,
+  "spatial_hierarchy_level": 3,
+  "degradation_coeff": 3
+}

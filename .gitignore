@@ -333,4 +333,8 @@ successful_logs/gulfport/svm/Results_1x1.txt
 /GULFPORT/shadow_cycle_gan/model.ckpt-935.data-00000-of-00001
 /GULFPORT/shadow_cycle_gan/model.ckpt-935.index
 /GULFPORT/shadow_cycle_gan/model.ckpt-935.meta
-/GULFPORT/shadow_cycle_gan/v1/
+/logs/
+/utilities/logs/
+/GULFPORT/shadow_cycle_gan/class_result.tif
+/2013_DFTC/shadow_cycle_gan/class_result.tif
+/2013_DFTC/shadow_cycle_gan/class_result_colorized_941.tif
