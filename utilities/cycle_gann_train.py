@@ -354,7 +354,7 @@ def main(_):
                 initializer_hook,
                 validation_hook,
                 tf.train.StopAtStepHook(num_steps=FLAGS.max_number_of_steps),
-                tf.train.LoggingTensorHook([status_message], every_n_iter=10)
+                tf.train.LoggingTensorHook([status_message], every_n_iter=1000)
             ],
             master=FLAGS.master,
             is_chief=FLAGS.task == 0)

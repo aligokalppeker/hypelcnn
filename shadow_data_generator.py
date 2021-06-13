@@ -197,7 +197,7 @@ def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shado
 def plot_overall_info(mean, std, iteration, log_dir):
     band_size = mean.shape[0]
     bands = linspace(1, band_size, band_size, dtype=numpy.int)
-    plt.scatter(bands, mean, label='mean ratio', s=10)
+    plt.scatter(bands, mean, label="mean ratio " + str(iteration), s=10)
     plt.plot(bands, mean)
     plt.fill_between(bands, mean - std, mean + std, alpha=0.2)
     plt.legend(loc='upper left')
