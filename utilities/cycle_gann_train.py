@@ -12,7 +12,9 @@ from tensorflow.contrib.data import shuffle_and_repeat
 
 from DataLoader import SampleSet
 from common_nn_operations import get_class, get_all_shadowed_normal_data, get_targetbased_shadowed_normal_data
-from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
+from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model, \
+    calculate_stats_from_samples, \
+    load_samples_for_testing
 
 required_tensorflow_version = "1.14.0"
 if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
@@ -44,6 +46,14 @@ flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
 
 flags.DEFINE_bool('use_target_map', False,
                   'Whether to use target map to create train data pairs.')
+
+flags.DEFINE_integer(
+    'validation_itr_count', 1000,
+    'Iteration count to calculate validation statistics')
+
+flags.DEFINE_integer(
+    'validation_sample_count', 300,
+    'Validation sample count')
 
 flags.DEFINE_integer(
     'ps_tasks', 0,
@@ -85,13 +95,40 @@ class InitializerHook(tf.train.SessionRunHook):
                                self.normal_placeholder: self.normal_data})
 
 
-def load_op(batch_size, iteration_count, loader_name, path):
-    neighborhood = 0
-    loader = get_class(loader_name + '.' + loader_name)(path)
-    data_set = loader.load_data(neighborhood, True)
+class ValidationHook(tf.train.SessionRunHook):
+    @staticmethod
+    def export(sess, input_pl, input_np, output_tensor):
+        # Grab a single image and run it through inference
+        output_np = sess.run(output_tensor, feed_dict={input_pl: input_np})
+        return output_np
 
-    shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
+    def __init__(self, iteration_freq, sample_count, log_dir,
+                 loader, data_set, neighborhood, shadow_map, shadow_ratio, input_tensor,
+                 forward_model):
+        self._forward_model = forward_model
+        self._input_tensor = input_tensor
+        self._iteration_frequency = iteration_freq
+        self._global_step_tensor = None
+        self._shadow_ratio = shadow_ratio[0:-1]
+        self._log_dir = log_dir
+        self._data_sample_list = load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map)
+        for idx, _data_sample in enumerate(self._data_sample_list):
+            self._data_sample_list[idx] = numpy.expand_dims(_data_sample, axis=0)
 
+    def after_create_session(self, session, coord):
+        self._global_step_tensor = tf.train.get_global_step()
+
+    def after_run(self, run_context, run_values):
+        session = run_context.session
+        current_iteration = session.run(self._global_step_tensor)
+
+        if current_iteration % self._iteration_frequency == 1 and current_iteration != 1:
+            print('Validation metrics #%d' % current_iteration)
+            calculate_stats_from_samples(session, self._data_sample_list, self._input_tensor, self._forward_model,
+                                         self._shadow_ratio, self._log_dir, current_iteration)
+
+
+def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio):
     if FLAGS.use_target_map:
         normal_data_as_matrix, shadow_data_as_matrix = get_data_from_scene(data_set, loader, shadow_map)
     else:
@@ -106,11 +143,11 @@ def load_op(batch_size, iteration_count, loader_name, path):
     normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:hsi_channel_len]
     shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:hsi_channel_len]
 
-    normal = tf.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape, name='x')
-    shadow = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name='y')
+    normal_holder = tf.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape, name='x')
+    shadow_holder = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name='y')
 
     epoch = int((iteration_count * batch_size) / normal_data_as_matrix.shape[0])
-    data_set = tf.data.Dataset.from_tensor_slices((normal, shadow)).apply(
+    data_set = tf.data.Dataset.from_tensor_slices((normal_holder, shadow_holder)).apply(
         shuffle_and_repeat(buffer_size=10000, count=epoch))
     data_set = data_set.map(
         lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_,
@@ -119,7 +156,7 @@ def load_op(batch_size, iteration_count, loader_name, path):
     data_set = data_set.batch(batch_size)
     data_set_itr = data_set.make_initializable_iterator()
 
-    return InitializerHook(data_set_itr, normal, shadow, normal_data_as_matrix, shadow_data_as_matrix)
+    return InitializerHook(data_set_itr, normal_holder, shadow_holder, normal_data_as_matrix, shadow_data_as_matrix)
 
 
 def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_ratio):
@@ -247,12 +284,26 @@ def _define_train_ops(cyclegan_model, cyclegan_loss):
 
 
 def main(_):
-    if not tf.gfile.Exists(FLAGS.train_log_dir):
-        tf.gfile.MakeDirs(FLAGS.train_log_dir)
+    log_dir = FLAGS.train_log_dir
+    if not tf.gfile.Exists(log_dir):
+        tf.gfile.MakeDirs(log_dir)
 
     with tf.device(tf.train.replica_device_setter(FLAGS.ps_tasks)):
+        validation_iteration_count = FLAGS.validation_itr_count
+        validation_sample_count = FLAGS.validation_sample_count
+        loader_name = FLAGS.loader_name
+        neighborhood = 0
+        loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
+        data_set = loader.load_data(neighborhood, True)
+
+        element_size = loader.get_data_shape(data_set)
+        element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
+
+        shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
+
         with tf.name_scope('inputs'):
-            initializer_hook = load_op(FLAGS.batch_size, FLAGS.max_number_of_steps, FLAGS.loader_name, FLAGS.path)
+            initializer_hook = load_op(FLAGS.batch_size, FLAGS.max_number_of_steps, loader, data_set,
+                                       shadow_map, shadow_ratio)
             training_input_iter = initializer_hook.input_itr
             images_x, images_y = training_input_iter.get_next()
             # Set batch size for summaries.
@@ -260,7 +311,18 @@ def main(_):
             # images_y.set_shape([FLAGS.batch_size, None, None, None])
 
         # Define CycleGAN model.
-        cyclegan_model = _define_model(images_x, images_y)
+        with tf.variable_scope('Model', reuse=tf.AUTO_REUSE):
+            cyclegan_model = _define_model(images_x, images_y)
+            input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
+            dummy_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
+            cyclegan_model_validation = _define_model(input_tensor, dummy_tensor)
+            validation_hook = ValidationHook(validation_iteration_count,
+                                             validation_sample_count,
+                                             log_dir,
+                                             loader, data_set, neighborhood,
+                                             shadow_map, shadow_ratio,
+                                             input_tensor,
+                                             cyclegan_model_validation.model_x2y.generated_data)
 
         # Define CycleGAN loss.
         cyclegan_loss = tfgan.cyclegan_loss(
@@ -285,11 +347,12 @@ def main(_):
             return
         tfgan.gan_train(
             train_ops,
-            FLAGS.train_log_dir,
+            log_dir,
             save_checkpoint_secs=120,
             get_hooks_fn=tfgan.get_sequential_train_hooks(train_steps),
             hooks=[
                 initializer_hook,
+                validation_hook,
                 tf.train.StopAtStepHook(num_steps=FLAGS.max_number_of_steps),
                 tf.train.LoggingTensorHook([status_message], every_n_iter=10)
             ],
