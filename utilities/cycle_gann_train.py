@@ -9,6 +9,7 @@ import numpy
 import tensorflow as tf
 from absl import flags
 from tensorflow.contrib.data import shuffle_and_repeat
+from tensorflow.python.training.monitored_session import Scaffold
 
 from DataLoader import SampleSet
 from common_nn_operations import get_class, get_all_shadowed_normal_data, get_targetbased_shadowed_normal_data
@@ -345,9 +346,12 @@ def main(_):
             name='status_message')
         if not FLAGS.max_number_of_steps:
             return
+
+        training_scaffold = Scaffold(saver=tf.train.Saver(max_to_keep=20))
         tfgan.gan_train(
             train_ops,
             log_dir,
+            scaffold=training_scaffold,
             save_checkpoint_secs=120,
             get_hooks_fn=tfgan.get_sequential_train_hooks(train_steps),
             hooks=[
