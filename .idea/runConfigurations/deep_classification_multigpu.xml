@@ -1,0 +1,24 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="deep_classification_multigpu" type="PythonConfigurationType" factoryName="Python" singleton="false">
+    <module name="Source" />
+    <option name="INTERPRETER_OPTIONS" value="-B" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name="PYTHONUNBUFFERED" value="1" />
+    </envs>
+    <option name="SDK_HOME" value="" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="IS_MODULE_SDK" value="true" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/deep_classification_multigpu.py" />
+    <option name="PARAMETERS" value="--path=$PROJECT_DIR$ --step=25000 --split_count=3 --max_evals=1 --model_name=CNNModelv4 --test_ratio=0 --train_ratio=0.100 --loader_name=GULFPORTDataLoader --neighborhood=1 --importer=GeneratorImporter --perform_validation --save_checkpoint_steps=1000 --algorithm_param_path=algorithm_param_output_cnnv4.json --validation_steps=1000 --log_model_params --augmentation_random_threshold=0.5" />
+    <option name="SHOW_COMMAND_LINE" value="false" />
+    <option name="EMULATE_TERMINAL" value="false" />
+    <option name="MODULE_MODE" value="false" />
+    <option name="REDIRECT_INPUT" value="false" />
+    <option name="INPUT_FILE" value="" />
+    <method v="2" />
+  </configuration>
+</component>

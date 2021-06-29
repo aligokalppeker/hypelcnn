@@ -347,6 +347,9 @@ def main(_):
         if not FLAGS.max_number_of_steps:
             return
 
+        gpu = tf.config.experimental.list_physical_devices('GPU')
+        tf.config.experimental.set_memory_growth(gpu[0], True)
+
         training_scaffold = Scaffold(saver=tf.train.Saver(max_to_keep=20))
         tfgan.gan_train(
             train_ops,
