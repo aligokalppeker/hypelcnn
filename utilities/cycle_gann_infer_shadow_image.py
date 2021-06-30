@@ -36,8 +36,8 @@ flags.DEFINE_string('output_path', '',
                     'Output path to create tiff files. '
                     '(e.g. "/mylogdir/")')
 
-flags.DEFINE_bool('make_them_shadow', True,
-                  'makes the scene shadowed, or not')
+flags.DEFINE_string('make_them_shadow', "",
+                    'makes the scene shadowed(shadow), non shadowed(deshadow), or anything(none)')
 
 FLAGS = flags.FLAGS
 
@@ -80,17 +80,21 @@ def main(_):
     element_size = loader.get_data_shape(data_set)
     element_size = [element_size[0], element_size[1], element_size[2] - 1]
 
-    if make_them_shadow:
+    if make_them_shadow == "shadow":
         model_name = model_forward_generator_name
         sign_to_filter_in_shadow_map = 0
-    else:
+    elif make_them_shadow == "deshadow":
         model_name = model_backward_generator_name
         sign_to_filter_in_shadow_map = 1
+    else:
+        model_name = model_backward_generator_name
+        sign_to_filter_in_shadow_map = -1
 
     images_hwc_pl, generated_output = make_inference_graph(model_name, element_size, clip_invalid_values=False)
 
     with tf.Session() as sess:
-        create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
+        if sign_to_filter_in_shadow_map != -1:
+            create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
 
         screen_size_first_dim = scene_shape[0]
         screen_size_sec_dim = scene_shape[1]
@@ -121,7 +125,7 @@ def main(_):
         hsi_image -= offset
         hsi_image /= multiplier
         hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 256).astype(numpy.uint8)
-        imwrite(os.path.join(FLAGS.output_path, "shadow_image_rgb.tif"), hsi_as_rgb)
+        imwrite(os.path.join(FLAGS.output_path, "shadow_image_rgb_.tif"), hsi_as_rgb)
 
 
 if __name__ == '__main__':
