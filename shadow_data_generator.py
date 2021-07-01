@@ -37,17 +37,26 @@ def _shadowdata_generator_model(netinput, is_training=True):
         net2 = net2 + net1
         net3 = slim.convolution1d(net2, 1, band_size * 4, padding='SAME',
                                   weights_regularizer=None)
+
         net3 = net3 + net2
-        net4 = slim.convolution1d(net3, 1, band_size * 2, padding='SAME',
+        net4 = slim.convolution1d(net3, 1, band_size * 8, padding='SAME',
                                   weights_regularizer=None)
 
         net4 = net4 + net3
-        net5 = slim.convolution1d(net4, 1, band_size, padding='SAME',
+        net5 = slim.convolution1d(net4, 1, band_size * 4, padding='SAME',
+                                  weights_regularizer=None)
+
+        net5 = net5 + net4
+        net6 = slim.convolution1d(net5, 1, band_size * 2, padding='SAME',
+                                  weights_regularizer=None)
+
+        net6 = net6 + net5
+        net7 = slim.convolution1d(net6, 1, band_size, padding='SAME',
                                   normalizer_fn=None,
                                   normalizer_params=None,
                                   weights_regularizer=None,
                                   activation_fn=None)
-    return tf.expand_dims(tf.expand_dims(slim.flatten(net5), axis=1), axis=1)
+    return tf.expand_dims(tf.expand_dims(slim.flatten(net7), axis=1), axis=1)
 
 
 def _shadowdata_discriminator_model(generated_data, generator_input, is_training=True):
@@ -207,6 +216,7 @@ def plot_overall_info(mean, std, iteration, log_dir):
     filename = "band_ratio_" + str(iteration) + ".png"
     plt.savefig(os.path.join(log_dir, filename), dpi=300, bbox_inches='tight')
     # plt.show()
+    plt.clf()
 
 
 def print_overall_info(inf_nan_value_count, mean, raw_mean, std):
