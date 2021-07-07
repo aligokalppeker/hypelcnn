@@ -92,6 +92,8 @@ def main(_):
 
     images_hwc_pl, generated_output = make_inference_graph(model_name, element_size, clip_invalid_values=False)
 
+    gpu = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_memory_growth(gpu[0], True)
     with tf.Session() as sess:
         if sign_to_filter_in_shadow_map != -1:
             create_generator_restorer().restore(sess, FLAGS.checkpoint_path)

@@ -69,6 +69,8 @@ def main(_):
 
     data_sample_array = load_samples_for_testing(loader, data_set, iteration_count, neighborhood, shadow_map)
 
+    gpu = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_memory_growth(gpu[0], True)
     with tf.Session() as sess:
         create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
         calculate_stats_from_samples(sess, data_sample_array, images_x_input_tensor, generate_y_tensor,
