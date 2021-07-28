@@ -11,5 +11,6 @@
   "l2regularizer_scale": 0.00001,
   "spectral_hierarchy_level": 3,
   "spatial_hierarchy_level": 3,
-  "degradation_coeff": 3
+  "degradation_coeff": 3,
+  "use_residual": true
 }
