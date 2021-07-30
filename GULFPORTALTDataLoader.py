@@ -18,9 +18,6 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         data_set = super().load_data(neighborhood, normalize)
         shadow_map, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
 
-        # Add extra lidar ratio as 1
-        shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
-
         cyclegan_shadow_func = lambda inp: (construct_cyclegan_inference_graph_randomized(inp))
         cyclegan_shadow_op_creater = create_generator_restorer
         cyclegan_shadow_op_initializer = lambda restorer, session: (
