@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/cycle_gann_train.py" />
-    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --loader_name=GRSS2013DataLoader --max_number_of_steps=500000 --use_target_map=False --cycle_consistency_loss_weight=10 --batch_size=128" />
+    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --loader_name=GULFPORTALTDataLoader --max_number_of_steps=500000 --use_target_map=False --cycle_consistency_loss_weight=10 --batch_size=1280" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

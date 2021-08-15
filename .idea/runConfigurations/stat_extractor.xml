@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/stat_extractor.py" />
-    <option name="PARAMETERS" value="C:\GoogleDriveBack\PHD\Tez\Source\successful_logs\grss2013\capsule_nn" />
+    <option name="PARAMETERS" value="..\successful_logs\gulfport_alt\context_cnn\episode_0_aug_cycle" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

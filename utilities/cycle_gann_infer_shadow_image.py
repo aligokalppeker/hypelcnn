@@ -89,6 +89,7 @@ def main(_):
     else:
         model_name = model_backward_generator_name
         sign_to_filter_in_shadow_map = -1
+        make_them_shadow = "none"
 
     images_hwc_pl, generated_output = make_inference_graph(model_name, element_size, clip_invalid_values=False)
 
@@ -120,14 +121,14 @@ def main(_):
                 progress_bar.update(1)
 
         progress_bar.close()
-        imwrite(os.path.join(FLAGS.output_path, "shadow_image.tif"),
+        imwrite(os.path.join(FLAGS.output_path, f"shadow_image_{make_them_shadow}.tif"),
                 hsi_image, planarconfig='contig')
 
         hsi_image = hsi_image.astype(float)
         hsi_image -= offset
         hsi_image /= multiplier
         hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 256).astype(numpy.uint8)
-        imwrite(os.path.join(FLAGS.output_path, "shadow_image_rgb_.tif"), hsi_as_rgb)
+        imwrite(os.path.join(FLAGS.output_path, f"shadow_image_rgb_{make_them_shadow}.tif"), hsi_as_rgb)
 
 
 if __name__ == '__main__':

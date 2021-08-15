@@ -21,7 +21,7 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         cyclegan_shadow_func = lambda inp: (construct_cyclegan_inference_graph_randomized(inp))
         cyclegan_shadow_op_creater = create_generator_restorer
         cyclegan_shadow_op_initializer = lambda restorer, session: (
-            restorer.restore(session, self.get_model_base_dir() + 'shadow_cycle_gan/v1/model.ckpt-22519'))
+            restorer.restore(session, self.get_model_base_dir() + 'shadow_cycle_gan/v2/model.ckpt-83504'))
 
         simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, shadow_ratio))
         shadow_dict = {'cycle_gan': ShadowOperationStruct(shadow_op=cyclegan_shadow_func,
