@@ -7,7 +7,7 @@ from NNModel import NNModel
 from common_nn_operations import ModelOutputTensors
 
 
-class CNNModelv5(NNModel):
+class DUALCNNModelv1(NNModel):
 
     def get_hyper_param_space(self):
         return {
@@ -59,19 +59,19 @@ class CNNModelv5(NNModel):
 
     @staticmethod
     def _create_lidar_tensor_branch(bn_training_params, lidar_group, lrelu, model_input_params):
-        net = CNNModelv5._create_a_level(2, lidar_group, lrelu, 'lidar_level1',
+        net = DUALCNNModelv1._create_a_level(2, lidar_group, lrelu, 'lidar_level1',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='lidar_connector_conv1',
                           activation_fn=lrelu,
                           normalizer_fn=slim.batch_norm,
                           normalizer_params=bn_training_params)
-        net = CNNModelv5._create_a_level(4, net, lrelu, 'lidar_level2',
+        net = DUALCNNModelv1._create_a_level(4, net, lrelu, 'lidar_level2',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='lidar_connector_conv2',
                           activation_fn=lrelu,
                           normalizer_fn=slim.batch_norm,
                           normalizer_params=bn_training_params)
-        net = CNNModelv5._create_a_level(8, net, lrelu, 'lidar_level3',
+        net = DUALCNNModelv1._create_a_level(8, net, lrelu, 'lidar_level3',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='lidar_connector_conv3',
                           activation_fn=lrelu,
@@ -106,56 +106,56 @@ class CNNModelv5(NNModel):
     def _create_hs_tensor_branch(algorithm_params, bn_training_params, hs_group, lrelu, model_input_params):
         level_filter_count = algorithm_params["filter_count"]
 
-        net = CNNModelv5._create_a_level(int(level_filter_count / 4), hs_group, lrelu, 'level1',
+        net = DUALCNNModelv1._create_a_level(int(level_filter_count / 4), hs_group, lrelu, 'level1',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv1',
                           activation_fn=lrelu,
                           normalizer_fn=slim.batch_norm,
                           normalizer_params=bn_training_params)
 
-        net = CNNModelv5._create_a_level(int(level_filter_count / 2), net, lrelu, 'level2',
+        net = DUALCNNModelv1._create_a_level(int(level_filter_count / 2), net, lrelu, 'level2',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv2',
                           activation_fn=lrelu,
                           normalizer_fn=slim.batch_norm,
                           normalizer_params=bn_training_params)
 
-        net = CNNModelv5._create_a_level(int(level_filter_count), net, lrelu, 'level3',
+        net = DUALCNNModelv1._create_a_level(int(level_filter_count), net, lrelu, 'level3',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv3',
                           activation_fn=lrelu,
                           normalizer_fn=slim.batch_norm,
                           normalizer_params=bn_training_params)
 
-        net = CNNModelv5._create_a_level(int(level_filter_count / 2), net, lrelu, 'level4',
+        net = DUALCNNModelv1._create_a_level(int(level_filter_count / 2), net, lrelu, 'level4',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv4',
                           activation_fn=lrelu,
                           normalizer_fn=slim.batch_norm,
                           normalizer_params=bn_training_params)
 
-        net = CNNModelv5._create_a_level(int(level_filter_count / 4), net, lrelu, 'level5',
+        net = DUALCNNModelv1._create_a_level(int(level_filter_count / 4), net, lrelu, 'level5',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv5',
                           activation_fn=lrelu,
                           normalizer_fn=slim.batch_norm,
                           normalizer_params=bn_training_params)
 
-        net = CNNModelv5._create_a_level(int(level_filter_count / 8), net, lrelu, 'level6',
+        net = DUALCNNModelv1._create_a_level(int(level_filter_count / 8), net, lrelu, 'level6',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv6',
                           activation_fn=lrelu,
                           normalizer_fn=slim.batch_norm,
                           normalizer_params=bn_training_params)
 
-        net = CNNModelv5._create_a_level(int(level_filter_count / 16), net, lrelu, 'level7',
+        net = DUALCNNModelv1._create_a_level(int(level_filter_count / 16), net, lrelu, 'level7',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv7',
                           activation_fn=lrelu,
                           normalizer_fn=slim.batch_norm,
                           normalizer_params=bn_training_params)
 
-        net = CNNModelv5._create_a_level(int(level_filter_count / 32), net, lrelu, 'level8',
+        net = DUALCNNModelv1._create_a_level(int(level_filter_count / 32), net, lrelu, 'level8',
                                          model_input_params.is_training)
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv8',
                           activation_fn=lrelu,
