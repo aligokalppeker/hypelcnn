@@ -51,7 +51,6 @@ class DUALCNNModelv1(NNModel):
                 lidar_net = self._create_lidar_tensor_branch(bn_training_params, hs_lidar_groups[1], lrelu,
                                                              model_input_params)
 
-                # net = tf.concat(axis=3, values=[hs_net, lidar_net])
                 net = tf.concat(axis=1, values=[slim.flatten(hs_net), slim.flatten(lidar_net)])
                 net = self._create_fc_tensor_branch(algorithm_params, bn_training_params, class_count, lrelu,
                                                     model_input_params, net)
