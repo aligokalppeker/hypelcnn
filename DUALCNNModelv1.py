@@ -33,14 +33,13 @@ class DUALCNNModelv1(NNModel):
 
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         with tf.device(model_input_params.device_id):
-            bn_training_params = {'is_training': model_input_params.is_training, 'decay': 0.95}
             with slim.arg_scope([slim.conv2d, slim.fully_connected],
+                                # normalizer_fn=slim.batch_norm,
+                                # normalizer_params={'is_training': model_input_params.is_training, 'decay': 0.95},
+                                # weights_initializer=initializers.variance_scaling(scale=2.0),
+                                # weights_regularizer=slim.l2_regularizer(algorithm_params["l2regularizer_scale"]),
                                 activation_fn=lambda inp: slim.nn.leaky_relu(inp,
-                                                                             alpha=algorithm_params["lrelu_alpha"]),
-                                normalizer_fn=slim.batch_norm,
-                                normalizer_params=bn_training_params,
-                                weights_initializer=initializers.variance_scaling(scale=2.0),
-                                weights_regularizer=slim.l2_regularizer(algorithm_params["l2regularizer_scale"])):
+                                                                             alpha=algorithm_params["lrelu_alpha"])):
                 band_size = model_input_params.x.get_shape()[3].value
                 hs_lidar_groups = tf.split(axis=3, num_or_size_splits=[band_size - 1, 1],
                                            value=model_input_params.x)
@@ -66,8 +65,7 @@ class DUALCNNModelv1(NNModel):
         return net
 
     @staticmethod
-    def _create_fc_tensor_branch(algorithm_params, class_count, model_input_params,
-                                 net):
+    def _create_fc_tensor_branch(algorithm_params, class_count, model_input_params, net):
         net = slim.flatten(net)
         net = slim.fully_connected(net, class_count * 9, scope='fc1')
         net = slim.dropout(net, algorithm_params["drop_out_ratio"], is_training=model_input_params.is_training)
