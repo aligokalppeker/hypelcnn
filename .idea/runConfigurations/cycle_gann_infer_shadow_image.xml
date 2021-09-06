@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/cycle_gann_infer_shadow_image.py" />
-    <option name="PARAMETERS" value="--checkpoint_path=log\model.ckpt-83504 --path=$USER_HOME$/Google~1/PHD/Tez/Source --loader_name=GULFPORTALTDataLoader --make_them_shadow=shadow" />
+    <option name="PARAMETERS" value="--checkpoint_path=log\model.ckpt-143246 --path=$USER_HOME$/Google~1/PHD/Tez/Source --loader_name=GRSS2013DataLoader --make_them_shadow=deshadow" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
