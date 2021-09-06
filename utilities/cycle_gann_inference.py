@@ -67,14 +67,22 @@ def main(_):
     shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
     shadow_ratio = shadow_ratio[0:-1]
 
-    data_sample_array = load_samples_for_testing(loader, data_set, iteration_count, neighborhood, shadow_map)
+    data_sample_array_for_shadow = load_samples_for_testing(loader, data_set, iteration_count, neighborhood,
+                                                            shadow_map,
+                                                            fetch_shadows=False)
+    data_sample_array_for_deshadow = load_samples_for_testing(loader, data_set, iteration_count, neighborhood,
+                                                              shadow_map,
+                                                              fetch_shadows=False)
 
     gpu = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(gpu[0], True)
     with tf.Session() as sess:
         create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
-        calculate_stats_from_samples(sess, data_sample_array, images_x_input_tensor, generate_y_tensor,
-                                     shadow_ratio, "./", 0)
+        calculate_stats_from_samples(sess, data_sample_array_for_shadow, images_x_input_tensor, generate_y_tensor,
+                                     shadow_ratio, "./", 0, plt_name=f"{loader_name.lower()}_band_ratio_shadowed")
+
+        calculate_stats_from_samples(sess, data_sample_array_for_deshadow, images_y_input_tensor, generate_x_tensor,
+                                     1/shadow_ratio, "./", 0, plt_name=f"{loader_name.lower()}_band_ratio_deshadowed")
 
         # normal_data_as_matrix, shadow_data_as_matrix = loader.get_targetbased_shadowed_normal_data(data_set,
         #                                                                                            loader,

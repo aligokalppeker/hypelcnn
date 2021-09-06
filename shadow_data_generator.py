@@ -160,7 +160,7 @@ def export(sess, input_pl, input_np, run_tensor):
 
 def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor,
                                  shadow_ratio, log_dir,
-                                 current_iteration):
+                                 current_iteration, plt_name):
     band_size = shadow_ratio.shape[0]
     iteration_count = len(data_sample_list)
     progress_bar = tqdm(total=iteration_count)
@@ -183,17 +183,22 @@ def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, 
     std = numpy.std(total_band_ratio * shadow_ratio, axis=0)
     raw_mean = numpy.mean(total_band_ratio, axis=0)
     print_overall_info(inf_nan_value_count, mean, raw_mean, std)
-    plot_overall_info(mean, std, current_iteration, log_dir)
+    plot_overall_info(mean, std, current_iteration, plt_name, log_dir)
 
 
-def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map):
+def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map, fetch_shadows):
     # neighborhood aware indices finder
     band_size = loader.get_data_shape(data_set)[2] - 1
     data_sample_list = []
+    shadow_check_val = 0
+
     if neighborhood > 0:
-        indices = numpy.where(shadow_map[neighborhood:-neighborhood, neighborhood:-neighborhood] == 0)
+        shadow_map = shadow_map[neighborhood:-neighborhood, neighborhood:-neighborhood]
+
+    if fetch_shadows:
+        indices = numpy.where(shadow_map > shadow_check_val)
     else:
-        indices = numpy.where(shadow_map == 0)
+        indices = numpy.where(shadow_map == shadow_check_val)
 
     for index in range(0, sample_count):
         # Pick a random point
@@ -203,18 +208,27 @@ def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shado
     return data_sample_list
 
 
-def plot_overall_info(mean, std, iteration, log_dir):
+def plot_overall_info(mean, std, iteration, plt_name, log_dir):
     band_size = mean.shape[0]
     bands = linspace(1, band_size, band_size, dtype=numpy.int)
-    plt.scatter(bands, mean, label="mean ratio " + str(iteration), s=10)
+    plt.rcParams['font.family'] = "sans-serif"
+    plt.rcParams['font.sans-serif'] = "Arial"
+    plt.rcParams['font.size'] = 14
+    plt.scatter(bands, mean, label="mean ratio", s=10)
     plt.plot(bands, mean)
-    plt.fill_between(bands, mean - std, mean + std, alpha=0.2)
-    plt.legend(loc='upper left')
-    plt.title("Band ratio")
-    plt.xlabel("bands")
-    plt.ylabel("ratio")
-    filename = "band_ratio_" + str(iteration) + ".png"
-    plt.savefig(os.path.join(log_dir, filename), dpi=300, bbox_inches='tight')
+    lower_bound = mean - std
+    upper_bound = mean + std
+    plt.fill_between(bands, lower_bound, upper_bound, alpha=0.2)
+    # plt.legend(loc='upper left')
+    # plt.title("Band ratio")
+    plt.xlabel("Spectral band index")
+    plt.ylabel("Ratio between generated and original samples")
+    plt.ylim([-1, 4])
+    plt.yticks(list(range(-1, 5)))
+    # plt.yticks(list(range(numpy.round(numpy.min(lower_bound)).astype(int),
+    #                       numpy.round(numpy.max(upper_bound)).astype(int) + 1)))
+    plt.grid()
+    plt.savefig(os.path.join(log_dir, f"{plt_name}_{iteration}.pdf"), dpi=300, bbox_inches='tight')
     # plt.show()
     plt.clf()
 

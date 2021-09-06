@@ -112,7 +112,8 @@ class ValidationHook(tf.train.SessionRunHook):
         self._global_step_tensor = None
         self._shadow_ratio = shadow_ratio[0:-1]
         self._log_dir = log_dir
-        self._data_sample_list = load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map)
+        self._data_sample_list = load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map,
+                                                          fetch_shadows=False)
         for idx, _data_sample in enumerate(self._data_sample_list):
             self._data_sample_list[idx] = numpy.expand_dims(_data_sample, axis=0)
 
@@ -126,7 +127,8 @@ class ValidationHook(tf.train.SessionRunHook):
         if current_iteration % self._iteration_frequency == 1 and current_iteration != 1:
             print('Validation metrics #%d' % current_iteration)
             calculate_stats_from_samples(session, self._data_sample_list, self._input_tensor, self._forward_model,
-                                         self._shadow_ratio, self._log_dir, current_iteration)
+                                         self._shadow_ratio, self._log_dir, current_iteration,
+                                         plt_name="band_ratio_shadowed")
 
 
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio):
