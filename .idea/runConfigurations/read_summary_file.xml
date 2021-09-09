@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="read_summary_file" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+  <configuration default="false" name="read_summary_file" type="PythonConfigurationType" factoryName="Python" folderName="table_creation_runs" nameIsGenerated="true">
     <module name="Source" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

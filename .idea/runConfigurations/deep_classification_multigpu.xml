@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/deep_classification_multigpu.py" />
-    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --step=40000 --split_count=1 --max_evals=1 --model_name=DUALCNNModelv1 --test_ratio=0 --train_ratio=0.100 --loader_name=GULFPORTALTDataLoader --neighborhood=2 --importer=GeneratorImporter --perform_validation --save_checkpoint_steps=10000 --algorithm_param_path=algorithm_param_output_dualcnnv1.json --validation_steps=10000 --log_model_params --augmentation_random_threshold=0.90" />
+    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --step=40000 --split_count=1 --max_evals=1 --model_name=DUALCNNModelv1 --test_ratio=0 --train_ratio=125 --loader_name=GULFPORTALTDataLoader --neighborhood=3 --importer=GeneratorImporter --perform_validation --save_checkpoint_steps=10000 --algorithm_param_path=algorithm_param_output_dualcnnv1.json --validation_steps=10000 --log_model_params --augmentation_random_threshold=0.50 --augment_data_with_shadow=cycle_gan" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

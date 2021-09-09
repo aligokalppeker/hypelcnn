@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="latex_table_from_conf_set(grss2018)" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="latex_table_from_conf_set(grss2018)" type="PythonConfigurationType" factoryName="Python" folderName="table_creation_runs">
     <module name="Source" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
