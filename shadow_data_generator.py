@@ -78,6 +78,16 @@ def _shadowdata_discriminator_model(generated_data, generator_input, is_training
                                  normalizer_fn=None,
                                  normalizer_params=None,
                                  activation_fn=None)
+
+        net = slim.convolution1d(net, size*2, size*2, padding='VALID',
+                                 normalizer_fn=None,
+                                 normalizer_params=None,
+                                 activation_fn=None)
+
+        net = slim.convolution1d(net, size, size, padding='VALID',
+                                 normalizer_fn=None,
+                                 normalizer_params=None,
+                                 activation_fn=None)
         net = tf.expand_dims(tf.expand_dims(slim.flatten(net), axis=1), axis=1)
     return net
 
