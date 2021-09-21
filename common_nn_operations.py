@@ -536,7 +536,13 @@ def shuffle_training_data_using_size(class_count, result, train_data_size, valid
         class_sample_count = id_for_class.shape[0]
         if class_sample_count > 0:
             all_index = numpy.arange(class_sample_count)
-            train_index = numpy.random.choice(class_sample_count, train_data_size, replace=False)
+
+            if class_sample_count < train_data_size:
+                # Select all elements in case of overflow
+                train_index = numpy.arange(0, class_sample_count)
+            else:
+                train_index = numpy.random.choice(class_sample_count, train_data_size, replace=False)
+
             validation_index = numpy.array([index for index in all_index if index not in train_index])
             if validation_size is not None:
                 validation_index_size = validation_index.shape[0]
