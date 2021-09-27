@@ -13,6 +13,40 @@ model_forward_generator_name = 'ModelX2Y'
 model_backward_generator_name = 'ModelY2X'
 
 
+def _shadowdata_generator_model_simple(netinput, is_training=True):
+    with slim.arg_scope(
+            [slim.conv2d, slim.conv2d_transpose, slim.convolution1d],
+            trainable=is_training,
+            data_format="NHWC"
+    ):
+        band_size = netinput.get_shape()[3].value
+        net = tf.expand_dims(tf.squeeze(netinput, axis=[1, 2]), axis=2)
+        net = slim.convolution1d(net, 1, band_size, padding='SAME',
+                                 normalizer_fn=None,
+                                 normalizer_params=None,
+                                 weights_regularizer=None,
+                                 activation_fn=None)
+    return tf.expand_dims(tf.expand_dims(slim.flatten(net), axis=1), axis=1)
+
+
+def _shadowdata_discriminator_model_simple(generated_data, generator_input, is_training=True):
+    with slim.arg_scope([slim.fully_connected, slim.separable_conv2d, slim.convolution1d],
+                        weights_initializer=initializers.variance_scaling(scale=2.0),
+                        activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.01))):
+        band_size = generated_data.get_shape()[3].value
+
+        net = tf.concat(axis=3, values=[generated_data, generator_input])
+        net = tf.squeeze(net, axis=[1, 2])
+        net = tf.expand_dims(net, axis=2)
+        size = band_size * 2
+        net = slim.convolution1d(net, size, size, padding='VALID',
+                                 normalizer_fn=None,
+                                 normalizer_params=None,
+                                 activation_fn=None)
+        net = tf.expand_dims(tf.expand_dims(slim.flatten(net), axis=1), axis=1)
+    return net
+
+
 def _shadowdata_generator_model(netinput, is_training=True):
     with slim.arg_scope(
             [slim.conv2d, slim.conv2d_transpose, slim.convolution1d],
@@ -29,26 +63,22 @@ def _shadowdata_generator_model(netinput, is_training=True):
         band_size = netinput.get_shape()[3].value
 
         net0 = tf.expand_dims(tf.squeeze(netinput, axis=[1, 2]), axis=2)
-        net1 = slim.convolution1d(net0, 1, band_size, padding='SAME',
-                                  weights_regularizer=None)
+        net1 = slim.convolution1d(net0, 1, band_size, padding='SAME')
+
         net1 = net1 + net0
-        net2 = slim.convolution1d(net1, 1, band_size * 2, padding='SAME',
-                                  weights_regularizer=None)
+        net2 = slim.convolution1d(net1, 1, band_size // 2, padding='SAME')
+
         net2 = net2 + net1
-        net3 = slim.convolution1d(net2, 1, band_size * 4, padding='SAME',
-                                  weights_regularizer=None)
+        net3 = slim.convolution1d(net2, 1, band_size // 4, padding='SAME')
 
         net3 = net3 + net2
-        net4 = slim.convolution1d(net3, 1, band_size * 8, padding='SAME',
-                                  weights_regularizer=None)
+        net4 = slim.convolution1d(net3, 1, band_size // 8, padding='SAME')
 
         net4 = net4 + net3
-        net5 = slim.convolution1d(net4, 1, band_size * 4, padding='SAME',
-                                  weights_regularizer=None)
+        net5 = slim.convolution1d(net4, 1, band_size // 4, padding='SAME')
 
         net5 = net5 + net4
-        net6 = slim.convolution1d(net5, 1, band_size * 2, padding='SAME',
-                                  weights_regularizer=None)
+        net6 = slim.convolution1d(net5, 1, band_size // 2, padding='SAME')
 
         net6 = net6 + net5
         net7 = slim.convolution1d(net6, 1, band_size, padding='SAME',
@@ -70,24 +100,15 @@ def _shadowdata_discriminator_model(generated_data, generator_input, is_training
                         activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.01))):
         band_size = generated_data.get_shape()[3].value
 
-        net = tf.concat(axis=3, values=[generated_data, generator_input])
+        net = generated_data
         net = tf.squeeze(net, axis=[1, 2])
         net = tf.expand_dims(net, axis=2)
-        size = band_size * 2
-        net = slim.convolution1d(net, size, size, padding='VALID',
+
+        net = slim.convolution1d(net, band_size, band_size, padding='VALID',
                                  normalizer_fn=None,
                                  normalizer_params=None,
                                  activation_fn=None)
 
-        net = slim.convolution1d(net, size*2, size*2, padding='VALID',
-                                 normalizer_fn=None,
-                                 normalizer_params=None,
-                                 activation_fn=None)
-
-        net = slim.convolution1d(net, size, size, padding='VALID',
-                                 normalizer_fn=None,
-                                 normalizer_params=None,
-                                 activation_fn=None)
         net = tf.expand_dims(tf.expand_dims(slim.flatten(net), axis=1), axis=1)
     return net
 

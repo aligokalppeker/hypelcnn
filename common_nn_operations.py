@@ -538,8 +538,8 @@ def shuffle_training_data_using_size(class_count, result, train_data_size, valid
             all_index = numpy.arange(class_sample_count)
 
             if class_sample_count < train_data_size:
-                # Select all elements except one in case of overflow
-                train_index = numpy.random.choice(class_sample_count, class_sample_count - 1, replace=False)
+                # Select 0.90 of elements in case of overflow
+                train_index = numpy.random.choice(class_sample_count, (class_sample_count * 9) // 10, replace=False)
             else:
                 train_index = numpy.random.choice(class_sample_count, train_data_size, replace=False)
 
