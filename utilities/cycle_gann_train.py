@@ -330,8 +330,8 @@ def main(_):
         # Define CycleGAN loss.
         cyclegan_loss = tfgan.cyclegan_loss(
             cyclegan_model,
-            # generator_loss_fn=tfgan_losses.modified_generator_loss,
-            # discriminator_loss_fn=tfgan_losses.modified_discriminator_loss,
+            # generator_loss_fn=wasserstein_generator_loss,
+            # discriminator_loss_fn=wasserstein_discriminator_loss,
             cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
             tensor_pool_fn=tfgan.features.tensor_pool)
 
