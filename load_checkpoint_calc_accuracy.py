@@ -60,7 +60,7 @@ def main(_):
     saver = tf.train.Saver(var_list=slim.get_variables_to_restore(include=["nn_core"],
                                                                   exclude=["image_gen_net_"]))
     config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
-    config.gpu_options.allow_growth = False
+    config.gpu_options.allow_growth = True
     config.gpu_options.per_process_gpu_memory_fraction = 1.0
 
     with tf.Session(config=config) as session:
