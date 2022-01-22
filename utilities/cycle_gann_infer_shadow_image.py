@@ -39,6 +39,9 @@ flags.DEFINE_string('output_path', '',
 flags.DEFINE_string('make_them_shadow', "",
                     'makes the scene shadowed(shadow), non shadowed(deshadow), or anything(none)')
 
+flags.DEFINE_bool('convert_all', False,
+                  'Whether to convert filtered pixels(shadowed or not) or all.')
+
 FLAGS = flags.FLAGS
 
 
@@ -61,7 +64,6 @@ def _validate_flags():
 
 def main(_):
     _validate_flags()
-    convert_only_the_convenient_pixels = True
     make_them_shadow = FLAGS.make_them_shadow
 
     loader_name = FLAGS.loader_name
@@ -80,6 +82,7 @@ def main(_):
     element_size = loader.get_data_shape(data_set)
     element_size = [element_size[0], element_size[1], element_size[2] - 1]
 
+    convert_only_the_convenient_pixels = not FLAGS.convert_all
     if make_them_shadow == "shadow":
         model_name = model_forward_generator_name
         sign_to_filter_in_shadow_map = 0
@@ -87,7 +90,7 @@ def main(_):
         model_name = model_backward_generator_name
         sign_to_filter_in_shadow_map = 1
     else:
-        model_name = model_backward_generator_name
+        model_name = None
         sign_to_filter_in_shadow_map = -1
         make_them_shadow = "none"
 
@@ -96,7 +99,7 @@ def main(_):
     gpu = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(gpu[0], True)
     with tf.Session() as sess:
-        if sign_to_filter_in_shadow_map != -1:
+        if make_them_shadow != "none":
             create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
 
         screen_size_first_dim = scene_shape[0]
@@ -109,8 +112,8 @@ def main(_):
             for second_idx in range(0, screen_size_sec_dim):
                 input_data = loader.get_point_value(data_set, [second_idx, first_idx])[:, :, 0:band_size]
 
-                if not convert_only_the_convenient_pixels or (convert_only_the_convenient_pixels and shadow_map[
-                    first_idx, second_idx] == sign_to_filter_in_shadow_map):
+                if not convert_only_the_convenient_pixels or shadow_map[
+                    first_idx, second_idx] == sign_to_filter_in_shadow_map:
                     generated_y_data = export(sess, images_hwc_pl, input_data, generated_output)
                 else:
                     generated_y_data = input_data
@@ -121,14 +124,21 @@ def main(_):
                 progress_bar.update(1)
 
         progress_bar.close()
-        imwrite(os.path.join(FLAGS.output_path, f"shadow_image_{make_them_shadow}.tif"),
+
+        if convert_only_the_convenient_pixels:
+            convert_region_suffix = ""
+        else:
+            convert_region_suffix = "all"
+
+        imwrite(os.path.join(FLAGS.output_path, f"shadow_image_{make_them_shadow}_{convert_region_suffix}.tif"),
                 hsi_image, planarconfig='contig')
 
         hsi_image = hsi_image.astype(float)
         hsi_image -= offset
         hsi_image /= multiplier
         hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 256).astype(numpy.uint8)
-        imwrite(os.path.join(FLAGS.output_path, f"shadow_image_rgb_{make_them_shadow}.tif"), hsi_as_rgb)
+        imwrite(os.path.join(FLAGS.output_path, f"shadow_image_rgb_{make_them_shadow}_{convert_region_suffix}.tif"),
+                hsi_as_rgb)
 
 
 if __name__ == '__main__':
