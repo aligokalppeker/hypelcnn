@@ -282,18 +282,25 @@ class ValidationHook(tf.train.SessionRunHook):
         return output_np
 
     def __init__(self, iteration_freq, sample_count, log_dir,
-                 loader, data_set, neighborhood, shadow_map, shadow_ratio, input_tensor,
-                 forward_model):
+                 loader, data_set, neighborhood, shadow_map, shadow_ratio, x_input_tensor, y_input_tensor,
+                 forward_model, backward_model):
         self._forward_model = forward_model
-        self._input_tensor = input_tensor
+        self._backward_model = backward_model
+        self._x_input_tensor = x_input_tensor
+        self._y_input_tensor = y_input_tensor
         self._iteration_frequency = iteration_freq
         self._global_step_tensor = None
         self._shadow_ratio = shadow_ratio[0:-1]
         self._log_dir = log_dir
-        self._data_sample_list = load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map,
-                                                          fetch_shadows=False)
-        for idx, _data_sample in enumerate(self._data_sample_list):
-            self._data_sample_list[idx] = numpy.expand_dims(_data_sample, axis=0)
+        self._data_sample_list_non_sh = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
+                                                                 shadow_map, fetch_shadows=False)
+        for idx, _data_sample in enumerate(self._data_sample_list_non_sh):
+            self._data_sample_list_non_sh[idx] = numpy.expand_dims(_data_sample, axis=0)
+
+        self._data_sample_list_sh = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
+                                                             shadow_map, fetch_shadows=True)
+        for idx, _data_sample in enumerate(self._data_sample_list_sh):
+            self._data_sample_list_sh[idx] = numpy.expand_dims(_data_sample, axis=0)
 
     def after_create_session(self, session, coord):
         self._global_step_tensor = tf.train.get_global_step()
@@ -303,10 +310,17 @@ class ValidationHook(tf.train.SessionRunHook):
         current_iteration = session.run(self._global_step_tensor)
 
         if current_iteration % self._iteration_frequency == 1 and current_iteration != 1:
-            print('Validation metrics #%d' % current_iteration)
-            calculate_stats_from_samples(session, self._data_sample_list, self._input_tensor, self._forward_model,
+            print("Validation metrics #%d" % current_iteration)
+            print("Shadowed")
+            calculate_stats_from_samples(session, self._data_sample_list_non_sh, self._x_input_tensor,
+                                         self._forward_model,
                                          self._shadow_ratio, self._log_dir, current_iteration,
                                          plt_name="band_ratio_shadowed")
+            print("De-shadowed")
+            calculate_stats_from_samples(session, self._data_sample_list_sh, self._y_input_tensor,
+                                         self._backward_model,
+                                         1 / self._shadow_ratio, self._log_dir, current_iteration,
+                                         plt_name="band_ratio_deshadowed")
 
 
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio):
@@ -502,16 +516,17 @@ def main(_):
         # Define CycleGAN model.
         with tf.variable_scope('Model', reuse=tf.AUTO_REUSE):
             cyclegan_model = _define_model(images_x, images_y, FLAGS.use_identity_loss)
-            input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-            dummy_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-            cyclegan_model_validation = _define_model(input_tensor, dummy_tensor, FLAGS.use_identity_loss)
+            x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
+            y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
+            cyclegan_model_validation = _define_model(x_input_tensor, y_input_tensor, FLAGS.use_identity_loss)
             validation_hook = ValidationHook(validation_iteration_count,
                                              validation_sample_count,
                                              log_dir,
                                              loader, data_set, neighborhood,
                                              shadow_map, shadow_ratio,
-                                             input_tensor,
-                                             cyclegan_model_validation.model_x2y.generated_data)
+                                             x_input_tensor, y_input_tensor,
+                                             cyclegan_model_validation.model_x2y.generated_data,
+                                             cyclegan_model_validation.model_y2x.generated_data)
 
         if FLAGS.use_identity_loss:
             cyclegan_loss = cyclegan_loss_with_identity(
