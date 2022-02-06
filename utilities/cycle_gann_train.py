@@ -9,11 +9,11 @@ import numpy
 import tensorflow as tf
 from absl import flags
 from tensorflow.contrib.data import shuffle_and_repeat
-from tensorflow.python.training.monitored_session import Scaffold
+from tensorflow.python.training.monitored_session import Scaffold, USE_DEFAULT
 from tensorflow_gan import gan_loss
 from tensorflow_gan.python import namedtuples
 from tensorflow_gan.python.losses import tuple_losses
-from tensorflow_gan.python.train import _validate_aux_loss_weight
+from tensorflow_gan.python.train import _validate_aux_loss_weight, get_sequential_train_hooks
 
 from DataLoader import SampleSet
 from common_nn_operations import get_class, get_all_shadowed_normal_data, get_targetbased_shadowed_normal_data
@@ -80,6 +80,88 @@ flags.DEFINE_bool('use_identity_loss', True,
                   'Whether to use identity loss during training.')
 
 FLAGS = flags.FLAGS
+
+
+def gan_train(train_ops,
+              logdir,
+              get_hooks_fn=get_sequential_train_hooks(),
+              master='',
+              is_chief=True,
+              scaffold=None,
+              hooks=None,
+              chief_only_hooks=None,
+              save_checkpoint_secs=USE_DEFAULT,
+              save_summaries_steps=USE_DEFAULT,
+              save_checkpoint_steps=USE_DEFAULT,
+              max_wait_secs=7200,
+              config=None):
+    """A wrapper around `contrib.training.train` that uses GAN hooks.
+
+    Args:
+      save_checkpoint_steps: Checkpoint steps to
+      train_ops: A GANTrainOps named tuple.
+      logdir: The directory where the graph and checkpoints are saved.
+      get_hooks_fn: A function that takes a GANTrainOps tuple and returns a list
+        of hooks.
+      master: The URL of the master.
+      is_chief: Specifies whether or not the training is being run by the primary
+        replica during replica training.
+      scaffold: An tf.train.Scaffold instance.
+      hooks: List of `tf.train.SessionRunHook` callbacks which are run inside the
+        training loop.
+      chief_only_hooks: List of `tf.train.SessionRunHook` instances which are run
+        inside the training loop for the chief trainer only.
+      save_checkpoint_secs: The frequency, in seconds, that a checkpoint is saved
+        using a default checkpoint saver. If `save_checkpoint_secs` is set to
+        `None`, then the default checkpoint saver isn't used.
+      save_summaries_steps: The frequency, in number of global steps, that the
+        summaries are written to disk using a default summary saver. If
+        `save_summaries_steps` is set to `None`, then the default summary saver
+        isn't used.
+      max_wait_secs: Maximum time workers should wait for the session to
+        become available. This should be kept relatively short to help detect
+        incorrect code, but sometimes may need to be increased if the chief takes
+        a while to start up.
+      config: An instance of `tf.ConfigProto`.
+
+    Returns:
+      Output of the call to `training.train`.
+    """
+    _validate_gan_train_inputs(logdir, is_chief, save_summaries_steps,
+                               save_checkpoint_secs)
+    new_hooks = get_hooks_fn(train_ops)
+    if hooks is not None:
+        hooks = list(hooks) + list(new_hooks)
+    else:
+        hooks = new_hooks
+
+    with tf.compat.v1.train.MonitoredTrainingSession(
+            master=master,
+            is_chief=is_chief,
+            checkpoint_dir=logdir,
+            scaffold=scaffold,
+            hooks=hooks,
+            chief_only_hooks=chief_only_hooks,
+            save_checkpoint_secs=save_checkpoint_secs,
+            save_summaries_steps=save_summaries_steps,
+            save_checkpoint_steps=save_checkpoint_steps,
+            config=config,
+            max_wait_secs=max_wait_secs) as session:
+        gstep = None
+        while not session.should_stop():
+            gstep = session.run(train_ops.global_step_inc_op)
+    return gstep
+
+
+def _validate_gan_train_inputs(logdir, is_chief, save_summaries_steps,
+                               save_checkpoint_secs):
+    if logdir is None and is_chief:
+        if save_summaries_steps:
+            raise ValueError(
+                'logdir cannot be None when save_summaries_steps is not None')
+        if save_checkpoint_secs:
+            raise ValueError(
+                'logdir cannot be None when save_checkpoint_secs is not None')
 
 
 class CycleGANModelWithIdentity(tfgan.CycleGANModel):
@@ -563,11 +645,12 @@ def main(_):
         tf.config.experimental.set_memory_growth(gpu[0], True)
 
         training_scaffold = Scaffold(saver=tf.train.Saver(max_to_keep=20))
-        tfgan.gan_train(
+
+        gan_train(
             train_ops,
             log_dir,
             scaffold=training_scaffold,
-            save_checkpoint_secs=120,
+            save_checkpoint_steps=validation_iteration_count,
             get_hooks_fn=tfgan.get_sequential_train_hooks(train_steps),
             hooks=[
                 initializer_hook,
