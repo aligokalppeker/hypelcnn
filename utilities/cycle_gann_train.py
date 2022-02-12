@@ -356,6 +356,46 @@ class InitializerHook(tf.train.SessionRunHook):
                                self.normal_placeholder: self.normal_data})
 
 
+class BestRatioHolder:
+
+    def __init__(self, max_size) -> None:
+        super().__init__()
+        self.data_holder = []
+        self.max_size = max_size
+
+    def add_point(self, iteration, kl_val):
+        insert_idx = 0
+        for (curr_iter, curr_kl) in self.data_holder:
+            if kl_val > curr_kl:
+                insert_idx = insert_idx + 1
+
+        self.data_holder.insert(insert_idx, (iteration, kl_val))
+        if len(self.data_holder) > self.max_size:
+            self.data_holder.pop()
+
+    def get_point_with_itr(self, iteration):
+        result = (None, None)
+        for (curr_iter, curr_kl) in self.data_holder:
+            if curr_iter == iteration:
+                result = (curr_iter, curr_kl)
+                break
+
+        return result
+
+    @staticmethod
+    def create_common_iterations(ratio_holder_1, ratio_holder_2):
+        result = BestRatioHolder(ratio_holder_1.max_size)
+        for (curr_iter, curr_kl) in ratio_holder_1.data_holder:
+            (found_itr, found_kl) = ratio_holder_2.get_point_with_itr(curr_iter)
+            if found_itr is not None:
+                result.add_point(found_itr, found_kl)
+
+        return result
+
+    def __str__(self) -> str:
+        return str(self.data_holder)
+
+
 class ValidationHook(tf.train.SessionRunHook):
     @staticmethod
     def export(sess, input_pl, input_np, output_tensor):
@@ -374,6 +414,8 @@ class ValidationHook(tf.train.SessionRunHook):
         self._global_step_tensor = None
         self._shadow_ratio = shadow_ratio[0:-1]
         self._log_dir = log_dir
+        self._best_shadow_ratio_holder = BestRatioHolder(10)
+        self._best_noshadow_ratio_holder = BestRatioHolder(10)
         self._data_sample_list_non_sh = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
                                                                  shadow_map, fetch_shadows=False)
         for idx, _data_sample in enumerate(self._data_sample_list_non_sh):
@@ -394,15 +436,23 @@ class ValidationHook(tf.train.SessionRunHook):
         if current_iteration % self._iteration_frequency == 1 and current_iteration != 1:
             print("Validation metrics #%d" % current_iteration)
             print("Shadowed")
-            calculate_stats_from_samples(session, self._data_sample_list_non_sh, self._x_input_tensor,
-                                         self._forward_model,
-                                         self._shadow_ratio, self._log_dir, current_iteration,
-                                         plt_name="band_ratio_shadowed")
+            kl_shadowed = calculate_stats_from_samples(session, self._data_sample_list_non_sh, self._x_input_tensor,
+                                                       self._forward_model,
+                                                       self._shadow_ratio, self._log_dir, current_iteration,
+                                                       plt_name="band_ratio_shadowed")
+            self._best_shadow_ratio_holder.add_point(current_iteration, kl_shadowed)
+            print("Shadowed kl divergence:%f" % kl_shadowed)
+            print("Best shadow options:", self._best_shadow_ratio_holder)
             print("De-shadowed")
-            calculate_stats_from_samples(session, self._data_sample_list_sh, self._y_input_tensor,
-                                         self._backward_model,
-                                         1 / self._shadow_ratio, self._log_dir, current_iteration,
-                                         plt_name="band_ratio_deshadowed")
+            kl_nonshadowed = calculate_stats_from_samples(session, self._data_sample_list_sh, self._y_input_tensor,
+                                                          self._backward_model,
+                                                          1 / self._shadow_ratio, self._log_dir, current_iteration,
+                                                          plt_name="band_ratio_deshadowed")
+            self._best_noshadow_ratio_holder.add_point(current_iteration, kl_nonshadowed)
+            print("Deshadowed kl divergence:%f" % kl_nonshadowed)
+            print("Best no shadow options:", self._best_noshadow_ratio_holder)
+            print("Best common options:", BestRatioHolder.create_common_iterations(self._best_shadow_ratio_holder,
+                                                                                   self._best_noshadow_ratio_holder))
 
 
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio):

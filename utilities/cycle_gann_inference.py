@@ -78,11 +78,15 @@ def main(_):
     tf.config.experimental.set_memory_growth(gpu[0], True)
     with tf.Session() as sess:
         create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
-        calculate_stats_from_samples(sess, data_sample_array_for_shadow, images_x_input_tensor, generate_y_tensor,
-                                     shadow_ratio, "./", 0, plt_name=f"{loader_name.lower()}_band_ratio_shadowed")
+        kl_shadowed = calculate_stats_from_samples(sess, data_sample_array_for_shadow, images_x_input_tensor,
+                                                   generate_y_tensor, shadow_ratio, "./", 0,
+                                                   plt_name=f"{loader_name.lower()}_band_ratio_shadowed")
+        print(kl_shadowed)
 
-        calculate_stats_from_samples(sess, data_sample_array_for_deshadow, images_y_input_tensor, generate_x_tensor,
-                                     1/shadow_ratio, "./", 0, plt_name=f"{loader_name.lower()}_band_ratio_deshadowed")
+        kl_nonshadowed = calculate_stats_from_samples(sess, data_sample_array_for_deshadow, images_y_input_tensor,
+                                                      generate_x_tensor, 1 / shadow_ratio, "./", 0,
+                                                      plt_name=f"{loader_name.lower()}_band_ratio_deshadowed")
+        print(kl_nonshadowed)
 
         # normal_data_as_matrix, shadow_data_as_matrix = loader.get_targetbased_shadowed_normal_data(data_set,
         #                                                                                            loader,
