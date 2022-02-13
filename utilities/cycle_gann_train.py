@@ -3,7 +3,9 @@ from __future__ import division
 from __future__ import print_function
 
 import distutils
+import json
 import os
+from json import JSONDecodeError
 
 import numpy
 import tensorflow as tf
@@ -364,6 +366,8 @@ class BestRatioHolder:
         self.max_size = max_size
 
     def add_point(self, iteration, kl_val):
+        iteration = int(iteration)  # For seralization purposes int64 => int
+        kl_val = float(kl_val)  # For seralization purposes float64 => float
         insert_idx = 0
         for (curr_iter, curr_kl) in self.data_holder:
             if kl_val > curr_kl:
@@ -381,6 +385,21 @@ class BestRatioHolder:
                 break
 
         return result
+
+    def load(self, file_address):
+        try:
+            with open(file_address, "rb") as read_file:
+                self.data_holder = json.load(read_file)
+            print(f"Best ratio file {file_address} is loaded.", self.data_holder)
+        except IOError:
+            print(f"File {file_address} file found. No best ratio is loaded.")
+        except JSONDecodeError:
+            print(f"File {file_address} file can not be decoded. No best ratio is loaded.")
+
+    def save(self, file_address):
+        serialized_out = json.dumps(self.data_holder)
+        with open(file_address, "w") as write_file:
+            write_file.write(serialized_out)
 
     @staticmethod
     def create_common_iterations(ratio_holder_1, ratio_holder_2):
@@ -414,8 +433,17 @@ class ValidationHook(tf.train.SessionRunHook):
         self._global_step_tensor = None
         self._shadow_ratio = shadow_ratio[0:-1]
         self._log_dir = log_dir
+        shadowed_suffix = "shadowed"
+        deshadowed_suffix = "deshadowed"
+        self._deshadowed_plt_name = f"band_ratio_{deshadowed_suffix}"
+        self._shadowed_plt_name = f"band_ratio_{shadowed_suffix}"
+        self._shadowed_best_ratio_addr = os.path.join(self._log_dir, f"best_ratio_{shadowed_suffix}.json")
+        self._deshadowed_best_ratio_addr = os.path.join(self._log_dir, f"best_ratio_{deshadowed_suffix}.json")
         self._best_shadow_ratio_holder = BestRatioHolder(10)
-        self._best_noshadow_ratio_holder = BestRatioHolder(10)
+        self._best_shadow_ratio_holder.load(self._shadowed_best_ratio_addr)
+        self._best_deshadow_ratio_holder = BestRatioHolder(10)
+        self._best_deshadow_ratio_holder.load(self._deshadowed_best_ratio_addr)
+
         self._data_sample_list_non_sh = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
                                                                  shadow_map, fetch_shadows=False)
         for idx, _data_sample in enumerate(self._data_sample_list_non_sh):
@@ -439,20 +467,22 @@ class ValidationHook(tf.train.SessionRunHook):
             kl_shadowed = calculate_stats_from_samples(session, self._data_sample_list_non_sh, self._x_input_tensor,
                                                        self._forward_model,
                                                        self._shadow_ratio, self._log_dir, current_iteration,
-                                                       plt_name="band_ratio_shadowed")
+                                                       plt_name=self._shadowed_plt_name)
             self._best_shadow_ratio_holder.add_point(current_iteration, kl_shadowed)
+            self._best_shadow_ratio_holder.save(self._shadowed_best_ratio_addr)
             print("Shadowed kl divergence:%f" % kl_shadowed)
             print("Best shadow options:", self._best_shadow_ratio_holder)
             print("De-shadowed")
             kl_nonshadowed = calculate_stats_from_samples(session, self._data_sample_list_sh, self._y_input_tensor,
                                                           self._backward_model,
                                                           1 / self._shadow_ratio, self._log_dir, current_iteration,
-                                                          plt_name="band_ratio_deshadowed")
-            self._best_noshadow_ratio_holder.add_point(current_iteration, kl_nonshadowed)
+                                                          plt_name=self._deshadowed_plt_name)
+            self._best_deshadow_ratio_holder.add_point(current_iteration, kl_nonshadowed)
+            self._best_deshadow_ratio_holder.save(self._deshadowed_best_ratio_addr)
             print("Deshadowed kl divergence:%f" % kl_nonshadowed)
-            print("Best no shadow options:", self._best_noshadow_ratio_holder)
+            print("Best deshadow options:", self._best_deshadow_ratio_holder)
             print("Best common options:", BestRatioHolder.create_common_iterations(self._best_shadow_ratio_holder,
-                                                                                   self._best_noshadow_ratio_holder))
+                                                                                   self._best_deshadow_ratio_holder))
 
 
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio):
