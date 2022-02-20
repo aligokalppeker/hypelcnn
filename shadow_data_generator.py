@@ -215,7 +215,7 @@ def kl_div_for_ratios(mean, std):
     mean_kl = abs(kl_divergence(mean, base_arr))
     mean_upper_kl = abs(kl_divergence(mean_upper_region, base_arr))
     mean_down_kl = abs(kl_divergence(mean_down_region, base_arr))
-    return max([mean_kl, mean_down_kl, mean_upper_kl])
+    return mean_kl
 
 
 def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor,
