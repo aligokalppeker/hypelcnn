@@ -418,56 +418,63 @@ class BestRatioHolder:
         return str(self.data_holder)
 
 
-class ValidationHook(tf.train.SessionRunHook):
+class BaseValidationHook(tf.train.SessionRunHook):
     @staticmethod
     def export(sess, input_pl, input_np, output_tensor):
         # Grab a single image and run it through inference
         output_np = sess.run(output_tensor, feed_dict={input_pl: input_np})
         return output_np
 
-    def __init__(self, iteration_freq, sample_count, log_dir,
-                 loader, data_set, neighborhood, shadow_map, shadow_ratio, x_input_tensor, y_input_tensor,
-                 forward_model, backward_model):
-        self._forward_model = forward_model
-        self._backward_model = backward_model
-        self._x_input_tensor = x_input_tensor
-        self._y_input_tensor = y_input_tensor
+    def __init__(self, iteration_freq, log_dir, shadow_ratio):
         self._iteration_frequency = iteration_freq
         self._global_step_tensor = None
         self._shadow_ratio = shadow_ratio[0:-1]
         self._log_dir = log_dir
+
+    def after_create_session(self, session, coord):
+        self._global_step_tensor = tf.train.get_global_step()
+
+    def _is_validation_itr(self, current_iteration):
+        return current_iteration % self._iteration_frequency == 1 and current_iteration != 1
+
+
+class ValidationHook(BaseValidationHook):
+
+    def __init__(self, iteration_freq, sample_count, log_dir, loader, data_set, neighborhood, shadow_map, shadow_ratio,
+                 x_input_tensor, y_input_tensor, forward_model, backward_model):
+        super().__init__(iteration_freq, log_dir, shadow_ratio)
+        self._forward_model = forward_model
+        self._x_input_tensor = x_input_tensor
         shadowed_suffix = "shadowed"
-        deshadowed_suffix = "deshadowed"
-        self._deshadowed_plt_name = f"band_ratio_{deshadowed_suffix}"
         self._shadowed_plt_name = f"band_ratio_{shadowed_suffix}"
         self._shadowed_best_ratio_addr = os.path.join(self._log_dir, f"best_ratio_{shadowed_suffix}.json")
-        self._deshadowed_best_ratio_addr = os.path.join(self._log_dir, f"best_ratio_{deshadowed_suffix}.json")
         self._best_shadow_ratio_holder = BestRatioHolder(10)
         self._best_shadow_ratio_holder.load(self._shadowed_best_ratio_addr)
-        self._best_deshadow_ratio_holder = BestRatioHolder(10)
-        self._best_deshadow_ratio_holder.load(self._deshadowed_best_ratio_addr)
-
-        self._data_sample_list_non_sh = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
-                                                                 shadow_map, fetch_shadows=False)
-        for idx, _data_sample in enumerate(self._data_sample_list_non_sh):
-            self._data_sample_list_non_sh[idx] = numpy.expand_dims(_data_sample, axis=0)
-
         self._data_sample_list_sh = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
                                                              shadow_map, fetch_shadows=True)
         for idx, _data_sample in enumerate(self._data_sample_list_sh):
             self._data_sample_list_sh[idx] = numpy.expand_dims(_data_sample, axis=0)
 
-    def after_create_session(self, session, coord):
-        self._global_step_tensor = tf.train.get_global_step()
+        self._backward_model = backward_model
+        self._y_input_tensor = y_input_tensor
+        deshadowed_suffix = "deshadowed"
+        self._deshadowed_plt_name = f"band_ratio_{deshadowed_suffix}"
+        self._deshadowed_best_ratio_addr = os.path.join(self._log_dir, f"best_ratio_{deshadowed_suffix}.json")
+        self._best_deshadow_ratio_holder = BestRatioHolder(10)
+        self._best_deshadow_ratio_holder.load(self._deshadowed_best_ratio_addr)
+        self._data_sample_list_de_sh = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
+                                                                shadow_map, fetch_shadows=False)
+        for idx, _data_sample in enumerate(self._data_sample_list_de_sh):
+            self._data_sample_list_de_sh[idx] = numpy.expand_dims(_data_sample, axis=0)
 
     def after_run(self, run_context, run_values):
         session = run_context.session
         current_iteration = session.run(self._global_step_tensor)
 
-        if current_iteration % self._iteration_frequency == 1 and current_iteration != 1:
+        if self._is_validation_itr(current_iteration):
             print("Validation metrics #%d" % current_iteration)
             print("Shadowed")
-            kl_shadowed = calculate_stats_from_samples(session, self._data_sample_list_non_sh, self._x_input_tensor,
+            kl_shadowed = calculate_stats_from_samples(session, self._data_sample_list_de_sh, self._x_input_tensor,
                                                        self._forward_model,
                                                        self._shadow_ratio, self._log_dir, current_iteration,
                                                        plt_name=self._shadowed_plt_name)
@@ -475,6 +482,7 @@ class ValidationHook(tf.train.SessionRunHook):
             self._best_shadow_ratio_holder.save(self._shadowed_best_ratio_addr)
             print("Shadowed kl divergence:%f" % kl_shadowed)
             print("Best shadow options:", self._best_shadow_ratio_holder)
+
             print("De-shadowed")
             kl_nonshadowed = calculate_stats_from_samples(session, self._data_sample_list_sh, self._y_input_tensor,
                                                           self._backward_model,
@@ -484,6 +492,7 @@ class ValidationHook(tf.train.SessionRunHook):
             self._best_deshadow_ratio_holder.save(self._deshadowed_best_ratio_addr)
             print("Deshadowed kl divergence:%f" % kl_nonshadowed)
             print("Best deshadow options:", self._best_deshadow_ratio_holder)
+
             print("Best common options:", BestRatioHolder.create_common_iterations(self._best_shadow_ratio_holder,
                                                                                    self._best_deshadow_ratio_holder))
 
@@ -684,15 +693,15 @@ def main(_):
             cyclegan_model = _define_model(images_x, images_y, FLAGS.use_identity_loss)
             x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
             y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
-            cyclegan_model_validation = _define_model(x_input_tensor, y_input_tensor, FLAGS.use_identity_loss)
+            cyclegan_model_for_validation = _define_model(x_input_tensor, y_input_tensor, FLAGS.use_identity_loss)
             validation_hook = ValidationHook(validation_iteration_count,
                                              validation_sample_count,
                                              log_dir,
                                              loader, data_set, neighborhood,
                                              shadow_map, shadow_ratio,
                                              x_input_tensor, y_input_tensor,
-                                             cyclegan_model_validation.model_x2y.generated_data,
-                                             cyclegan_model_validation.model_y2x.generated_data)
+                                             cyclegan_model_for_validation.model_x2y.generated_data,
+                                             cyclegan_model_for_validation.model_y2x.generated_data)
 
         if FLAGS.use_identity_loss:
             cyclegan_loss = cyclegan_loss_with_identity(
