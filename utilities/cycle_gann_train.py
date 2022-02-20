@@ -81,6 +81,9 @@ flags.DEFINE_float('identity_loss_weight', 0.5,
 flags.DEFINE_bool('use_identity_loss', True,
                   'Whether to use identity loss during training.')
 
+flags.DEFINE_float('regularization_support_rate', 0.0,
+                   'The regularization support rate, ranges from 0 to 1, 1 means full support')
+
 FLAGS = flags.FLAGS
 
 
@@ -485,7 +488,7 @@ class ValidationHook(tf.train.SessionRunHook):
                                                                                    self._best_deshadow_ratio_holder))
 
 
-def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio):
+def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio, reg_support_rate):
     if FLAGS.use_target_map:
         normal_data_as_matrix, shadow_data_as_matrix = get_data_from_scene(data_set, loader, shadow_map)
     else:
@@ -508,7 +511,8 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
         shuffle_and_repeat(buffer_size=10000, count=epoch))
     data_set = data_set.map(
         lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_,
-                                                                     shadow_ratio[0:hsi_channel_len]),
+                                                                     shadow_ratio[0:hsi_channel_len],
+                                                                     reg_support_rate),
         num_parallel_calls=4)
     data_set = data_set.batch(batch_size)
     data_set_itr = data_set.make_initializable_iterator()
@@ -516,13 +520,13 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
     return InitializerHook(data_set_itr, normal_holder, shadow_holder, normal_data_as_matrix, shadow_data_as_matrix)
 
 
-def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_ratio):
+def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_ratio, reg_support_rate):
     with tf.name_scope('shadow_ratio_augmenter'):
         with tf.device('/cpu:0'):
-            rand_number = tf.random_uniform([1], 0, 0.5)[0]
-            shadow_images = tf.cond(tf.less(rand_number, 1),
-                                    true_fn=lambda: shadow_images,
-                                    false_fn=lambda: (normal_images / shadow_ratio))
+            rand_number = tf.random_uniform([1], 0.01, 0.99)[0]
+            shadow_images = tf.cond(tf.less(rand_number, reg_support_rate),
+                                    false_fn=lambda: shadow_images,
+                                    true_fn=lambda: (normal_images / shadow_ratio))
     return normal_images, shadow_images
 
 
@@ -668,7 +672,7 @@ def main(_):
 
         with tf.name_scope('inputs'):
             initializer_hook = load_op(FLAGS.batch_size, FLAGS.max_number_of_steps, loader, data_set,
-                                       shadow_map, shadow_ratio)
+                                       shadow_map, shadow_ratio, FLAGS.regularization_support_rate)
             training_input_iter = initializer_hook.input_itr
             images_x, images_y = training_input_iter.get_next()
             # Set batch size for summaries.
