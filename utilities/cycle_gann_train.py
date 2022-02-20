@@ -551,34 +551,83 @@ def get_data_from_scene(data_set, loader, shadow_map):
     return normal_data_as_matrix, shadow_data_as_matrix
 
 
-def _define_model(images_x, images_y, use_identity_loss):
-    """Defines a CycleGAN model that maps between images_x and images_y.
+class CycleGANWrapper:
+    def define_model(self, images_x, images_y, use_identity_loss):
+        """Defines a CycleGAN model that maps between images_x and images_y.
 
-    Args:
-      images_x: A 4D float `Tensor` of NHWC format.  Images in set X.
-      images_y: A 4D float `Tensor` of NHWC format.  Images in set Y.
-      use_identity_loss: Whether to use identity loss or not
+        Args:
+          images_x: A 4D float `Tensor` of NHWC format.  Images in set X.
+          images_y: A 4D float `Tensor` of NHWC format.  Images in set Y.
+          use_identity_loss: Whether to use identity loss or not
 
-    Returns:
-      A `CycleGANModel` namedtuple.
-    """
-    if use_identity_loss:
-        cyclegan_model = cyclegan_model_with_identity(
-            generator_fn=_shadowdata_generator_model,
-            discriminator_fn=_shadowdata_discriminator_model,
-            data_x=images_x,
-            data_y=images_y)
-    else:
-        cyclegan_model = tfgan.cyclegan_model(
-            generator_fn=_shadowdata_generator_model,
-            discriminator_fn=_shadowdata_discriminator_model,
-            data_x=images_x,
-            data_y=images_y)
+        Returns:
+          A `CycleGANModel` namedtuple.
+        """
+        if use_identity_loss:
+            cyclegan_model = cyclegan_model_with_identity(
+                generator_fn=_shadowdata_generator_model,
+                discriminator_fn=_shadowdata_discriminator_model,
+                data_x=images_x,
+                data_y=images_y)
+        else:
+            cyclegan_model = tfgan.cyclegan_model(
+                generator_fn=_shadowdata_generator_model,
+                discriminator_fn=_shadowdata_discriminator_model,
+                data_x=images_x,
+                data_y=images_y)
 
-    # Add summaries for generated images.
-    # tfgan.eval.add_cyclegan_image_summaries(cyclegan_model)
+        # Add summaries for generated images.
+        # tfgan.eval.add_cyclegan_image_summaries(cyclegan_model)
 
-    return cyclegan_model
+        return cyclegan_model
+
+    def define_loss(self, cyclegan_model, use_identity_loss):
+        if use_identity_loss:
+            cyclegan_loss = cyclegan_loss_with_identity(
+                cyclegan_model,
+                # generator_loss_fn=wasserstein_generator_loss,
+                # discriminator_loss_fn=wasserstein_discriminator_loss,
+                cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
+                identity_loss_weight=FLAGS.identity_loss_weight,
+                tensor_pool_fn=tfgan.features.tensor_pool)
+        else:
+            # Define CycleGAN loss.
+            cyclegan_loss = tfgan.cyclegan_loss(
+                cyclegan_model,
+                # generator_loss_fn=wasserstein_generator_loss,
+                # discriminator_loss_fn=wasserstein_discriminator_loss,
+                cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
+                tensor_pool_fn=tfgan.features.tensor_pool)
+        return cyclegan_loss
+
+    def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
+                               validation_iteration_count, validation_sample_count):
+        element_size = loader.get_data_shape(data_set)
+        element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
+
+        x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
+        y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
+        cyclegan_model_for_validation = self.define_model(x_input_tensor, y_input_tensor, FLAGS.use_identity_loss)
+        shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
+                                                  sample_count=validation_sample_count,
+                                                  log_dir=log_dir,
+                                                  loader=loader, data_set=data_set, neighborhood=neighborhood,
+                                                  shadow_map=shadow_map,
+                                                  shadow_ratio=shadow_ratio,
+                                                  input_tensor=x_input_tensor,
+                                                  model=cyclegan_model_for_validation.model_x2y.generated_data,
+                                                  fetch_shadows=False, name_suffix="shadowed")
+        de_shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
+                                                     sample_count=validation_sample_count,
+                                                     log_dir=log_dir,
+                                                     loader=loader, data_set=data_set, neighborhood=neighborhood,
+                                                     shadow_map=shadow_map,
+                                                     shadow_ratio=1. / shadow_ratio,
+                                                     input_tensor=y_input_tensor,
+                                                     model=cyclegan_model_for_validation.model_y2x.generated_data,
+                                                     fetch_shadows=True, name_suffix="deshadowed")
+        peer_validation_hook = PeerValidationHook(shadowed_validation_hook, de_shadowed_validation_hook)
+        return peer_validation_hook
 
 
 def _get_lr(base_lr):
@@ -668,9 +717,6 @@ def main(_):
         loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
         data_set = loader.load_data(neighborhood, True)
 
-        element_size = loader.get_data_shape(data_set)
-        element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
-
         shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
 
         with tf.name_scope('inputs'):
@@ -682,46 +728,15 @@ def main(_):
             # images_x.set_shape([FLAGS.batch_size, None, None, None])
             # images_y.set_shape([FLAGS.batch_size, None, None, None])
 
-        # Define CycleGAN model.
+        # Define model.
+        wrapper = CycleGANWrapper()
         with tf.variable_scope('Model', reuse=tf.AUTO_REUSE):
-            cyclegan_model = _define_model(images_x, images_y, FLAGS.use_identity_loss)
-            x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-            y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
-            cyclegan_model_for_validation = _define_model(x_input_tensor, y_input_tensor, FLAGS.use_identity_loss)
-            shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
-                                                      sample_count=validation_sample_count,
-                                                      log_dir=log_dir,
-                                                      loader=loader, data_set=data_set, neighborhood=neighborhood,
-                                                      shadow_map=shadow_map, shadow_ratio=shadow_ratio,
-                                                      input_tensor=x_input_tensor,
-                                                      model=cyclegan_model_for_validation.model_x2y.generated_data,
-                                                      fetch_shadows=False, name_suffix="shadowed")
-            de_shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
-                                                         sample_count=validation_sample_count,
-                                                         log_dir=log_dir,
-                                                         loader=loader, data_set=data_set, neighborhood=neighborhood,
-                                                         shadow_map=shadow_map, shadow_ratio=1. / shadow_ratio,
-                                                         input_tensor=y_input_tensor,
-                                                         model=cyclegan_model_for_validation.model_y2x.generated_data,
-                                                         fetch_shadows=True, name_suffix="deshadowed")
-            peer_validation_hook = PeerValidationHook(shadowed_validation_hook, de_shadowed_validation_hook)
+            cyclegan_model = wrapper.define_model(images_x, images_y, FLAGS.use_identity_loss)
+            peer_validation_hook = wrapper.create_validation_hook(data_set, loader, log_dir, neighborhood,
+                                                                  shadow_map, shadow_ratio, validation_iteration_count,
+                                                                  validation_sample_count)
 
-        if FLAGS.use_identity_loss:
-            cyclegan_loss = cyclegan_loss_with_identity(
-                cyclegan_model,
-                # generator_loss_fn=wasserstein_generator_loss,
-                # discriminator_loss_fn=wasserstein_discriminator_loss,
-                cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
-                identity_loss_weight=FLAGS.identity_loss_weight,
-                tensor_pool_fn=tfgan.features.tensor_pool)
-        else:
-            # Define CycleGAN loss.
-            cyclegan_loss = tfgan.cyclegan_loss(
-                cyclegan_model,
-                # generator_loss_fn=wasserstein_generator_loss,
-                # discriminator_loss_fn=wasserstein_discriminator_loss,
-                cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
-                tensor_pool_fn=tfgan.features.tensor_pool)
+            cyclegan_loss = wrapper.define_loss(cyclegan_model, FLAGS.use_identity_loss)
 
         # Define CycleGAN train ops.
         train_ops = _define_train_ops(cyclegan_model, cyclegan_loss)
