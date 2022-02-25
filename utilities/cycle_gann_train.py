@@ -325,12 +325,12 @@ def main(_):
                                   identity_loss_weight=FLAGS.identity_loss_weight,
                                   use_identity_loss=FLAGS.use_identity_loss)
         with tf.variable_scope('Model', reuse=tf.AUTO_REUSE):
-            cyclegan_model = wrapper.define_model(images_x, images_y, FLAGS.use_identity_loss)
+            cyclegan_model = wrapper.define_model(images_x, images_y)
             peer_validation_hook = wrapper.create_validation_hook(data_set, loader, log_dir, neighborhood,
                                                                   shadow_map, shadow_ratio, validation_iteration_count,
                                                                   validation_sample_count)
 
-            cyclegan_loss = wrapper.define_loss(cyclegan_model, FLAGS.use_identity_loss)
+            cyclegan_loss = wrapper.define_loss(cyclegan_model)
 
         # Define CycleGAN train ops.
         train_ops = _define_train_ops(cyclegan_model, cyclegan_loss)

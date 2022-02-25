@@ -19,7 +19,7 @@ class CycleGANWrapper:
         self._identity_loss_weight = identity_loss_weight
         self._use_identity_loss = use_identity_loss
 
-    def define_model(self, images_x, images_y, use_identity_loss):
+    def define_model(self, images_x, images_y):
         """Defines a CycleGAN model that maps between images_x and images_y.
 
         Args:
@@ -30,7 +30,7 @@ class CycleGANWrapper:
         Returns:
           A `CycleGANModel` namedtuple.
         """
-        if use_identity_loss:
+        if self._use_identity_loss:
             cyclegan_model = cyclegan_model_with_identity(
                 generator_fn=_shadowdata_generator_model,
                 discriminator_fn=_shadowdata_discriminator_model,
@@ -48,10 +48,10 @@ class CycleGANWrapper:
 
         return cyclegan_model
 
-    def define_loss(self, cyclegan_model, use_identity_loss):
-        if use_identity_loss:
+    def define_loss(self, model):
+        if self._use_identity_loss:
             cyclegan_loss = cyclegan_loss_with_identity(
-                cyclegan_model,
+                model,
                 # generator_loss_fn=wasserstein_generator_loss,
                 # discriminator_loss_fn=wasserstein_discriminator_loss,
                 cycle_consistency_loss_weight=self._cycle_consistency_loss_weight,
@@ -60,7 +60,7 @@ class CycleGANWrapper:
         else:
             # Define CycleGAN loss.
             cyclegan_loss = tfgan.cyclegan_loss(
-                cyclegan_model,
+                model,
                 # generator_loss_fn=wasserstein_generator_loss,
                 # discriminator_loss_fn=wasserstein_discriminator_loss,
                 cycle_consistency_loss_weight=self._cycle_consistency_loss_weight,
@@ -74,7 +74,7 @@ class CycleGANWrapper:
 
         x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
         y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
-        cyclegan_model_for_validation = self.define_model(x_input_tensor, y_input_tensor, self._use_identity_loss)
+        cyclegan_model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
         shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
                                                   sample_count=validation_sample_count,
                                                   log_dir=log_dir,
