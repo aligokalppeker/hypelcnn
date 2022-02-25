@@ -21,7 +21,7 @@ else:
 flags.DEFINE_integer('neighborhood', 0, 'Neighborhood of samples.')
 flags.DEFINE_integer('number_of_samples', 6000, 'Number of samples.')
 flags.DEFINE_string('checkpoint_path', '',
-                    'CycleGAN checkpoint path created by cycle_gann_train.py. '
+                    'GAN checkpoint path created by gan_train_for_shadow.py. '
                     '(e.g. "/mylogdir/model.ckpt-18442")')
 
 flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",

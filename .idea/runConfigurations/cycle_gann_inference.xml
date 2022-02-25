@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/cycle_gann_inference.py" />
-    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --checkpoint_path=log\model.ckpt-143246 --loader_name=GRSS2013DataLoader --neighborhood=0 --number_of_samples=600" />
+    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --checkpoint_path=log\model.ckpt-421002 --loader_name=GRSS2013DataLoader --neighborhood=0 --number_of_samples=600" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

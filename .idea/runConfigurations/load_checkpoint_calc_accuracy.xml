@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/load_checkpoint_calc_accuracy.py" />
-    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --batch_size=192 --model_name=DUALCNNModelv1 --loader_name=GULFPORTALTDataLoader --neighborhood=2 --importer=GeneratorImporter --output_path=$USER_HOME$/Google~1/PHD/Tez/Source/log/ --base_log_path=log\episode_0\run_0\model.ckpt-10000 --algorithm_param_path=algorithm_param_output_dualcnnv1.json" />
+    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --batch_size=192 --model_name=DUALCNNModelv1 --loader_name=GULFPORTALTDataLoader --neighborhood=2 --importer=GeneratorImporter --output_path=$USER_HOME$/Google~1/PHD/Tez/Source/log/ --base_log_path=log\episode_0\run_0\model.ckpt-110000 --algorithm_param_path=algorithm_param_output_dualcnnv1.json" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
