@@ -110,7 +110,10 @@ class BaseValidationHook(tf.train.SessionRunHook):
         self._global_step_tensor = tf.train.get_global_step()
 
     def _is_validation_itr(self, current_iteration):
-        return current_iteration % self._iteration_frequency == 1 and current_iteration != 1
+        result = True
+        if self._iteration_frequency != 0:
+            result = current_iteration % self._iteration_frequency == 1 and current_iteration != 1
+        return result
 
 
 class PeerValidationHook(tf.train.SessionRunHook):
@@ -149,7 +152,10 @@ class ValidationHook(BaseValidationHook):
 
     def after_run(self, run_context, run_values):
         session = run_context.session
-        current_iteration = session.run(self._global_step_tensor)
+        if self._global_step_tensor is None:
+            current_iteration = 0
+        else:
+            current_iteration = session.run(self._global_step_tensor)
 
         self.validation_itr_mark = self._is_validation_itr(current_iteration)
         if self.validation_itr_mark:

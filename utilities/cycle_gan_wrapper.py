@@ -6,9 +6,40 @@ from tensorflow_gan import gan_loss
 from tensorflow_gan.python import namedtuples
 from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.train import _validate_aux_loss_weight
+from tensorflow import reduce_mean
+from tensorflow_core.contrib import slim
 
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan_common import PeerValidationHook, ValidationHook
+
+model_forward_generator_name = 'ModelX2Y'
+model_backward_generator_name = 'ModelY2X'
+
+
+def create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
+                                validation_iteration_count, validation_sample_count,
+                                model_forward, model_backward,
+                                x_input_tensor, y_input_tensor):
+    shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
+                                              sample_count=validation_sample_count,
+                                              log_dir=log_dir,
+                                              loader=loader, data_set=data_set, neighborhood=neighborhood,
+                                              shadow_map=shadow_map,
+                                              shadow_ratio=shadow_ratio,
+                                              input_tensor=x_input_tensor,
+                                              model=model_forward,
+                                              fetch_shadows=False, name_suffix="shadowed")
+    de_shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
+                                                 sample_count=validation_sample_count,
+                                                 log_dir=log_dir,
+                                                 loader=loader, data_set=data_set, neighborhood=neighborhood,
+                                                 shadow_map=shadow_map,
+                                                 shadow_ratio=1. / shadow_ratio,
+                                                 input_tensor=y_input_tensor,
+                                                 model=model_backward,
+                                                 fetch_shadows=True, name_suffix="deshadowed")
+    peer_validation_hook = PeerValidationHook(shadowed_validation_hook, de_shadowed_validation_hook)
+    return peer_validation_hook
 
 
 class CycleGANWrapper:
@@ -75,26 +106,76 @@ class CycleGANWrapper:
         x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
         y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
         cyclegan_model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
-        shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
-                                                  sample_count=validation_sample_count,
-                                                  log_dir=log_dir,
-                                                  loader=loader, data_set=data_set, neighborhood=neighborhood,
-                                                  shadow_map=shadow_map,
-                                                  shadow_ratio=shadow_ratio,
-                                                  input_tensor=x_input_tensor,
-                                                  model=cyclegan_model_for_validation.model_x2y.generated_data,
-                                                  fetch_shadows=False, name_suffix="shadowed")
-        de_shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
-                                                     sample_count=validation_sample_count,
-                                                     log_dir=log_dir,
-                                                     loader=loader, data_set=data_set, neighborhood=neighborhood,
-                                                     shadow_map=shadow_map,
-                                                     shadow_ratio=1. / shadow_ratio,
-                                                     input_tensor=y_input_tensor,
-                                                     model=cyclegan_model_for_validation.model_y2x.generated_data,
-                                                     fetch_shadows=True, name_suffix="deshadowed")
-        peer_validation_hook = PeerValidationHook(shadowed_validation_hook, de_shadowed_validation_hook)
-        return peer_validation_hook
+        return create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
+                                           validation_iteration_count, validation_sample_count,
+                                           cyclegan_model_for_validation.model_x2y.generated_data,
+                                           cyclegan_model_for_validation.model_y2x.generated_data,
+                                           x_input_tensor, y_input_tensor)
+
+
+class CycleGANInferenceWrapper:
+    def __construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=True):
+        if is_shadow_graph:
+            model_name = model_forward_generator_name
+        else:
+            model_name = model_backward_generator_name
+
+        shp = input_tensor.get_shape()
+
+        output_tensor_in_col = []
+        for first_dim in range(shp[1]):
+            output_tensor_in_row = []
+            for second_dim in range(shp[2]):
+                input_cell = tf.expand_dims(tf.expand_dims(input_tensor[first_dim][second_dim], 0), 0)
+                with tf.variable_scope('Model'):
+                    with tf.variable_scope(model_name):
+                        with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
+                            generated_tensor = _shadowdata_generator_model(input_cell, False)
+                            if clip_invalid_values:
+                                input_mean = reduce_mean(input_cell)
+                                generated_mean = reduce_mean(generated_tensor)
+
+                if clip_invalid_values:
+                    result_tensor = tf.cond(tf.less(generated_mean, input_mean),
+                                            lambda: generated_tensor,
+                                            lambda: input_cell)
+                else:
+                    result_tensor = generated_tensor
+
+                output_tensor_in_row.append(tf.squeeze(result_tensor, [0, 1]))
+            image_output_row = tf.concat(output_tensor_in_row, axis=0)
+            output_tensor_in_col.append(image_output_row)
+
+        image_output_row = tf.stack(output_tensor_in_col)
+
+        return image_output_row
+
+    def make_inference_graph(self, model_name, element_size, clip_invalid_values=True):
+        input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
+        generated = self.__construct_inference_graph(input_tensor, model_name, clip_invalid_values)
+        return input_tensor, generated
+
+    def create_generator_restorer(self):
+        # Restore all the variables that were saved in the checkpoint.
+        cyclegan_restorer = tf.train.Saver(
+            slim.get_variables_to_restore(include=["Model/" + model_forward_generator_name]) +
+            slim.get_variables_to_restore(include=["Model/" + model_backward_generator_name]),
+            name='GeneratorRestoreHandler'
+        )
+        return cyclegan_restorer
+
+    def create_inference_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
+                              validation_sample_count):
+        element_size = loader.get_data_shape(data_set)
+        element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
+
+        x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
+        y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
+        return create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
+                                           0, validation_sample_count,
+                                           self.__construct_inference_graph(x_input_tensor, True),
+                                           self.__construct_inference_graph(y_input_tensor, False),
+                                           x_input_tensor, y_input_tensor)
 
 
 class CycleGANModelWithIdentity(tfgan.CycleGANModel):

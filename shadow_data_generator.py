@@ -5,14 +5,11 @@ import numpy
 import tensorflow as tf
 from matplotlib import pyplot as plt
 from numpy import linspace
-from tensorflow import initializers, reduce_mean
+from tensorflow import initializers
 from tensorflow_core import transpose
 from tensorflow_core.contrib import slim
 
 from tqdm import tqdm
-
-model_forward_generator_name = 'ModelX2Y'
-model_backward_generator_name = 'ModelY2X'
 
 
 def _shadowdata_generator_model_simple(netinput, is_training=True):
@@ -121,66 +118,26 @@ def _shadowdata_discriminator_model(generated_data, generator_input, is_training
     return tf.expand_dims(tf.expand_dims(slim.flatten(net2), axis=1), axis=1)
 
 
-def construct_inference_graph(input_tensor, model_name, clip_invalid_values=True):
-    shp = input_tensor.get_shape()
-
-    output_tensor_in_col = []
-    for first_dim in range(shp[0]):
-        output_tensor_in_row = []
-        for second_dim in range(shp[1]):
-            input_cell = tf.expand_dims(tf.expand_dims(tf.expand_dims(input_tensor[first_dim][second_dim], 0), 0), 0)
-            with tf.variable_scope('Model'):
-                with tf.variable_scope(model_name):
-                    with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
-                        generated_tensor = _shadowdata_generator_model(input_cell, False)
-                        if clip_invalid_values:
-                            input_mean = reduce_mean(input_cell)
-                            generated_mean = reduce_mean(generated_tensor)
-
-            if clip_invalid_values:
-                result_tensor = tf.cond(tf.less(generated_mean, input_mean),
-                                        lambda: generated_tensor,
-                                        lambda: input_cell)
-            else:
-                result_tensor = generated_tensor
-
-            output_tensor_in_row.append(tf.squeeze(result_tensor, [0, 1]))
-        image_output_row = tf.concat(output_tensor_in_row, axis=0)
-        output_tensor_in_col.append(image_output_row)
-
-    image_output_row = tf.stack(output_tensor_in_col)
-
-    return image_output_row
-
-
-def create_generator_restorer():
-    # Restore all the variables that were saved in the checkpoint.
-    cyclegan_restorer = tf.train.Saver(
-        slim.get_variables_to_restore(include=["Model/" + model_forward_generator_name]) +
-        slim.get_variables_to_restore(include=["Model/" + model_backward_generator_name]),
-        name='GeneratorRestoreHandler'
-    )
-    return cyclegan_restorer
-
-
-def construct_cyclegan_inference_graph(input_data, model_name):
+def construct_gan_inference_graph(input_data, gan_inference_wrapper):
     with tf.device('/cpu:0'):
         axis_id = 2
         band_size = input_data.get_shape()[axis_id].value
         hs_lidar_groups = tf.split(axis=axis_id, num_or_size_splits=[band_size - 1, 1],
                                    value=input_data)
-        hs_converted = construct_inference_graph(hs_lidar_groups[0], model_name, clip_invalid_values=False)
+        hs_converted = gan_inference_wrapper.construct_inference_graph(hs_lidar_groups[0],
+                                                                       is_shadow_graph=True,
+                                                                       clip_invalid_values=False)
     return tf.concat(axis=axis_id, values=[hs_converted, hs_lidar_groups[1]])
 
 
-def construct_cyclegan_inference_graph_randomized(input_data):
+def construct_gan_inference_graph_randomized(input_data, wrapper):
     # coin = tf.less(tf.random_uniform([1], 0, 1.0)[0], 0.5)
     # images = tf.cond(coin,
     #                  lambda: GRSS2013DataLoader.construct_cyclegan_inference_graph(input_data,
     #                                                                                model_forward_generator_name),
     #                  lambda: GRSS2013DataLoader.construct_cyclegan_inference_graph(input_data,
     #                                                                                model_backward_generator_name))
-    images = construct_cyclegan_inference_graph(input_data, model_forward_generator_name)
+    images = construct_gan_inference_graph(input_data, wrapper)
     return images
 
 

@@ -15,6 +15,7 @@ from DataLoader import SampleSet
 from common_nn_operations import get_class, get_all_shadowed_normal_data, get_targetbased_shadowed_normal_data
 from cycle_gan_wrapper import CycleGANWrapper
 from utilities.gan_common import InitializerHook
+from utilities.gan_wrapper import GANWrapper
 
 required_tensorflow_version = "1.14.0"
 if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
@@ -46,6 +47,9 @@ flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
 
 flags.DEFINE_bool('use_target_map', False,
                   'Whether to use target map to create train data pairs.')
+
+flags.DEFINE_string('gan_type', "cycle_gan",
+                    'Gan type to train, one of the values can be selected for it; cycle_gan, gan_x2y and gan_y2x')
 
 flags.DEFINE_integer(
     'validation_itr_count', 1000,
@@ -321,9 +325,20 @@ def main(_):
             # images_y.set_shape([FLAGS.batch_size, None, None, None])
 
         # Define model.
-        wrapper = CycleGANWrapper(cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
-                                  identity_loss_weight=FLAGS.identity_loss_weight,
-                                  use_identity_loss=FLAGS.use_identity_loss)
+        gan_type = FLAGS.gan_type
+        if gan_type == "cycle_gan":
+            wrapper = CycleGANWrapper(cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
+                                      identity_loss_weight=FLAGS.identity_loss_weight,
+                                      use_identity_loss=FLAGS.use_identity_loss)
+        elif gan_type == "gan_x2y":
+            wrapper = GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
+                                 use_identity_loss=FLAGS.use_identity_loss,
+                                 swap_inputs=False)
+        elif gan_type == "gan_y2x":
+            wrapper = GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
+                                 use_identity_loss=FLAGS.use_identity_loss,
+                                 swap_inputs=True)
+
         with tf.variable_scope('Model', reuse=tf.AUTO_REUSE):
             cyclegan_model = wrapper.define_model(images_x, images_y)
             peer_validation_hook = wrapper.create_validation_hook(data_set, loader, log_dir, neighborhood,

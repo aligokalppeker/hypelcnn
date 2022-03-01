@@ -5,8 +5,9 @@ from DataLoader import SampleSet, ShadowOperationStruct
 from GULFPORTDataLoader import GULFPORTDataLoader, DataSet
 from common_nn_operations import INVALID_TARGET_VALUE, calculate_shadow_ratio, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size
-from shadow_data_generator import construct_simple_shadow_inference_graph, create_generator_restorer, \
-    construct_cyclegan_inference_graph_randomized
+from shadow_data_generator import construct_simple_shadow_inference_graph, \
+    construct_gan_inference_graph_randomized
+from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
 
 
 class GULFPORTALTDataLoader(GULFPORTDataLoader):
@@ -18,15 +19,16 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         data_set = super().load_data(neighborhood, normalize)
         shadow_map, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
 
-        cyclegan_shadow_func = lambda inp: (construct_cyclegan_inference_graph_randomized(inp))
-        cyclegan_shadow_op_creater = create_generator_restorer
-        cyclegan_shadow_op_initializer = lambda restorer, session: (
-            restorer.restore(session, self.get_model_base_dir() + 'shadow_cycle_gan/v2/model.ckpt-83504'))
+        gan_inference_wrapper = CycleGANInferenceWrapper()
+        gan_shadow_func = lambda inp: (construct_gan_inference_graph_randomized(inp, gan_inference_wrapper))
+        gan_shadow_op_creater = gan_inference_wrapper.create_generator_restorer
+        gan_shadow_op_initializer = lambda restorer, session: (
+            restorer.restore(session, self.get_model_base_dir() + 'shadow_cycle_gan/dualgan/model.ckpt-49453'))
 
         simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, shadow_ratio))
-        shadow_dict = {'cycle_gan': ShadowOperationStruct(shadow_op=cyclegan_shadow_func,
-                                                          shadow_op_creater=cyclegan_shadow_op_creater,
-                                                          shadow_op_initializer=cyclegan_shadow_op_initializer),
+        shadow_dict = {'cycle_gan': ShadowOperationStruct(shadow_op=gan_shadow_func,
+                                                          shadow_op_creater=gan_shadow_op_creater,
+                                                          shadow_op_initializer=gan_shadow_op_initializer),
                        'simple': ShadowOperationStruct(shadow_op=simple_shadow_func,
                                                        shadow_op_creater=lambda: None,
                                                        shadow_op_initializer=lambda restorer, session: None)}

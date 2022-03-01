@@ -45,9 +45,9 @@ flags.DEFINE_bool('convert_all', False,
 FLAGS = flags.FLAGS
 
 
-def make_inference_graph(model_name, element_size, clip_invalid_values=True):
+def make_inference_graph(model_name, wrapper, element_size, clip_invalid_values=True):
     input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-    generated = construct_inference_graph(input_tensor, model_name, clip_invalid_values)
+    generated = wrapper.construct_inference_graph(input_tensor, model_name, clip_invalid_values)
     return input_tensor, generated
 
 
