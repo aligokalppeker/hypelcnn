@@ -7,7 +7,7 @@ from json import JSONDecodeError
 import numpy
 import tensorflow as tf
 
-from shadow_data_generator import load_samples_for_testing, calculate_stats_from_samples
+from utilities.gan_utilities import calculate_stats_from_samples, load_samples_for_testing
 
 
 def create_dummy_shadowed_normal_data(data_set, loader):

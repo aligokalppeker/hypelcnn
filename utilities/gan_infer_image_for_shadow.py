@@ -12,7 +12,7 @@ from tifffile import imwrite
 from tqdm import tqdm
 
 from common_nn_operations import get_class
-from shadow_data_generator import export
+from utilities.gan_utilities import export
 from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
 from utilities.gan_wrapper import GANInferenceWrapper
 from utilities.hsi_rgb_converter import get_rgb_from_hsi
