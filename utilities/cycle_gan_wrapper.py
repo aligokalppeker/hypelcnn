@@ -171,11 +171,17 @@ class CycleGANInferenceWrapper:
 
         x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
         y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
-        return create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                                           0, validation_sample_count,
-                                           self.__construct_inference_graph(x_input_tensor, True),
-                                           self.__construct_inference_graph(y_input_tensor, False),
-                                           x_input_tensor, y_input_tensor)
+        return create_base_validation_hook(data_set=data_set,
+                                           loader=loader,
+                                           log_dir=log_dir,
+                                           neighborhood=neighborhood,
+                                           shadow_map=shadow_map,
+                                           shadow_ratio=shadow_ratio,
+                                           validation_iteration_count=0,
+                                           validation_sample_count=validation_sample_count,
+                                           model_forward=self.__construct_inference_graph(x_input_tensor, True),
+                                           model_backward=self.__construct_inference_graph(y_input_tensor, False),
+                                           x_input_tensor=x_input_tensor, y_input_tensor=y_input_tensor)
 
 
 class CycleGANModelWithIdentity(tfgan.CycleGANModel):

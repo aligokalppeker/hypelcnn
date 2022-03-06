@@ -11,6 +11,7 @@ from tensorflow_core.python.training.session_run_hook import SessionRunContext
 
 from common_nn_operations import get_class
 from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
+from utilities.gan_wrapper import GANInferenceWrapper
 
 required_tensorflow_version = "1.14.0"
 if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
@@ -29,6 +30,9 @@ flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",
 
 flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
                     'Directory where to read the image inputs.')
+
+flags.DEFINE_string('gan_type', "cycle_gan",
+                    'Gan type to train, one of the values can be selected for it; cycle_gan, gan_x2y and gan_y2x')
 
 FLAGS = flags.FLAGS
 
@@ -52,16 +56,22 @@ def main(_):
     # test_x_data = numpy.full([1, 1, band_size], fill_value=1.0, dtype=float)
     # print_tensors_in_checkpoint_file(FLAGS.checkpoint_path, tensor_name='ModelX2Y', all_tensors=True)
     shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
-    gan_inference_wrapper = CycleGANInferenceWrapper()
-    hook = gan_inference_wrapper.create_inference_hook(data_set=data_set, loader=loader, log_dir=log_dir,
-                                                       neighborhood=neighborhood, shadow_map=shadow_map,
-                                                       shadow_ratio=shadow_ratio,
-                                                       validation_sample_count=FLAGS.number_of_samples)
+
+    gan_inference_wrapper_dict = {"cycle_gan": CycleGANInferenceWrapper(),
+                                  "gan_x2y": GANInferenceWrapper(fetch_shadows=False),
+                                  "gan_y2x": GANInferenceWrapper(fetch_shadows=True)}
+
+    hook = gan_inference_wrapper_dict[FLAGS.gan_type].create_inference_hook(data_set=data_set, loader=loader,
+                                                                            log_dir=log_dir,
+                                                                            neighborhood=neighborhood,
+                                                                            shadow_map=shadow_map,
+                                                                            shadow_ratio=shadow_ratio,
+                                                                            validation_sample_count=FLAGS.number_of_samples)
 
     gpu = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(gpu[0], True)
     with tf.Session() as sess:
-        gan_inference_wrapper.create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
+        gan_inference_wrapper_dict[FLAGS.gan_type].create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
         hook.after_create_session(sess, None)
         run_context = SessionRunContext(original_args=None, session=sess)
         hook.after_run(run_context=run_context, run_values=None)

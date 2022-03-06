@@ -326,18 +326,17 @@ def main(_):
 
         # Define model.
         gan_type = FLAGS.gan_type
-        if gan_type == "cycle_gan":
-            wrapper = CycleGANWrapper(cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
-                                      identity_loss_weight=FLAGS.identity_loss_weight,
-                                      use_identity_loss=FLAGS.use_identity_loss)
-        elif gan_type == "gan_x2y":
-            wrapper = GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
-                                 use_identity_loss=FLAGS.use_identity_loss,
-                                 swap_inputs=False)
-        elif gan_type == "gan_y2x":
-            wrapper = GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
-                                 use_identity_loss=FLAGS.use_identity_loss,
-                                 swap_inputs=True)
+        gan_train_wrapper_dict = {
+            "cycle_gan": CycleGANWrapper(cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
+                                         identity_loss_weight=FLAGS.identity_loss_weight,
+                                         use_identity_loss=FLAGS.use_identity_loss),
+            "gan_x2y": GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
+                                  use_identity_loss=FLAGS.use_identity_loss,
+                                  swap_inputs=False),
+            "gan_y2x": GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
+                                  use_identity_loss=FLAGS.use_identity_loss,
+                                  swap_inputs=True)}
+        wrapper = gan_train_wrapper_dict[gan_type]
 
         with tf.variable_scope('Model', reuse=tf.AUTO_REUSE):
             cyclegan_model = wrapper.define_model(images_x, images_y)
