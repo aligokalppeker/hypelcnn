@@ -114,7 +114,7 @@ class CycleGANWrapper:
 
 
 class CycleGANInferenceWrapper:
-    def __construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=True):
+    def __construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
         if is_shadow_graph:
             model_name = model_forward_generator_name
         else:
@@ -136,9 +136,13 @@ class CycleGANInferenceWrapper:
                                 generated_mean = reduce_mean(generated_tensor)
 
                 if clip_invalid_values:
-                    result_tensor = tf.cond(tf.less(generated_mean, input_mean),
-                                            lambda: generated_tensor,
-                                            lambda: input_cell)
+                    if is_shadow_graph:
+                        comparison_result = tf.less(generated_mean, input_mean)
+                    else:
+                        comparison_result = tf.greater(generated_mean, input_mean)
+                    result_tensor = tf.cond(comparison_result,
+                                            true_fn=lambda: generated_tensor,
+                                            false_fn=lambda: input_cell)
                 else:
                     result_tensor = generated_tensor
 
@@ -150,7 +154,14 @@ class CycleGANInferenceWrapper:
 
         return image_output_row
 
-    def make_inference_graph(self, model_name, element_size, clip_invalid_values=True):
+    def make_inference_graph(self, data_set, loader, shadow, clip_invalid_values):
+        if shadow:
+            model_name = model_forward_generator_name
+        else:
+            model_name = model_backward_generator_name
+
+        element_size = loader.get_data_shape(data_set)
+        element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
         input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
         generated = self.__construct_inference_graph(input_tensor, model_name, clip_invalid_values)
         return input_tensor, generated

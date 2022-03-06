@@ -12,8 +12,9 @@ from tifffile import imwrite
 from tqdm import tqdm
 
 from common_nn_operations import get_class
-from shadow_data_generator import construct_inference_graph, model_forward_generator_name, \
-    create_generator_restorer, model_backward_generator_name
+from shadow_data_generator import export
+from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
+from utilities.gan_wrapper import GANInferenceWrapper
 from utilities.hsi_rgb_converter import get_rgb_from_hsi
 
 required_tensorflow_version = "1.14.0"
@@ -36,6 +37,9 @@ flags.DEFINE_string('output_path', '',
                     'Output path to create tiff files. '
                     '(e.g. "/mylogdir/")')
 
+flags.DEFINE_string('gan_type', "cycle_gan",
+                    'Gan type to train, one of the values can be selected for it; cycle_gan, gan_x2y and gan_y2x')
+
 flags.DEFINE_string('make_them_shadow', "",
                     'makes the scene shadowed(shadow), non shadowed(deshadow), or anything(none)')
 
@@ -43,18 +47,6 @@ flags.DEFINE_bool('convert_all', False,
                   'Whether to convert filtered pixels(shadowed or not) or all.')
 
 FLAGS = flags.FLAGS
-
-
-def make_inference_graph(model_name, wrapper, element_size, clip_invalid_values=True):
-    input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-    generated = wrapper.construct_inference_graph(input_tensor, model_name, clip_invalid_values)
-    return input_tensor, generated
-
-
-def export(sess, input_pl, input_np, output_tensor):
-    # Grab a single image and run it through inference
-    output_np = sess.run(output_tensor, feed_dict={input_pl: input_np})
-    return output_np
 
 
 def _validate_flags():
@@ -84,23 +76,30 @@ def main(_):
 
     convert_only_the_convenient_pixels = not FLAGS.convert_all
     if make_them_shadow == "shadow":
-        model_name = model_forward_generator_name
+        shadow = True
         sign_to_filter_in_shadow_map = 0
     elif make_them_shadow == "deshadow":
-        model_name = model_backward_generator_name
+        shadow = False
         sign_to_filter_in_shadow_map = 1
     else:
-        model_name = None
+        shadow = True
         sign_to_filter_in_shadow_map = -1
         make_them_shadow = "none"
 
-    images_hwc_pl, generated_output = make_inference_graph(model_name, element_size, clip_invalid_values=False)
+    gan_inference_wrapper_dict = {"cycle_gan": CycleGANInferenceWrapper(),
+                                  "gan_x2y": GANInferenceWrapper(fetch_shadows=False),
+                                  "gan_y2x": GANInferenceWrapper(fetch_shadows=True)}
+
+    input_tensor, output_tensor = gan_inference_wrapper_dict[FLAGS.gan_type].make_inference_graph(data_set,
+                                                                                                  loader,
+                                                                                                  shadow,
+                                                                                                  clip_invalid_values=False)
 
     gpu = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(gpu[0], True)
     with tf.Session() as sess:
         if make_them_shadow != "none":
-            create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
+            gan_inference_wrapper_dict[FLAGS.gan_type].create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
 
         screen_size_first_dim = scene_shape[0]
         screen_size_sec_dim = scene_shape[1]
@@ -111,10 +110,11 @@ def main(_):
         for first_idx in range(0, screen_size_first_dim):
             for second_idx in range(0, screen_size_sec_dim):
                 input_data = loader.get_point_value(data_set, [second_idx, first_idx])[:, :, 0:band_size]
+                input_data = numpy.expand_dims(input_data, axis=0)
 
                 if not convert_only_the_convenient_pixels or shadow_map[
                     first_idx, second_idx] == sign_to_filter_in_shadow_map:
-                    generated_y_data = export(sess, images_hwc_pl, input_data, generated_output)
+                    generated_y_data = export(sess, input_tensor, input_data, output_tensor)
                 else:
                     generated_y_data = input_data
 
