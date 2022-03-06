@@ -12,14 +12,11 @@ from DataLoader import ShadowOperationStruct
 
 def construct_gan_inference_graph(input_data, gan_inference_wrapper):
     with tf.device('/cpu:0'):
-        axis_id = 2
-        band_size = input_data.get_shape()[axis_id].value
-        hs_lidar_groups = tf.split(axis=axis_id, num_or_size_splits=[band_size - 1, 1],
-                                   value=input_data)
-        hs_converted = gan_inference_wrapper.construct_inference_graph(hs_lidar_groups[0],
+        hs_converted = gan_inference_wrapper.construct_inference_graph(tf.expand_dims(input_data[:, :, :-1], axis=0),
                                                                        is_shadow_graph=True,
                                                                        clip_invalid_values=False)
-    return tf.concat(axis=axis_id, values=[hs_converted, hs_lidar_groups[1]])
+    axis_id = 2
+    return tf.concat(axis=axis_id, values=[hs_converted, tf.expand_dims(input_data[:, :, -1], axis=-1)])
 
 
 def construct_gan_inference_graph_randomized(input_data, wrapper):

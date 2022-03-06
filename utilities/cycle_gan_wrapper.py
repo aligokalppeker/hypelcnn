@@ -114,7 +114,7 @@ class CycleGANWrapper:
 
 
 class CycleGANInferenceWrapper:
-    def __construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
+    def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
         if is_shadow_graph:
             model_name = model_forward_generator_name
         else:
@@ -126,7 +126,7 @@ class CycleGANInferenceWrapper:
         for first_dim in range(shp[1]):
             output_tensor_in_row = []
             for second_dim in range(shp[2]):
-                input_cell = tf.expand_dims(tf.expand_dims(input_tensor[first_dim][second_dim], 0), 0)
+                input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 0), 0)
                 with tf.variable_scope('Model'):
                     with tf.variable_scope(model_name):
                         with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
@@ -163,7 +163,7 @@ class CycleGANInferenceWrapper:
         element_size = loader.get_data_shape(data_set)
         element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
         input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-        generated = self.__construct_inference_graph(input_tensor, model_name, clip_invalid_values)
+        generated = self.construct_inference_graph(input_tensor, model_name, clip_invalid_values)
         return input_tensor, generated
 
     def create_generator_restorer(self):
@@ -190,8 +190,8 @@ class CycleGANInferenceWrapper:
                                            shadow_ratio=shadow_ratio,
                                            validation_iteration_count=0,
                                            validation_sample_count=validation_sample_count,
-                                           model_forward=self.__construct_inference_graph(x_input_tensor, True),
-                                           model_backward=self.__construct_inference_graph(y_input_tensor, False),
+                                           model_forward=self.construct_inference_graph(x_input_tensor, True),
+                                           model_backward=self.construct_inference_graph(y_input_tensor, False),
                                            x_input_tensor=x_input_tensor, y_input_tensor=y_input_tensor)
 
 
