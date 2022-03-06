@@ -82,7 +82,7 @@ class GANInferenceWrapper:
     def __init__(self, fetch_shadows):
         self.fetch_shadows = fetch_shadows
 
-    def __construct_inference_graph(self, input_tensor, clip_invalid_values=True):
+    def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
         shp = input_tensor.get_shape()
 
         output_tensor_in_col = []
@@ -113,11 +113,11 @@ class GANInferenceWrapper:
 
         return image_output_row
 
-    def make_inference_graph(self, data_set, loader, shadow, clip_invalid_values):
+    def make_inference_graph(self, data_set, loader, is_shadow_graph, clip_invalid_values):
         element_size = loader.get_data_shape(data_set)
         element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
         input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-        generated = self.__construct_inference_graph(input_tensor, model_forward_generator_name, clip_invalid_values)
+        generated = self.construct_inference_graph(input_tensor, is_shadow_graph, clip_invalid_values)
         return input_tensor, generated
 
     def create_generator_restorer(self):
@@ -146,5 +146,5 @@ class GANInferenceWrapper:
                               shadow_map=shadow_map,
                               shadow_ratio=shadow_ratio,
                               input_tensor=x_input_tensor,
-                              model=self.__construct_inference_graph(x_input_tensor),
+                              model=self.construct_inference_graph(x_input_tensor),
                               fetch_shadows=self.fetch_shadows, name_suffix="shadowed")

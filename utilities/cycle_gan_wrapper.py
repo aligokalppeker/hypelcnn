@@ -154,16 +154,11 @@ class CycleGANInferenceWrapper:
 
         return image_output_row
 
-    def make_inference_graph(self, data_set, loader, shadow, clip_invalid_values):
-        if shadow:
-            model_name = model_forward_generator_name
-        else:
-            model_name = model_backward_generator_name
-
+    def make_inference_graph(self, data_set, loader, is_shadow_graph, clip_invalid_values):
         element_size = loader.get_data_shape(data_set)
         element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
         input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-        generated = self.construct_inference_graph(input_tensor, model_name, clip_invalid_values)
+        generated = self.construct_inference_graph(input_tensor, is_shadow_graph, clip_invalid_values)
         return input_tensor, generated
 
     def create_generator_restorer(self):
