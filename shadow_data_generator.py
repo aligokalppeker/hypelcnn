@@ -11,6 +11,8 @@ from tensorflow_core.contrib import slim
 
 from tqdm import tqdm
 
+from DataLoader import ShadowOperationStruct
+
 
 def _shadowdata_generator_model_simple(netinput, is_training=True):
     with slim.arg_scope(
@@ -152,6 +154,23 @@ def export(sess, input_pl, input_np, run_tensor):
     # Grab a single image and run it through inference
     output_np = sess.run(run_tensor, feed_dict={input_pl: input_np})
     return output_np
+
+
+def create_simple_shadow_struct(shadow_ratio):
+    simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, shadow_ratio))
+    simple_shadow_struct = ShadowOperationStruct(shadow_op=simple_shadow_func, shadow_op_creater=lambda: None,
+                                                 shadow_op_initializer=lambda restorer, session: None)
+    return simple_shadow_struct
+
+
+def create_gan_struct(gan_inference_wrapper, model_base_dir, ckpt_relative_path):
+    gan_shadow_func = lambda inp: (construct_gan_inference_graph_randomized(inp, gan_inference_wrapper))
+    gan_shadow_op_creater = gan_inference_wrapper.create_generator_restorer
+    gan_shadow_op_initializer = lambda restorer, session: (
+        restorer.restore(session, model_base_dir + ckpt_relative_path))
+    gan_struct = ShadowOperationStruct(shadow_op=gan_shadow_func, shadow_op_creater=gan_shadow_op_creater,
+                                       shadow_op_initializer=gan_shadow_op_initializer)
+    return gan_struct
 
 
 def kl_divergence(p, q):
