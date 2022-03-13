@@ -76,7 +76,7 @@ class GANWrapper:
                                                   log_dir=log_dir,
                                                   loader=loader, data_set=data_set, neighborhood=neighborhood,
                                                   shadow_map=shadow_map,
-                                                  shadow_ratio=adj_shadow_ratio(shadow_ratio, not self._swap_inputs),
+                                                  shadow_ratio=adj_shadow_ratio(shadow_ratio, self._swap_inputs),
                                                   input_tensor=y_input_tensor if self._swap_inputs else x_input_tensor,
                                                   model=model_for_validation.generated_data,
                                                   fetch_shadows=False,
