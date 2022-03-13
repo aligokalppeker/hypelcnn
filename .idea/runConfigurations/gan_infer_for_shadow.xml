@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="cycle_gann_train" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="gan_infer_for_shadow" type="PythonConfigurationType" factoryName="Python">
     <module name="Source" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -12,8 +12,8 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/cycle_gann_train.py" />
-    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --loader_name=GRSS2013DataLoader --max_number_of_steps=100000 --use_target_map=True --cycle_consistency_loss_weight=10 --batch_size=1280" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/gan_infer_for_shadow.py" />
+    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --checkpoint_path=log\model.ckpt-1000 --loader_name=GRSS2013DataLoader --neighborhood=0 --number_of_samples=600 --gan_type=gan_x2y" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

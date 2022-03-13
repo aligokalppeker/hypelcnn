@@ -4,10 +4,11 @@ import numpy
 from numba import jit
 from tifffile import imread
 
-from DataLoader import DataLoader, SampleSet, ShadowOperationStruct
+from DataLoader import DataLoader, SampleSet
 from common_nn_operations import calculate_shadow_ratio, read_targets_from_image, shuffle_test_data_using_ratio
-from shadow_data_generator import create_generator_restorer, construct_cyclegan_inference_graph_randomized, \
-    construct_simple_shadow_inference_graph
+from utilities.gan_wrapper import GANInferenceWrapper
+from utilities.gan_utilities import create_simple_shadow_struct, create_gan_struct
+from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
 
 DataSet = namedtuple('DataSet', ['concrete_data', 'shadow_creator_dict', 'neighborhood', 'casi_min', 'casi_max'])
 
@@ -47,18 +48,13 @@ class GRSS2013DataLoader(DataLoader):
                                          neighborhood=neighborhood, casi_min=casi_min, casi_max=casi_max)
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set_for_shadowing)
 
-        cyclegan_shadow_func = lambda inp: (construct_cyclegan_inference_graph_randomized(inp))
-        cyclegan_shadow_op_creater = create_generator_restorer
-        cyclegan_shadow_op_initializer = lambda restorer, session: (
-            restorer.restore(session, self.get_model_base_dir() + 'shadow_cycle_gan/modelv2/model.ckpt-5668'))
-
-        simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, shadow_ratio))
-        shadow_dict = {'cycle_gan': ShadowOperationStruct(shadow_op=cyclegan_shadow_func,
-                                                          shadow_op_creater=cyclegan_shadow_op_creater,
-                                                          shadow_op_initializer=cyclegan_shadow_op_initializer),
-                       'simple': ShadowOperationStruct(shadow_op=simple_shadow_func,
-                                                       shadow_op_creater=lambda: None,
-                                                       shadow_op_initializer=lambda restorer, session: None)}
+        shadow_dict = {"cycle_gan": create_gan_struct(CycleGANInferenceWrapper(),
+                                                      self.get_model_base_dir(),
+                                                      "shadow_cycle_gan/modelv2/model.ckpt-5668"),
+                       "gan": create_gan_struct(GANInferenceWrapper(None),
+                                                self.get_model_base_dir(),
+                                                "../utilities/log/model.ckpt-203000"),
+                       "simple": create_simple_shadow_struct(shadow_ratio)}
         return DataSet(shadow_creator_dict=shadow_dict, concrete_data=concrete_data, neighborhood=neighborhood,
                        casi_min=casi_min, casi_max=casi_max)
 
