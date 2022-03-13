@@ -5,6 +5,7 @@ from DataLoader import SampleSet
 from GULFPORTDataLoader import GULFPORTDataLoader, DataSet
 from common_nn_operations import INVALID_TARGET_VALUE, calculate_shadow_ratio, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size
+from utilities.gan_wrapper import GANInferenceWrapper
 from utilities.gan_utilities import create_simple_shadow_struct, create_gan_struct
 from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
 
@@ -17,10 +18,13 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
     def load_data(self, neighborhood, normalize):
         data_set = super().load_data(neighborhood, normalize)
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
-        shadow_dict = {'cycle_gan': create_gan_struct(CycleGANInferenceWrapper(),
+        shadow_dict = {"cycle_gan": create_gan_struct(CycleGANInferenceWrapper(),
                                                       self.get_model_base_dir(),
                                                       "shadow_cycle_gan/dualgan/model.ckpt-49453"),
-                       'simple': create_simple_shadow_struct(shadow_ratio)}
+                       "gan": create_gan_struct(GANInferenceWrapper(None),
+                                                self.get_model_base_dir(),
+                                                "../utilities/log/model.ckpt-203000"),
+                       "simple": create_simple_shadow_struct(shadow_ratio)}
 
         return DataSet(shadow_creator_dict=shadow_dict, casi=data_set.casi, lidar=data_set.lidar,
                        neighborhood=data_set.neighborhood,

@@ -6,6 +6,7 @@ from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet
 from common_nn_operations import calculate_shadow_ratio, read_targets_from_image, shuffle_test_data_using_ratio
+from utilities.gan_wrapper import GANInferenceWrapper
 from utilities.gan_utilities import create_simple_shadow_struct, create_gan_struct
 from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
 
@@ -47,10 +48,13 @@ class GRSS2013DataLoader(DataLoader):
                                          neighborhood=neighborhood, casi_min=casi_min, casi_max=casi_max)
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set_for_shadowing)
 
-        shadow_dict = {'cycle_gan': create_gan_struct(CycleGANInferenceWrapper(),
+        shadow_dict = {"cycle_gan": create_gan_struct(CycleGANInferenceWrapper(),
                                                       self.get_model_base_dir(),
                                                       "shadow_cycle_gan/modelv2/model.ckpt-5668"),
-                       'simple': create_simple_shadow_struct(shadow_ratio)}
+                       "gan": create_gan_struct(GANInferenceWrapper(None),
+                                                self.get_model_base_dir(),
+                                                "../utilities/log/model.ckpt-203000"),
+                       "simple": create_simple_shadow_struct(shadow_ratio)}
         return DataSet(shadow_creator_dict=shadow_dict, concrete_data=concrete_data, neighborhood=neighborhood,
                        casi_min=casi_min, casi_max=casi_max)
 

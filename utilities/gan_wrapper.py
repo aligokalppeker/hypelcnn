@@ -46,7 +46,6 @@ class GANWrapper:
 
         # Add summaries for generated images.
         # tfgan.eval.add_cyclegan_image_summaries(gan_model)
-
         return gan_model
 
     def define_loss(self, model):
@@ -89,14 +88,13 @@ class GANInferenceWrapper:
         for first_dim in range(shp[1]):
             output_tensor_in_row = []
             for second_dim in range(shp[2]):
-                input_cell = tf.expand_dims(tf.expand_dims(input_tensor[first_dim][second_dim], 0), 0)
+                input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 0), 0)
                 with tf.variable_scope('Model'):
-                    with tf.variable_scope(model_forward_generator_name):
-                        with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
-                            generated_tensor = _shadowdata_generator_model(input_cell, False)
-                            if clip_invalid_values:
-                                input_mean = reduce_mean(input_cell)
-                                generated_mean = reduce_mean(generated_tensor)
+                    with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
+                        generated_tensor = _shadowdata_generator_model(input_cell, False)
+                        if clip_invalid_values:
+                            input_mean = reduce_mean(input_cell)
+                            generated_mean = reduce_mean(generated_tensor)
 
                 if clip_invalid_values:
                     result_tensor = tf.cond(tf.less(generated_mean, input_mean),
@@ -123,7 +121,7 @@ class GANInferenceWrapper:
     def create_generator_restorer(self):
         # Restore all the variables that were saved in the checkpoint.
         gan_restorer = tf.train.Saver(
-            slim.get_variables_to_restore(include=["Model/" + model_forward_generator_name]),
+            slim.get_variables_to_restore(include=["Model"]),
             name='GeneratorRestoreHandler'
         )
         return gan_restorer
@@ -146,5 +144,5 @@ class GANInferenceWrapper:
                               shadow_map=shadow_map,
                               shadow_ratio=shadow_ratio,
                               input_tensor=x_input_tensor,
-                              model=self.construct_inference_graph(x_input_tensor),
+                              model=self.construct_inference_graph(x_input_tensor, None),
                               fetch_shadows=self.fetch_shadows, name_suffix="shadowed")
