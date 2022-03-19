@@ -339,15 +339,15 @@ def main(_):
         wrapper = gan_train_wrapper_dict[gan_type]
 
         with tf.variable_scope('Model', reuse=tf.AUTO_REUSE):
-            cyclegan_model = wrapper.define_model(images_x, images_y)
+            the_gan_model = wrapper.define_model(images_x, images_y)
             peer_validation_hook = wrapper.create_validation_hook(data_set, loader, log_dir, neighborhood,
                                                                   shadow_map, shadow_ratio, validation_iteration_count,
                                                                   validation_sample_count)
 
-            cyclegan_loss = wrapper.define_loss(cyclegan_model)
+            the_gan_loss = wrapper.define_loss(the_gan_model)
 
         # Define CycleGAN train ops.
-        train_ops = _define_train_ops(cyclegan_model, cyclegan_loss)
+        train_ops = _define_train_ops(the_gan_model, the_gan_loss)
 
         # Training
         train_steps = tfgan.GANTrainSteps(1, 1)
