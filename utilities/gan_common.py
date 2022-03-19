@@ -9,6 +9,12 @@ import tensorflow as tf
 
 from utilities.gan_utilities import calculate_stats_from_samples, load_samples_for_testing
 
+model_generator_name = "Generator"
+model_base_name = "Model"
+
+input_x_tensor_name = "x"
+input_y_tensor_name = "y"
+
 
 def create_dummy_shadowed_normal_data(data_set, loader):
     data_shape_info = loader.get_data_shape(data_set)

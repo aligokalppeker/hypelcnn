@@ -7,11 +7,7 @@ from tensorflow import reduce_mean
 from tensorflow_core.contrib import slim
 
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
-from gan_common import ValidationHook
-
-model_forward_generator_name = 'ModelX2Y'
-input_x_tensor_name = "x"
-input_y_tensor_name = "y"
+from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, model_generator_name
 
 
 def adj_shadow_ratio(shadow_ratio, is_shadow):
@@ -96,8 +92,8 @@ class GANInferenceWrapper:
             output_tensor_in_row = []
             for second_dim in range(shp[2]):
                 input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 0), 0)
-                with tf.variable_scope('Model'):
-                    with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
+                with tf.variable_scope(model_base_name):
+                    with tf.variable_scope(model_generator_name, reuse=tf.AUTO_REUSE):
                         generated_tensor = _shadowdata_generator_model(input_cell, False)
                         if clip_invalid_values:
                             input_mean = reduce_mean(input_cell)
@@ -134,7 +130,7 @@ class GANInferenceWrapper:
     def create_generator_restorer(self):
         # Restore all the variables that were saved in the checkpoint.
         gan_restorer = tf.train.Saver(
-            slim.get_variables_to_restore(include=["Model"]),
+            slim.get_variables_to_restore(include=[model_base_name]),
             name='GeneratorRestoreHandler'
         )
         return gan_restorer

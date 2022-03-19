@@ -10,10 +10,11 @@ from tensorflow import reduce_mean
 from tensorflow_core.contrib import slim
 
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
-from gan_common import PeerValidationHook, ValidationHook
+from gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
+    model_generator_name
 
-model_forward_generator_name = 'ModelX2Y'
-model_backward_generator_name = 'ModelY2X'
+model_forward_generator_name = "ModelX2Y"
+model_backward_generator_name = "ModelY2X"
 
 
 def create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
@@ -103,8 +104,8 @@ class CycleGANWrapper:
         element_size = loader.get_data_shape(data_set)
         element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
 
-        x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-        y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
+        x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
+        y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
         cyclegan_model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
         return create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                            validation_iteration_count, validation_sample_count,
@@ -127,9 +128,9 @@ class CycleGANInferenceWrapper:
             output_tensor_in_row = []
             for second_dim in range(shp[2]):
                 input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 0), 0)
-                with tf.variable_scope('Model'):
+                with tf.variable_scope(model_base_name):
                     with tf.variable_scope(model_name):
-                        with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
+                        with tf.variable_scope(model_generator_name, reuse=tf.AUTO_REUSE):
                             generated_tensor = _shadowdata_generator_model(input_cell, False)
                             if clip_invalid_values:
                                 input_mean = reduce_mean(input_cell)
@@ -157,15 +158,15 @@ class CycleGANInferenceWrapper:
     def make_inference_graph(self, data_set, loader, is_shadow_graph, clip_invalid_values):
         element_size = loader.get_data_shape(data_set)
         element_size = [1, element_size[0], element_size[1], element_size[2] - 1]
-        input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
+        input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
         generated = self.construct_inference_graph(input_tensor, is_shadow_graph, clip_invalid_values)
         return input_tensor, generated
 
     def create_generator_restorer(self):
         # Restore all the variables that were saved in the checkpoint.
         cyclegan_restorer = tf.train.Saver(
-            slim.get_variables_to_restore(include=["Model/" + model_forward_generator_name]) +
-            slim.get_variables_to_restore(include=["Model/" + model_backward_generator_name]),
+            slim.get_variables_to_restore(include=[model_base_name + "/" + model_forward_generator_name]) +
+            slim.get_variables_to_restore(include=[model_base_name + "/" + model_backward_generator_name]),
             name='GeneratorRestoreHandler'
         )
         return cyclegan_restorer
@@ -207,7 +208,7 @@ class CycleGANModelWithIdentity(tfgan.CycleGANModel):
       identity_y: A `Tensor` of data Y processed by generator function G which is G(Y).
     """
     __slots__ = ()
-    _fields = tfgan.CycleGANModel._fields + ('identity_x', 'identity_y',)
+    _fields = tfgan.CycleGANModel._fields + ("identity_x", "identity_y",)
 
 
 def cyclegan_loss_with_identity(
@@ -249,15 +250,15 @@ def cyclegan_loss_with_identity(
     # Sanity checks.
     if not isinstance(model, CycleGANModelWithIdentity):
         raise ValueError(
-            '`model` must be a `CycleGANModelWithIdentity`. Instead, was %s.' % type(model))
+            "`model` must be a `CycleGANModelWithIdentity`. Instead, was %s." % type(model))
 
     identity_loss_x, identity_loss_y = identity_loss(model, kwargs)
 
     # Defines cycle consistency loss.
     cycle_consistency_loss = cycle_consistency_loss_fn(
-        model, add_summaries=kwargs.get('add_summaries', True))
+        model, add_summaries=kwargs.get("add_summaries", True))
     cycle_consistency_loss_weight = _validate_aux_loss_weight(
-        cycle_consistency_loss_weight, 'cycle_consistency_loss_weight')
+        cycle_consistency_loss_weight, "cycle_consistency_loss_weight")
 
     aux_loss = (cycle_consistency_loss_weight * cycle_consistency_loss) + (
             identity_loss_weight * (identity_loss_x + identity_loss_y))
@@ -272,9 +273,9 @@ def cyclegan_loss_with_identity(
         return partial_loss._replace(generator_loss=partial_loss.generator_loss +
                                                     aux_loss)
 
-    with tf.compat.v1.name_scope('cyclegan_loss_x2y'):
+    with tf.compat.v1.name_scope("cyclegan_loss_x2y"):
         loss_x2y = _partial_loss(model.model_x2y)
-    with tf.compat.v1.name_scope('cyclegan_loss_y2x'):
+    with tf.compat.v1.name_scope("cyclegan_loss_y2x"):
         loss_y2x = _partial_loss(model.model_y2x)
 
     return namedtuples.CycleGANLoss(loss_x2y, loss_y2x)
@@ -288,10 +289,10 @@ def cyclegan_model_with_identity(
         data_x,
         data_y,
         # Optional scopes.
-        generator_scope='Generator',
-        discriminator_scope='Discriminator',
-        model_x2y_scope='ModelX2Y',
-        model_y2x_scope='ModelY2X',
+        generator_scope="Generator",
+        discriminator_scope="Discriminator",
+        model_x2y_scope="ModelX2Y",
+        model_y2x_scope="ModelY2X",
         # Options.
         check_shapes=True):
     """Returns a CycleGAN model outputs and variables.
@@ -351,8 +352,8 @@ def identity_loss(model, kwargs):
                                                               model.identity_x)
     identity_loss_y = tf.compat.v1.losses.absolute_difference(model.model_y2x.generator_inputs,
                                                               model.identity_y)
-    if kwargs.get('add_summaries', True):
-        tf.compat.v1.summary.scalar('identity_loss_x', identity_loss_x)
-        tf.compat.v1.summary.scalar('identity_loss_y', identity_loss_y)
+    if kwargs.get("add_summaries", True):
+        tf.compat.v1.summary.scalar("identity_loss_x", identity_loss_x)
+        tf.compat.v1.summary.scalar("identity_loss_y", identity_loss_y)
 
     return identity_loss_x, identity_loss_y
