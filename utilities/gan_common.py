@@ -8,7 +8,6 @@ from json import JSONDecodeError
 import numpy
 import tensorflow as tf
 from matplotlib import pyplot as plt
-from numpy import linspace
 from tqdm import tqdm
 
 from DataLoader import ShadowOperationStruct
@@ -159,6 +158,7 @@ class ValidationHook(BaseValidationHook):
         self._plt_name = f"band_ratio_{name_suffix}"
         self._best_ratio_addr = os.path.join(self._log_dir, f"best_ratio_{name_suffix}.json")
         self.best_ratio_holder.load(self._best_ratio_addr)
+        self._bands = loader.get_band_measurements()
         self._data_sample_list = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
                                                           shadow_map, fetch_shadows=fetch_shadows)
         for idx, _data_sample in enumerate(self._data_sample_list):
@@ -177,6 +177,7 @@ class ValidationHook(BaseValidationHook):
             kl_shadowed = calculate_stats_from_samples(session, self._data_sample_list, self._input_tensor,
                                                        self._forward_model,
                                                        self._shadow_ratio, self._log_dir, current_iteration,
+                                                       bands=self._bands,
                                                        plt_name=self._plt_name)
             self.best_ratio_holder.add_point(current_iteration, kl_shadowed)
             self.best_ratio_holder.save(self._best_ratio_addr)
@@ -255,9 +256,8 @@ def kl_div_for_ratios(mean, std):
     return mean_kl
 
 
-def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor,
-                                 shadow_ratio, log_dir,
-                                 current_iteration, plt_name):
+def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor, shadow_ratio,
+                                 log_dir, current_iteration, plt_name, bands):
     band_size = shadow_ratio.shape[0]
     iteration_count = len(data_sample_list)
     progress_bar = tqdm(total=iteration_count)
@@ -280,8 +280,11 @@ def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, 
     mean = numpy.mean(final_ratio, axis=0)
     std = numpy.std(final_ratio, axis=0)
     print_overall_info(inf_nan_value_count, mean, numpy.mean(total_band_ratio, axis=0), std)
-    plot_overall_info(numpy.percentile(final_ratio, 50, axis=0), numpy.percentile(final_ratio, 10, axis=0),
-                      numpy.percentile(final_ratio, 90, axis=0), current_iteration, plt_name, log_dir)
+    plot_overall_info(bands,
+                      numpy.percentile(final_ratio, 50, axis=0),
+                      numpy.percentile(final_ratio, 10, axis=0),
+                      numpy.percentile(final_ratio, 90, axis=0),
+                      current_iteration, plt_name, log_dir)
     return kl_div_for_ratios(mean, std)
 
 
@@ -307,9 +310,8 @@ def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shado
     return data_sample_list
 
 
-def plot_overall_info(mean, lower_bound, upper_bound, iteration, plt_name, log_dir):
-    band_size = mean.shape[0]
-    bands = linspace(1, band_size, band_size, dtype=numpy.int)
+def plot_overall_info(bands, mean, lower_bound, upper_bound, iteration, plt_name, log_dir):
+    # band_idxs = linspace(1, bands.shape[0], bands.shape[0], dtype=numpy.int)
     plt.rcParams['font.family'] = "sans-serif"
     plt.rcParams['font.sans-serif'] = "Arial"
     plt.rcParams['font.size'] = 14
@@ -318,7 +320,7 @@ def plot_overall_info(mean, lower_bound, upper_bound, iteration, plt_name, log_d
     plt.fill_between(bands, lower_bound, upper_bound, alpha=0.2)
     # plt.legend(loc='upper left')
     # plt.title("Band ratio")
-    plt.xlabel("Spectral band index")
+    plt.xlabel("Spectral band(nm)")
     plt.ylabel("Ratio between generated and original samples")
     plt.ylim([-1, 4])
     plt.yticks(list(range(-1, 5)))
