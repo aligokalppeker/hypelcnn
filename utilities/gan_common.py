@@ -276,10 +276,12 @@ def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, 
         progress_bar.update(1)
 
     progress_bar.close()
-    mean = numpy.mean(total_band_ratio * shadow_ratio, axis=0)
-    std = numpy.std(total_band_ratio * shadow_ratio, axis=0)
+    final_ratio = total_band_ratio * shadow_ratio
+    mean = numpy.mean(final_ratio, axis=0)
+    std = numpy.std(final_ratio, axis=0)
     print_overall_info(inf_nan_value_count, mean, numpy.mean(total_band_ratio, axis=0), std)
-    plot_overall_info(mean, std, current_iteration, plt_name, log_dir)
+    plot_overall_info(numpy.percentile(final_ratio, 50, axis=0), numpy.percentile(final_ratio, 10, axis=0),
+                      numpy.percentile(final_ratio, 90, axis=0), current_iteration, plt_name, log_dir)
     return kl_div_for_ratios(mean, std)
 
 
@@ -305,7 +307,7 @@ def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shado
     return data_sample_list
 
 
-def plot_overall_info(mean, std, iteration, plt_name, log_dir):
+def plot_overall_info(mean, lower_bound, upper_bound, iteration, plt_name, log_dir):
     band_size = mean.shape[0]
     bands = linspace(1, band_size, band_size, dtype=numpy.int)
     plt.rcParams['font.family'] = "sans-serif"
@@ -313,8 +315,6 @@ def plot_overall_info(mean, std, iteration, plt_name, log_dir):
     plt.rcParams['font.size'] = 14
     plt.scatter(bands, mean, label="mean ratio", s=10)
     plt.plot(bands, mean)
-    lower_bound = mean - std
-    upper_bound = mean + std
     plt.fill_between(bands, lower_bound, upper_bound, alpha=0.2)
     # plt.legend(loc='upper left')
     # plt.title("Band ratio")

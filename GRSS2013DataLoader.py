@@ -50,7 +50,7 @@ class GRSS2013DataLoader(DataLoader):
 
         shadow_dict = {"cycle_gan": create_gan_struct(CycleGANInferenceWrapper(),
                                                       self.get_model_base_dir(),
-                                                      "shadow_cycle_gan/modelv2/model.ckpt-5668"),
+                                                      "shadow_cycle_gan/modelv4/model.ckpt-33000"),
                        "gan": create_gan_struct(GANInferenceWrapper(None),
                                                 self.get_model_base_dir(),
                                                 "../utilities/log/model.ckpt-203000"),

@@ -97,9 +97,11 @@ class GANInferenceWrapper:
                             generated_mean = reduce_mean(generated_tensor)
 
                 if clip_invalid_values:
-                    result_tensor = tf.cond(tf.less(generated_mean, input_mean),
-                                            lambda: generated_tensor,
-                                            lambda: input_cell)
+                    result_tensor = tf.cond(
+                        tf.less(generated_mean, input_mean) if is_shadow_graph else tf.greater(generated_mean,
+                                                                                               input_mean),
+                        lambda: generated_tensor,
+                        lambda: input_cell)
                 else:
                     result_tensor = generated_tensor
 

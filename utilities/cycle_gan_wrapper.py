@@ -137,13 +137,11 @@ class CycleGANInferenceWrapper:
                                 generated_mean = reduce_mean(generated_tensor)
 
                 if clip_invalid_values:
-                    if is_shadow_graph:
-                        comparison_result = tf.less(generated_mean, input_mean)
-                    else:
-                        comparison_result = tf.greater(generated_mean, input_mean)
-                    result_tensor = tf.cond(comparison_result,
-                                            true_fn=lambda: generated_tensor,
-                                            false_fn=lambda: input_cell)
+                    result_tensor = tf.cond(
+                        tf.less(generated_mean, input_mean) if is_shadow_graph else tf.greater(generated_mean,
+                                                                                               input_mean),
+                        true_fn=lambda: generated_tensor,
+                        false_fn=lambda: input_cell)
                 else:
                     result_tensor = generated_tensor
 

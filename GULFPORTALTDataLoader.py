@@ -20,7 +20,7 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
         shadow_dict = {"cycle_gan": create_gan_struct(CycleGANInferenceWrapper(),
                                                       self.get_model_base_dir(),
-                                                      "shadow_cycle_gan/dualgan/model.ckpt-49453"),
+                                                      "shadow_cycle_gan/modelv3/model.ckpt-108000"),
                        "gan": create_gan_struct(GANInferenceWrapper(None),
                                                 self.get_model_base_dir(),
                                                 "../utilities/log/model.ckpt-203000"),
