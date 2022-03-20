@@ -7,11 +7,8 @@ from tensorflow import reduce_mean
 from tensorflow_core.contrib import slim
 
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
-from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, model_generator_name
-
-
-def adj_shadow_ratio(shadow_ratio, is_shadow):
-    return 1. / shadow_ratio if is_shadow else shadow_ratio
+from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, model_generator_name, \
+    adj_shadow_ratio
 
 
 class GANWrapper:

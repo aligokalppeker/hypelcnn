@@ -108,3 +108,23 @@ def _shadowdata_discriminator_model(generated_data, generator_input, is_training
                                   activation_fn=None)
 
     return tf.expand_dims(tf.expand_dims(slim.flatten(net2), axis=1), axis=1)
+
+
+def _shadowdata_feature_discriminator_model(generated_data, is_training=True):
+    with slim.arg_scope([slim.fully_connected, slim.separable_conv2d, slim.convolution1d],
+                        weights_initializer=initializers.variance_scaling(scale=2.0),
+                        weights_regularizer=slim.l2_regularizer(0.001),
+                        # normalizer_fn=slim.batch_norm,
+                        # normalizer_params={'is_training': is_training, 'decay': 0.999},
+                        # normalizer_fn=slim.instance_norm,
+                        # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
+                        activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.1))):
+        band_size = generated_data.get_shape()[3].value
+
+        net = generated_data
+        net = slim.flatten(net)
+
+        net1 = slim.fully_connected(net, band_size // 2)
+        net2 = slim.fully_connected(net1, band_size // 4)
+        net3 = slim.fully_connected(net2, band_size // 8)
+    return net3

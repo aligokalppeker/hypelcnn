@@ -6,7 +6,7 @@ from GULFPORTDataLoader import GULFPORTDataLoader, DataSet
 from common_nn_operations import INVALID_TARGET_VALUE, calculate_shadow_ratio, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size
 from utilities.gan_wrapper import GANInferenceWrapper
-from utilities.gan_utilities import create_simple_shadow_struct, create_gan_struct
+from gan_common import create_simple_shadow_struct, create_gan_struct
 from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
 
 
