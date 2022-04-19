@@ -29,11 +29,11 @@ class GeneratorImporter(DataImporter):
         sample_set = loader.load_samples(train_data_ratio, test_data_ratio)
 
         training_data_shape = numpy.concatenate(
-            ([sample_set.training_targets.shape[0]], loader.get_data_shape(data_set)))
+            ([sample_set.training_targets.shape[0]], data_set.get_data_shape()))
         testing_data_shape = numpy.concatenate(
-            ([sample_set.test_targets.shape[0]], loader.get_data_shape(data_set)))
+            ([sample_set.test_targets.shape[0]], data_set.get_data_shape()))
         validation_data_shape = numpy.concatenate(
-            ([sample_set.validation_targets.shape[0]], loader.get_data_shape(data_set)))
+            ([sample_set.validation_targets.shape[0]], data_set.get_data_shape()))
 
         print('Loaded dataset(%.3f sec)' % (time.time() - start_time))
         return \
@@ -53,7 +53,7 @@ class GeneratorImporter(DataImporter):
                 loader=loader,
                 dataset=data_set), \
             data_set.shadow_creator_dict, \
-            loader.get_class_count(), loader.get_scene_shape(data_set), loader.get_target_color_list()
+            loader.get_class_count(), data_set.get_scene_shape(), loader.get_target_color_list()
 
     @staticmethod
     def extract_fn(image, label, class_count, prefix):
@@ -67,7 +67,7 @@ class GeneratorImporter(DataImporter):
         training_data_set = tf.data.Dataset.from_generator(
             lambda: self._iterator_function(training_data_with_labels.targets, training_data_with_labels.loader,
                                             training_data_with_labels.dataset), tensor_type_info,
-            (tf.TensorShape(training_data_with_labels.loader.get_data_shape(training_data_with_labels.dataset)),
+            (tf.TensorShape(training_data_with_labels.dataset.get_data_shape()),
              tf.TensorShape([])))
         class_count = class_range.stop
         training_data_set = training_data_set.map(
@@ -76,7 +76,7 @@ class GeneratorImporter(DataImporter):
         testing_data_set = tf.data.Dataset.from_generator(
             lambda: self._iterator_function(test_data_with_labels.targets, test_data_with_labels.loader,
                                             test_data_with_labels.dataset), tensor_type_info,
-            (tf.TensorShape(test_data_with_labels.loader.get_data_shape(test_data_with_labels.dataset)),
+            (tf.TensorShape(test_data_with_labels.dataset.get_data_shape()),
              tf.TensorShape([])))
         testing_data_set = testing_data_set.map(
             lambda image, label: self.extract_fn(image, label, class_count, 'testing'), num_parallel_calls=8)
@@ -84,7 +84,7 @@ class GeneratorImporter(DataImporter):
         validation_data_set = tf.data.Dataset.from_generator(
             lambda: self._iterator_function(validation_data_with_labels.targets, validation_data_with_labels.loader,
                                             validation_data_with_labels.dataset), tensor_type_info,
-            (tf.TensorShape(validation_data_with_labels.loader.get_data_shape(validation_data_with_labels.dataset)),
+            (tf.TensorShape(validation_data_with_labels.dataset.get_data_shape()),
              tf.TensorShape([])))
         validation_data_set = validation_data_set.map(
             lambda image, label: self.extract_fn(image, label, class_count, 'validation'), num_parallel_calls=8)

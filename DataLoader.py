@@ -31,25 +31,9 @@ class DataLoader(ABC):
         pass
 
     @abstractmethod
-    def get_data_shape(self, data_set):
-        pass
-
-    @abstractmethod
-    def get_scene_shape(self, data_set):
-        pass
-
-    @abstractmethod
     def get_target_color_list(self):
         pass
 
     @abstractmethod
-    def get_original_data_type(self):
-        pass
-
-    @abstractmethod
     def get_band_measurements(self):
-        pass
-
-    @abstractmethod
-    def get_hsi_lidar_data(self, data_set):
         pass

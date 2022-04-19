@@ -68,16 +68,16 @@ def main(_):
     grss2018_data_set = grss2018_loader.load_data(0, False)
 
     hsi2013_global_minimum, hsi2018_global_minimum, hsi2013_global_maximum, hsi2018_global_maximum = \
-        extract_common_normalizer(grss2013_data_set.concrete_data[:, :, 0:-1], grss2018_data_set.casi)
+        extract_common_normalizer(grss2013_data_set.casi, grss2018_data_set.casi)
 
     output_scale = 5
     hsi_2013_spatial_repeat_count = 10
     hsi_2018_spatial_repeat_count = 4
 
-    grss2013_band_count = grss2013_loader.get_data_shape(grss2013_data_set)[2] - 1
-    grss2018_band_count = grss2018_loader.get_data_shape(grss2018_data_set)[2] - 1
+    grss2013_band_count = grss2013_data_set.get_casi_band_count()
+    grss2018_band_count = grss2018_data_set.get_casi_band_count()
 
-    # grss2013_scene_shape = grss2013_loader.get_scene_shape(grss2013_data_set)
+    # grss2013_scene_shape = grss2013_data_set.get_scene_shape()
     # scene_first_dim_size = grss2013_scene_shape[0]
     # scene_second_dim_size = grss2013_scene_shape[1]
 

@@ -118,9 +118,9 @@ def load_op(batch_size, iteration_count):
     grss2013_data_set = GRSS2013DataLoader(FLAGS.path).load_data(neighborhood, False)
     grss2018_data_set = GRSS2018DataLoader(FLAGS.path).load_data(neighborhood, False)
     hsi2013_global_minimum, hsi2018_global_minimum, hsi2013_global_maximum, hsi2018_global_maximum = \
-        extract_common_normalizer(grss2013_data_set.concrete_data[:, :, 0:-1], grss2018_data_set.casi)
+        extract_common_normalizer(grss2013_data_set.casi, grss2018_data_set.casi)
 
-    hsi_grss2013 = grss2013_data_set.concrete_data[7:347, 256 + 8:1894 + 8, 0:-1]
+    hsi_grss2013 = grss2013_data_set.casi[7:347, 256 + 8:1894 + 8, :]
     hsi_grss2018 = grss2018_data_set.casi[0 + 265:-350 + 265, 0:-75, :].astype(numpy.float32)
 
     debug_data = False

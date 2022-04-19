@@ -23,7 +23,7 @@ class InitializerHook(tf.train.SessionRunHook):
 
     def after_create_session(self, session, coord):
         if self.augmentation_info.perform_shadow_augmentation:
-            if self.augmentation_info.shadow_struct is not None or self.augmentation_info.shadow_struct.shadow_op_initializer is not None:
+            if self.augmentation_info.shadow_struct is not None and self.augmentation_info.shadow_struct.shadow_op_initializer is not None:
                 self.augmentation_info.shadow_struct.shadow_op_initializer(self.restorer, session)
 
         self.training_tensor.importer.perform_tensor_initialize(session, self.training_tensor, self.training_nn_params)
@@ -113,7 +113,7 @@ def run_monitored_session(cross_entropy, log_dir, required_steps, class_range,
     read_op_value = None
     augmentation_restorer = None
     if augmentation_info.perform_shadow_augmentation:
-        if augmentation_info.shadow_struct is not None or augmentation_info.shadow_struct.shadow_op_initializer is not None:
+        if augmentation_info.shadow_struct is not None and augmentation_info.shadow_struct.shadow_op_initializer is not None:
             augmentation_restorer = augmentation_info.shadow_struct.shadow_op_creater()
             # Ready ops are overriden, as default ready ops awaits all variables to be initialized
             # but actually some of the variables(such as cycle-gan graphs) are not initialized but restored

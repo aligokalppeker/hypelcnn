@@ -1,14 +1,10 @@
-from collections import namedtuple
-
 import numpy
 from numba import jit
 from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet
 from common_nn_operations import shuffle_test_data_using_ratio, shuffle_training_data_using_ratio, \
-    shuffle_training_data_using_size
-
-DataSet = namedtuple('DataSet', ['shadow_creator_dict', 'casi', 'lidar', 'neighborhood', 'casi_min', 'casi_max'])
+    shuffle_training_data_using_size, DataSet
 
 
 class GRSS2018DataLoader(DataLoader):
@@ -16,38 +12,11 @@ class GRSS2018DataLoader(DataLoader):
     def __init__(self, base_dir):
         self.base_dir = base_dir
 
-    def get_original_data_type(self):
-        return numpy.uint16
-
     def load_data(self, neighborhood, normalize):
-        casi = imread(self.get_model_base_dir() + '20170218_UH_CASI_S4_NAD83.tiff')[:, :, 0:-2]
-        lidar = imread(self.get_model_base_dir() + 'UH17c_GEF051.tif')[:, :, numpy.newaxis]
+        casi = imread(self.get_model_base_dir() + "20170218_UH_CASI_S4_NAD83.tiff")[:, :, 0:-2]
+        lidar = imread(self.get_model_base_dir() + "UH17c_GEF051.tif")[:, :, numpy.newaxis]
         lidar[numpy.where(lidar > 300)] = 0  # Eliminate unacceptable values
-        # lidar = downscale_local_mean(lidar, (2, 2, 1))
-
-        # Padding part
-        pad_size = ((neighborhood, neighborhood), (neighborhood, neighborhood), (0, 0))
-        lidar = numpy.pad(lidar, pad_size, mode='symmetric')
-        casi = numpy.pad(casi, pad_size, mode='symmetric')  # Half the pad ???
-
-        casi_min = None
-        casi_max = None
-        if normalize:
-            # Normalization
-            lidar -= numpy.min(lidar)
-            lidar = lidar / numpy.max(lidar)
-            casi_min = numpy.min(casi, axis=(0, 1))
-            casi -= casi_min
-            casi_max = numpy.max(casi, axis=(0, 1))
-            casi = casi / casi_max.astype(numpy.float32)
-
-        data_set = DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
-                           casi_min=casi_min, casi_max=casi_max)
-
-        return data_set
-
-    def get_hsi_lidar_data(self, data_set):
-        return data_set.casi, data_set.lidar
+        return DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood, normalize=normalize)
 
     @staticmethod
     def print_stats(data):
@@ -136,14 +105,6 @@ class GRSS2018DataLoader(DataLoader):
     def get_model_base_dir(self):
         return self.base_dir + '/2018_DFTC/'
 
-    def get_data_shape(self, data_set):
-        dim = data_set.neighborhood * 2 + 1
-        return [dim, dim, (data_set.casi.shape[2] + 1)]
-
-    def get_scene_shape(self, data_set):
-        padding = data_set.neighborhood * 2
-        return [data_set.lidar.shape[0] - padding, data_set.lidar.shape[1] - padding]
-
     def get_point_value(self, data_set, point):
         neighborhood = data_set.neighborhood
         size = neighborhood * 2 + 1
@@ -153,15 +114,14 @@ class GRSS2018DataLoader(DataLoader):
         start_x, start_y = self.__calculate_position(neighborhood, point, 0.5)
         lidar_start_x, lidar_start_y = self.__calculate_position(neighborhood, point, 1)
 
-        self.__assign_loop(data_set, lidar_start_x, lidar_start_y, start_x, start_y,
+        self.__assign_loop(data_set.casi, data_set.lidar,
+                           lidar_start_x, lidar_start_y, start_x, start_y,
                            size, total_band_count, result)
         return result
 
     @staticmethod
     @jit(nopython=True)
-    def __assign_loop(data_set, lidar_start_x, lidar_start_y, start_x, start_y, size, total_band_count, result):
-        casi = data_set.casi
-        lidar = data_set.lidar
+    def __assign_loop(casi, lidar, lidar_start_x, lidar_start_y, start_x, start_y, size, total_band_count, result):
         last_element_index = total_band_count - 1
         for x_index in range(0, size):
             for y_index in range(0, size):

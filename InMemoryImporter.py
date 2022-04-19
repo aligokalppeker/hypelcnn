@@ -25,7 +25,7 @@ class InMemoryImporter(DataImporter):
 
     @staticmethod
     def _get_data_with_labels(targets, loader, data_set):
-        data_as_matrix = numpy.zeros(numpy.concatenate([[targets.shape[0]], loader.get_data_shape(data_set)]),
+        data_as_matrix = numpy.zeros(numpy.concatenate([[targets.shape[0]], data_set.get_data_shape()]),
                                      dtype=numpy.float32)
         label_as_matrix = numpy.zeros(targets.shape[0], dtype=numpy.uint8)
 
@@ -51,7 +51,7 @@ class InMemoryImporter(DataImporter):
 
         print('Loaded dataset(%.3f sec)' % (time.time() - start_time))
         return training_data_with_labels, test_data_with_labels, validation_data_with_labels, data_set.shadow_creator_dict, \
-               loader.get_class_count(), loader.get_scene_shape(data_set), loader.get_target_color_list()
+               loader.get_class_count(), data_set.get_scene_shape(), loader.get_target_color_list()
 
     def convert_data_to_tensor(self, test_data_with_labels, training_data_with_labels, validation_data_with_labels,
                                class_range):

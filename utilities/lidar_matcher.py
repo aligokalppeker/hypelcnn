@@ -40,7 +40,7 @@ def main(_):
 
 def match_data(grss_2013_band, grss_2018_band, grss_2013_data_set, grss_2018_data_set,
                grss2013_scale, grss2018_scale):
-    band_grss2013 = grss_2013_data_set.concrete_data[:, :, grss_2013_band]
+    band_grss2013 = grss_2013_data_set.casi[:, :, grss_2013_band]
     # band_grss2013 = band_grss2013 - np.min(band_grss2013)
     band_grss2013 = resize(band_grss2013, (
         band_grss2013.shape[1] * grss2013_scale, band_grss2013.shape[0] * grss2013_scale),

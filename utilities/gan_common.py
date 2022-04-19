@@ -23,8 +23,8 @@ def adj_shadow_ratio(shadow_ratio, is_shadow):
     return 1. / shadow_ratio if is_shadow else shadow_ratio
 
 
-def create_dummy_shadowed_normal_data(data_set, loader):
-    data_shape_info = loader.get_data_shape(data_set)
+def create_dummy_shadowed_normal_data(data_set):
+    data_shape_info = data_set.get_data_shape()
     element_count = 2000
     shadow_data_as_matrix = numpy.full(numpy.concatenate([[element_count], data_shape_info]),
                                        fill_value=0.5, dtype=numpy.float32)
@@ -290,7 +290,7 @@ def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, 
 
 def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map, fetch_shadows):
     # neighborhood aware indices finder
-    band_size = loader.get_data_shape(data_set)[2] - 1
+    band_size = data_set.get_casi_band_count()
     data_sample_list = []
     shadow_check_val = 0
 

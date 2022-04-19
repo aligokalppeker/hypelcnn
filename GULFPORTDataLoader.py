@@ -1,28 +1,9 @@
-from collections import namedtuple
-
 import numpy
 from tifffile import imread
 
 from DataLoader import DataLoader, SampleSet
 from common_nn_operations import read_targets_from_image, shuffle_training_data_using_ratio, \
-    shuffle_training_data_using_size, shuffle_test_data_using_ratio
-
-DataSet = namedtuple('DataSet', ['shadow_creator_dict', 'casi', 'lidar', 'neighborhood', 'casi_min', 'casi_max'])
-
-
-def __assign_func(data_array, neighborhood, point):
-    neighborhood_delta = (neighborhood + neighborhood) + 1
-    start_y = point[1]  # + neighborhood - neighborhood; add as delta due to padding and windowed back
-    end_y = start_y + neighborhood_delta
-    start_x = point[0]  # + neighborhood - neighborhood; add as delta due to padding and windowed back
-    end_x = start_x + neighborhood_delta
-    return data_array[start_y:end_y:1, start_x:end_x:1, :]
-
-
-def get_point_value_impl(data_set, point):
-    casi_patch = __assign_func(data_set.casi, data_set.neighborhood, point)
-    lidar_patch = __assign_func(data_set.lidar, data_set.neighborhood, point)
-    return numpy.concatenate((casi_patch, lidar_patch), axis=2)
+    shuffle_training_data_using_size, shuffle_test_data_using_ratio, DataSet, get_data_point_func
 
 
 class GULFPORTDataLoader(DataLoader):
@@ -30,34 +11,10 @@ class GULFPORTDataLoader(DataLoader):
     def __init__(self, base_dir):
         self.base_dir = base_dir
 
-    def get_original_data_type(self):
-        return numpy.float32
-
     def load_data(self, neighborhood, normalize):
         casi = imread(self.get_model_base_dir() + 'muulf_hsi.tif')
         lidar = numpy.expand_dims(imread(self.get_model_base_dir() + 'muulf_lidar.tif'), axis=2)
-
-        # Padding part
-        pad_size = ((neighborhood, neighborhood), (neighborhood, neighborhood), (0, 0))
-        lidar = numpy.pad(lidar, pad_size, mode='symmetric')
-        casi = numpy.pad(casi, pad_size, mode='symmetric')  # Half the pad ???
-
-        casi_min = None
-        casi_max = None
-        if normalize:
-            # Normalization
-            lidar -= numpy.min(lidar)
-            lidar = lidar / numpy.max(lidar)
-            casi_min = numpy.min(casi, axis=(0, 1))
-            casi -= casi_min
-            casi_max = numpy.max(casi, axis=(0, 1))
-            casi = casi / casi_max.astype(numpy.float32)
-
-        return DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
-                       casi_min=casi_min, casi_max=casi_max)
-
-    def get_hsi_lidar_data(self, data_set):
-        return data_set.casi, data_set.lidar
+        return DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood, normalize=normalize)
 
     def load_samples(self, train_data_ratio, test_data_ratio):
         result = self.read_targets('muulf_gt.tif')
@@ -120,16 +77,8 @@ class GULFPORTDataLoader(DataLoader):
     def get_model_base_dir(self):
         return self.base_dir + '/GULFPORT/'
 
-    def get_data_shape(self, data_set):
-        dim = data_set.neighborhood * 2 + 1
-        return [dim, dim, (data_set.casi.shape[2] + 1)]
-
-    def get_scene_shape(self, data_set):
-        padding = data_set.neighborhood * 2
-        return [data_set.lidar.shape[0] - padding, data_set.lidar.shape[1] - padding]
-
     def get_point_value(self, data_set, point):
-        return get_point_value_impl(data_set, point)
+        return get_data_point_func(data_set.casi, data_set.lidar, data_set.neighborhood, point)
 
     def get_band_measurements(self):
         return numpy.linspace(405, 1005, 64)

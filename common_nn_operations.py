@@ -1,14 +1,68 @@
 import numpy
 import tensorflow as tf
+from numba import jit
 from sklearn.model_selection import StratifiedShuffleSplit
 from tensorflow.contrib.data import shuffle_and_repeat, prefetch_to_device
 from tensorflow.contrib.metrics import cohen_kappa
 from tensorflow.contrib.slim.python.slim.learning import create_train_op
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops.metrics_impl import metric_variable
+from tifffile import imread
 from tqdm import tqdm
 
 INVALID_TARGET_VALUE = 255
+
+
+class DataSet:
+    def __init__(self, shadow_creator_dict, casi, lidar, neighborhood, normalize) -> None:
+        self.neighborhood = neighborhood
+        self.lidar = lidar
+        self.casi = casi
+        self.casi_unnormalized_dtype = self.casi.dtype
+        self.shadow_creator_dict = shadow_creator_dict
+
+        # Padding part
+        pad_size = ((self.neighborhood, self.neighborhood), (self.neighborhood, self.neighborhood), (0, 0))
+        if self.lidar is not None:
+            self.lidar = numpy.pad(self.lidar, pad_size, mode="symmetric")
+
+        if self.casi is not None:
+            self.casi = numpy.pad(self.casi, pad_size, mode="symmetric")
+
+        # Normalization
+        self.casi_min = 0
+        self.casi_max = 1
+        if normalize:
+            if self.lidar is not None:
+                self.lidar -= numpy.min(self.lidar)
+                self.lidar = self.lidar / numpy.max(self.lidar)
+
+            if self.casi is not None:
+                self.casi_min = numpy.min(self.casi, axis=(0, 1))
+                self.casi -= self.casi_min
+                self.casi_max = numpy.max(self.casi, axis=(0, 1))
+                self.casi = self.casi / self.casi_max.astype(numpy.float32)
+
+    def get_data_shape(self):
+        dim = self.neighborhood * 2 + 1
+        channel_count = self.casi.shape[2]
+        if self.lidar is not None:
+            channel_count = channel_count + 1
+        return [dim, dim, channel_count]
+
+    def get_casi_band_count(self):
+        return self.casi.shape[2]
+
+    def get_scene_shape(self):
+        padding = self.neighborhood * 2
+        primary_shape_to_consider = self.lidar
+        if primary_shape_to_consider is None:
+            primary_shape_to_consider = self.casi
+        return [primary_shape_to_consider.shape[0] - padding,
+                primary_shape_to_consider.shape[1] - padding]
+
+    def get_unnormalized_casi_dtype(self):
+        return self.casi_unnormalized_dtype
 
 
 class NNParams:
@@ -68,6 +122,17 @@ class AugmentationInfo:
         self.perform_shadow_augmentation = perform_shadow_augmentation
         self.shadow_struct = shadow_struct
         self.augmentation_random_threshold = augmentation_random_threshold
+
+
+@jit(nopython=True)
+def get_data_point_func(casi, lidar, neighborhood, point):
+    start_x = point[0]  # + neighborhood(pad offset) - neighborhood(back step); padding and back shift makes delta zero
+    start_y = point[1]  # + neighborhood(pad offset) - neighborhood(back step); padding and back shift makes delta zero
+    end_x = start_x + (2 * neighborhood) + 1
+    end_y = start_y + (2 * neighborhood) + 1
+    value = numpy.concatenate(
+        (casi[start_y:end_y:1, start_x:end_x:1, :], lidar[start_y:end_y:1, start_x:end_x:1, :]), axis=2)
+    return value
 
 
 def training_nn_iterator(data_set, augmentation_info, batch_size, num_epochs, device):
@@ -339,13 +404,14 @@ def perform_rotation_augmentation_random(images, labels, augmentation_info):
 
 
 def perform_shadow_augmentation_random(images, labels, augmentation_info):
-    shadow_op = augmentation_info.shadow_struct.shadow_op
-    with tf.name_scope('shadow_augmentation'):
-        with tf.device('/cpu:0'):
-            rand_number = tf.random_uniform([1], 0, 1.0)[0]
-            images = tf.cond(tf.less(rand_number, augmentation_info.augmentation_random_threshold),
-                             lambda: shadow_op(images),
-                             lambda: images)
+    if augmentation_info.shadow_struct is not None:
+        shadow_op = augmentation_info.shadow_struct.shadow_op
+        with tf.name_scope('shadow_augmentation'):
+            with tf.device('/cpu:0'):
+                rand_number = tf.random_uniform([1], 0, 1.0)[0]
+                images = tf.cond(tf.less(rand_number, augmentation_info.augmentation_random_threshold),
+                                 lambda: shadow_op(images),
+                                 lambda: images)
     return images, labels
 
 
@@ -386,7 +452,7 @@ def create_target_image_via_samples(sample_set, scene_shape):
 
 
 def get_all_shadowed_normal_data(data_set, loader, shadow_map, multiply_shadowed_data):
-    data_shape_info = loader.get_data_shape(data_set)
+    data_shape_info = data_set.get_data_shape()
     shadow_element_count = numpy.sum(shadow_map, dtype=numpy.int)
     normal_element_count = shadow_map.shape[0] * shadow_map.shape[1] - shadow_element_count
     shadow_data_as_matrix = numpy.zeros(numpy.concatenate([[shadow_element_count], data_shape_info]),
@@ -465,7 +531,7 @@ def get_targetbased_shadowed_normal_data(data_set, loader, shadow_map, samples):
     # Second Pass for target based array creation
     shadow_target_map = {}
     normal_target_map = {}
-    data_shape = loader.get_data_shape(data_set)
+    data_shape = data_set.get_data_shape()
     for target_key in range(0, class_count):
         shadow_target_count = shadow_target_count_map[target_key]
         if shadow_target_count > 0:
@@ -577,3 +643,15 @@ def scale_input_to_output(input_data, output_data, axis_no):
         output_data_indice_list.append(target_index_no)
 
     return tf.gather(input_data, output_data_indice_list, axis=axis_no)
+
+
+def load_shadow_map_common(data_set, neighborhood, shadow_file_name):
+    shadow_map = imread(shadow_file_name)
+    shadow_map = numpy.pad(shadow_map, neighborhood, mode="symmetric")
+    shadow_ratio = None
+    if data_set is not None:
+        shadow_ratio = calculate_shadow_ratio(data_set.casi,
+                                              shadow_map,
+                                              numpy.logical_not(shadow_map).astype(int))
+        shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
+    return shadow_map, shadow_ratio

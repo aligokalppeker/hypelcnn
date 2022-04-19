@@ -34,15 +34,15 @@ def main():
     loader = get_class(loader_name + '.' + loader_name)(flags.path)
     sample_set = loader.load_samples(0.1, 0.1)
     data_set = loader.load_data(0, True)
-    scene_shape = loader.get_scene_shape(data_set)
+    scene_shape = data_set.get_scene_shape()
 
     target_classes_as_image = create_target_image_via_samples(sample_set, scene_shape)
 
     shadow_map = get_shadow_map(target_classes_as_image)
     imwrite("muulf_shadow_map.tif", shadow_map, planarconfig='contig')
 
-    casi_normalized, _ = loader.get_hsi_lidar_data(data_set)
-    casi, _ = loader.get_hsi_lidar_data(loader.load_data(0, False))
+    casi_normalized = data_set.casi
+    casi = loader.load_data(0, False).casi
 
     create_shadow_corrected_image(casi_normalized, casi, shadow_map)
     draw_targets(loader.get_target_color_list(), target_classes_as_image, "Targets")

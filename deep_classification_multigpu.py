@@ -27,7 +27,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
                                     flags.neighborhood, True)
 
     shadow_struct = None
-    if flags.augment_data_with_shadow is not None:
+    if flags.augment_data_with_shadow is not None and shadow_dict is not None:
         shadow_struct = shadow_dict[flags.augment_data_with_shadow]
 
     augmentation_info = AugmentationInfo(shadow_struct=shadow_struct,

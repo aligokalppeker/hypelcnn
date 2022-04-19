@@ -61,18 +61,12 @@ def main(_):
     loader_name = FLAGS.loader_name
     loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
     data_set = loader.load_data(0, True)
-    offset = data_set.casi_min
-    multiplier = data_set.casi_max
-    if offset is None:
-        offset = 0
-    if multiplier is None:
-        multiplier = 1
-    target_data_type = loader.get_original_data_type()
+    target_data_type = data_set.get_unnormalized_casi_dtype()
     shadow_map, shadow_ratio = loader.load_shadow_map(0, data_set)
 
-    scene_shape = loader.get_scene_shape(data_set)
-    element_size = loader.get_data_shape(data_set)
-    element_size = [element_size[0], element_size[1], element_size[2] - 1]
+    scene_shape = data_set.get_scene_shape()
+    element_size = data_set.get_data_shape()
+    element_size = [element_size[0], element_size[1], data_set.get_casi_band_count()]
 
     convert_only_the_convenient_pixels = not FLAGS.convert_all
     if make_them_shadow == "shadow":
@@ -91,7 +85,6 @@ def main(_):
                                   "gan_y2x": GANInferenceWrapper(fetch_shadows=True)}
 
     input_tensor, output_tensor = gan_inference_wrapper_dict[FLAGS.gan_type].make_inference_graph(data_set,
-                                                                                                  loader,
                                                                                                   shadow,
                                                                                                   clip_invalid_values=False)
 
@@ -119,7 +112,7 @@ def main(_):
                     generated_y_data = input_data
 
                 hsi_image[first_idx, second_idx, :] = \
-                    ((generated_y_data * multiplier) + offset).astype(target_data_type)
+                    ((generated_y_data * data_set.casi_max) + data_set.casi_min).astype(target_data_type)
 
                 progress_bar.update(1)
 
@@ -134,8 +127,8 @@ def main(_):
                 hsi_image, planarconfig='contig')
 
         hsi_image = hsi_image.astype(float)
-        hsi_image -= offset
-        hsi_image /= multiplier
+        hsi_image -= data_set.casi_min
+        hsi_image /= data_set.casi_max
         hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 256).astype(numpy.uint8)
         imwrite(os.path.join(FLAGS.output_path, f"shadow_image_rgb_{make_them_shadow}_{convert_region_suffix}.tif"),
                 hsi_as_rgb)

@@ -18,7 +18,7 @@ def main():
     loader = get_class(loader_name + '.' + loader_name)(flags.path)
     sample_set = loader.load_samples(0.1, 0.1)
     data_set = loader.load_data(0, False)
-    scene_shape = loader.get_scene_shape(data_set)
+    scene_shape = data_set.get_scene_shape()
 
     imsave(os.path.join(flags.output_path, "result_colorized.tif"),
            create_colored_image(create_target_image_via_samples(sample_set, scene_shape),

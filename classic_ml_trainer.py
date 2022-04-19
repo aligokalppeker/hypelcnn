@@ -89,16 +89,16 @@ def main():
 def perform_full_scene_classification(data_path, loader_name, neighborhood, estimator, batch_size):
     loader = get_class(loader_name + '.' + loader_name)(data_path)
     data_set = loader.load_data(neighborhood, False)
-    scene_shape = loader.get_scene_shape(data_set)
+    scene_shape = data_set.get_scene_shape()
     all_scene_target_array = GeneratorImporter.GeneratorImporter.create_all_scene_target_array(scene_shape)
     predict_pixel_count = scene_shape[0] * scene_shape[1]
     progress_bar = tqdm(total=predict_pixel_count)
 
     prediction = numpy.empty([predict_pixel_count], dtype=numpy.uint8)
     batch_cache = numpy.empty([batch_size,
-                               loader.get_data_shape(data_set)[0],
-                               loader.get_data_shape(data_set)[1],
-                               loader.get_data_shape(data_set)[2]], dtype=numpy.float32)
+                               data_set.get_data_shape()[0],
+                               data_set.get_data_shape()[1],
+                               data_set.get_data_shape()[2]], dtype=numpy.float32)
     current_pixel_index = 0
     batch_pixel_index = 0
     for point in all_scene_target_array:

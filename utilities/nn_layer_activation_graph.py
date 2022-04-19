@@ -28,8 +28,7 @@ class ControlledDataImporter(DataImporter):
             self.generator_importer.read_data_set(loader_name=loader_name, path=path, train_data_ratio=train_data_ratio,
                                                   test_data_ratio=test_data_ratio,
                                                   neighborhood=neighborhood, normalize=normalize)
-        loader = get_class(loader_name + '.' + loader_name)(path)
-        shape = loader.get_data_shape(training_data_with_labels.dataset)
+        shape = training_data_with_labels.dataset.get_data_shape()
         for index in range(0, 5000):
             self.target_class.append(0)
             element_data = numpy.zeros(shape=shape, dtype=numpy.float)
@@ -44,7 +43,7 @@ class ControlledDataImporter(DataImporter):
         tensor_type_info = (tf.float32, tf.uint8)
         training_data_set = tf.data.Dataset.from_generator(
             lambda: self._iterator_function(), tensor_type_info,
-            (tf.TensorShape(training_data_with_labels.loader.get_data_shape(training_data_with_labels.dataset)),
+            (tf.TensorShape(training_data_with_labels.dataset.get_data_shape()),
              tf.TensorShape([])))
         class_count = class_range.stop
         training_data_set = training_data_set.map(
@@ -53,7 +52,7 @@ class ControlledDataImporter(DataImporter):
 
         testing_data_set = tf.data.Dataset.from_generator(
             lambda: self._iterator_function(), tensor_type_info,
-            (tf.TensorShape(test_data_with_labels.loader.get_data_shape(test_data_with_labels.dataset)),
+            (tf.TensorShape(test_data_with_labels.dataset.get_data_shape()),
              tf.TensorShape([])))
         testing_data_set = testing_data_set.map(
             lambda image, label: GeneratorImporter.extract_fn(image, label, class_count, 'testing'),
@@ -61,7 +60,7 @@ class ControlledDataImporter(DataImporter):
 
         validation_data_set = tf.data.Dataset.from_generator(
             lambda: self._iterator_function(), tensor_type_info,
-            (tf.TensorShape(validation_data_with_labels.loader.get_data_shape(validation_data_with_labels.dataset)),
+            (tf.TensorShape(validation_data_with_labels.dataset.get_data_shape()),
              tf.TensorShape([])))
         validation_data_set = validation_data_set.map(
             lambda image, label: GeneratorImporter.extract_fn(image, label, class_count, 'validation'),

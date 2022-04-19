@@ -171,9 +171,9 @@ def get_data_from_scene(data_set, loader, shadow_map):
                         test_targets=None,
                         validation_targets=None)
     first_margin_start = 5
-    first_margin_end = loader.get_scene_shape(data_set)[0] - 5
+    first_margin_end = data_set.get_scene_shape()[0] - 5
     second_margin_start = 5
-    second_margin_end = loader.get_scene_shape(data_set)[1] - 5
+    second_margin_end = data_set.get_scene_shape()[1] - 5
     for target_index in range(0, samples.training_targets.shape[0]):
         current_target = samples.training_targets[target_index]
         if not (first_margin_start < current_target[1] < first_margin_end and
@@ -193,9 +193,9 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
             loader,
             shadow_map, multiply_shadowed_data=False)
 
-    # normal_data_as_matrix, shadow_data_as_matrix = create_dummy_shadowed_normal_data(data_set, loader)
+    # normal_data_as_matrix, shadow_data_as_matrix = create_dummy_shadowed_normal_data(data_set)
 
-    hsi_channel_len = normal_data_as_matrix.shape[3] - 1
+    hsi_channel_len = data_set.get_casi_band_count()
     normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:hsi_channel_len]
     shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:hsi_channel_len]
 
