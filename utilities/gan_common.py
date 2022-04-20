@@ -114,7 +114,7 @@ class BaseValidationHook(tf.train.SessionRunHook):
     def __init__(self, iteration_freq, log_dir, shadow_ratio):
         self._iteration_frequency = iteration_freq
         self._global_step_tensor = None
-        self._shadow_ratio = shadow_ratio[0:-1]
+        self._shadow_ratio = shadow_ratio
         self._log_dir = log_dir
         self.best_ratio_holder = BestRatioHolder(10)
         self.validation_itr_mark = False

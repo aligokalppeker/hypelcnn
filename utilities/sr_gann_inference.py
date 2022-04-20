@@ -92,7 +92,7 @@ def main(_):
                                             scene_second_dim_size * output_scale,
                                             grss2018_band_count], dtype=dst_arr_type)
 
-    scale_down_indices = numpy.rint(numpy.linspace(0, grss2013_band_count - 1, grss2018_band_count)).astype(int)
+    scale_down_indices = numpy.rint(numpy.linspace(0, grss2013_band_count, grss2018_band_count)).astype(int)
     progress_bar = tqdm(total=scene_first_dim_size * scene_second_dim_size)
 
     with tf.Session() as sess:
@@ -146,7 +146,7 @@ def main(_):
                          2.4890015  2.4949672  2.508757   2.461551   2.479739   2.5024395", dtype=float, count=-1,
                         sep=' ')
                     # coeff = numpy.ones(144, dtype=float)
-                    generated_grss2018_data = cv2.resize(grss_2013_test_data[0]/coeff,
+                    generated_grss2018_data = cv2.resize(grss_2013_test_data[0] / coeff,
                                                          (output_scale, output_scale),
                                                          interpolation=cv2.INTER_LINEAR)
                     generated_grss2018_data = (((numpy.take(generated_grss2018_data, scale_down_indices,

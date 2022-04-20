@@ -62,7 +62,7 @@ def main(_):
     loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
     data_set = loader.load_data(0, True)
     target_data_type = data_set.get_unnormalized_casi_dtype()
-    shadow_map, shadow_ratio = loader.load_shadow_map(0, data_set)
+    shadow_map, _ = loader.load_shadow_map(0, data_set)
 
     scene_shape = data_set.get_scene_shape()
     element_size = data_set.get_data_shape()

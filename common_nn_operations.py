@@ -653,5 +653,4 @@ def load_shadow_map_common(data_set, neighborhood, shadow_file_name):
         shadow_ratio = calculate_shadow_ratio(data_set.casi,
                                               shadow_map,
                                               numpy.logical_not(shadow_map).astype(int))
-        shadow_ratio = numpy.append(shadow_ratio, [1]).astype(numpy.float32)
     return shadow_map, shadow_ratio
