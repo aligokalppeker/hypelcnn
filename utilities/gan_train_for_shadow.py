@@ -14,7 +14,7 @@ from tensorflow_gan.python.train import get_sequential_train_hooks
 from DataLoader import SampleSet
 from common_nn_operations import get_class, get_all_shadowed_normal_data, get_targetbased_shadowed_normal_data
 from cycle_gan_wrapper import CycleGANWrapper
-from utilities.gan_common import InitializerHook
+from utilities.gan_common import InitializerHook, model_base_name
 from utilities.gan_wrapper import GANWrapper
 
 required_tensorflow_version = "1.14.0"
@@ -160,20 +160,20 @@ def _validate_gan_train_inputs(logdir, is_chief, save_summaries_steps,
     if logdir is None and is_chief:
         if save_summaries_steps:
             raise ValueError(
-                'logdir cannot be None when save_summaries_steps is not None')
+                "logdir cannot be None when save_summaries_steps is not None")
         if save_checkpoint_secs:
             raise ValueError(
-                'logdir cannot be None when save_checkpoint_secs is not None')
+                "logdir cannot be None when save_checkpoint_secs is not None")
 
 
-def get_data_from_scene(data_set, loader, shadow_map):
+def get_data_from_scene(data_set, loader, shadow_map, margin):
     samples = SampleSet(training_targets=loader.read_targets("shadow_cycle_gan/class_result.tif"),
                         test_targets=None,
                         validation_targets=None)
-    first_margin_start = 5
-    first_margin_end = data_set.get_scene_shape()[0] - 5
-    second_margin_start = 5
-    second_margin_end = data_set.get_scene_shape()[1] - 5
+    first_margin_start = margin
+    first_margin_end = data_set.get_scene_shape()[0] - margin
+    second_margin_start = margin
+    second_margin_end = data_set.get_scene_shape()[1] - margin
     for target_index in range(0, samples.training_targets.shape[0]):
         current_target = samples.training_targets[target_index]
         if not (first_margin_start < current_target[1] < first_margin_end and
@@ -186,7 +186,8 @@ def get_data_from_scene(data_set, loader, shadow_map):
 
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio, reg_support_rate):
     if FLAGS.use_target_map:
-        normal_data_as_matrix, shadow_data_as_matrix = get_data_from_scene(data_set, loader, shadow_map)
+        margin = 5
+        normal_data_as_matrix, shadow_data_as_matrix = get_data_from_scene(data_set, loader, shadow_map, margin)
     else:
         normal_data_as_matrix, shadow_data_as_matrix = get_all_shadowed_normal_data(
             data_set,
@@ -199,16 +200,14 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
     normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:hsi_channel_len]
     shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:hsi_channel_len]
 
-    normal_holder = tf.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape, name='x')
-    shadow_holder = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name='y')
+    normal_holder = tf.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape, name="x")
+    shadow_holder = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name="y")
 
     epoch = int((iteration_count * batch_size) / normal_data_as_matrix.shape[0])
     data_set = tf.data.Dataset.from_tensor_slices((normal_holder, shadow_holder)).apply(
         shuffle_and_repeat(buffer_size=10000, count=epoch))
     data_set = data_set.map(
-        lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_,
-                                                                     shadow_ratio[0:hsi_channel_len],
-                                                                     reg_support_rate),
+        lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_, shadow_ratio, reg_support_rate),
         num_parallel_calls=4)
     data_set = data_set.batch(batch_size)
     data_set_itr = data_set.make_initializable_iterator()
@@ -217,8 +216,8 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
 
 
 def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_ratio, reg_support_rate):
-    with tf.name_scope('shadow_ratio_augmenter'):
-        with tf.device('/cpu:0'):
+    with tf.name_scope("shadow_ratio_augmenter"):
+        with tf.device("/cpu:0"):
             rand_number = tf.random_uniform([1], 0.01, 0.99)[0]
             shadow_images = tf.cond(tf.less(rand_number, reg_support_rate),
                                     false_fn=lambda: shadow_images,
@@ -295,8 +294,8 @@ def _define_train_ops(gan_model, gan_loss):
         check_for_unused_update_ops=False,
         aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
 
-    tf.summary.scalar('generator_lr', gen_lr)
-    tf.summary.scalar('discriminator_lr', dis_lr)
+    tf.summary.scalar("generator_lr", gen_lr)
+    tf.summary.scalar("discriminator_lr", dis_lr)
     return train_ops
 
 
@@ -310,7 +309,7 @@ def main(_):
         validation_sample_count = FLAGS.validation_sample_count
         loader_name = FLAGS.loader_name
         neighborhood = 0
-        loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
+        loader = get_class(loader_name + "." + loader_name)(FLAGS.path)
         data_set = loader.load_data(neighborhood, True)
 
         shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
@@ -338,7 +337,7 @@ def main(_):
                                   swap_inputs=True)}
         wrapper = gan_train_wrapper_dict[gan_type]
 
-        with tf.variable_scope('Model', reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(model_base_name, reuse=tf.AUTO_REUSE):
             the_gan_model = wrapper.define_model(images_x, images_y)
             peer_validation_hook = wrapper.create_validation_hook(data_set, loader, log_dir, neighborhood,
                                                                   shadow_map, shadow_ratio, validation_iteration_count,
@@ -353,14 +352,14 @@ def main(_):
         train_steps = tfgan.GANTrainSteps(1, 1)
         status_message = tf.string_join(
             [
-                'Starting train step: ',
+                "Starting train step: ",
                 tf.as_string(tf.train.get_or_create_global_step())
             ],
-            name='status_message')
+            name="status_message")
         if not FLAGS.max_number_of_steps:
             return
 
-        gpu = tf.config.experimental.list_physical_devices('GPU')
+        gpu = tf.config.experimental.list_physical_devices("GPU")
         tf.config.experimental.set_memory_growth(gpu[0], True)
 
         training_scaffold = Scaffold(saver=tf.train.Saver(max_to_keep=20))
@@ -381,7 +380,7 @@ def main(_):
             is_chief=FLAGS.task == 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # tf.flags.mark_flag_as_required('image_set_x_file_pattern')
     # tf.flags.mark_flag_as_required('image_set_y_file_pattern')
     tf.app.run()

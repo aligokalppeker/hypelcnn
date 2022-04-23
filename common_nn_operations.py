@@ -14,7 +14,8 @@ INVALID_TARGET_VALUE = 255
 
 
 class DataSet:
-    def __init__(self, shadow_creator_dict, casi, lidar, neighborhood, normalize) -> None:
+    def __init__(self, shadow_creator_dict, casi, lidar, neighborhood, normalize,
+                 casi_min=None, casi_max=None, lidar_min=None, lidar_max=None) -> None:
         self.neighborhood = neighborhood
         self.lidar = lidar
         self.casi = casi
@@ -32,15 +33,19 @@ class DataSet:
         # Normalization
         self.casi_min = 0
         self.casi_max = 1
+        self.lidar_min = 0
+        self.lidar_max = 1
         if normalize:
             if self.lidar is not None:
-                self.lidar -= numpy.min(self.lidar)
-                self.lidar = self.lidar / numpy.max(self.lidar)
+                self.lidar_min = numpy.min(self.lidar) if lidar_min is None else lidar_min
+                self.lidar -= self.lidar_min
+                self.lidar_max = numpy.max(self.lidar) if lidar_max is None else lidar_max
+                self.lidar = self.lidar / self.lidar_max
 
             if self.casi is not None:
-                self.casi_min = numpy.min(self.casi, axis=(0, 1))
+                self.casi_min = numpy.min(self.casi, axis=(0, 1)) if casi_min is None else casi_min
                 self.casi -= self.casi_min
-                self.casi_max = numpy.max(self.casi, axis=(0, 1))
+                self.casi_max = numpy.max(self.casi, axis=(0, 1)) if casi_max is None else casi_max
                 self.casi = self.casi / self.casi_max.astype(numpy.float32)
 
     def get_data_shape(self):

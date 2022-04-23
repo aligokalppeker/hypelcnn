@@ -16,9 +16,10 @@ class AVONDataLoader(DataLoader):
     def load_data(self, neighborhood, normalize):
         casi = imread(self.get_model_base_dir() + "0920-1857.georef_cropped.tif")[:, :, BLANK_OFFSET:-BLANK_OFFSET]
         casi = numpy.swapaxes(casi, axis1=0, axis2=2)
-        return DataSet(shadow_creator_dict=None, casi=casi, lidar=None,
-                       neighborhood=neighborhood,
-                       normalize=normalize)
+        outlier_in_upper_bound = numpy.percentile(casi, 95, axis=[0, 1]).astype(casi.dtype)
+        numpy.clip(casi, None, outlier_in_upper_bound, out=casi)
+        return DataSet(shadow_creator_dict=None, casi=casi, lidar=None, neighborhood=neighborhood, normalize=normalize,
+                       casi_min=0)
 
     def load_samples(self, train_data_ratio, test_data_ratio):
         raise NotImplementedError
