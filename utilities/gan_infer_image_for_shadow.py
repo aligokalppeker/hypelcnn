@@ -27,7 +27,7 @@ flags.DEFINE_string('checkpoint_path', '',
                     'GAN checkpoint path created by gan_train_for_shadow.py. '
                     '(e.g. "/mylogdir/model.ckpt-18442")')
 
-flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",
+flags.DEFINE_string('loader_name', "GRSS2013DataLoader",
                     'Directory where to read the image inputs.')
 
 flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
@@ -129,7 +129,7 @@ def main(_):
         hsi_image = hsi_image.astype(float)
         hsi_image -= data_set.casi_min
         hsi_image /= data_set.casi_max
-        hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 256).astype(numpy.uint8)
+        hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 255).astype(numpy.uint8)
         imwrite(os.path.join(FLAGS.output_path, f"shadow_image_rgb_{make_them_shadow}_{convert_region_suffix}.tif"),
                 hsi_as_rgb)
 

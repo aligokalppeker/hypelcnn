@@ -15,18 +15,19 @@ class AVONDataLoader(DataLoader):
 
     def load_data(self, neighborhood, normalize):
         casi = imread(self.get_model_base_dir() + "0920-1857.georef_cropped.tif")[:, :, BLANK_OFFSET:-BLANK_OFFSET]
+        casi = casi.astype(numpy.uint16)
         casi = numpy.swapaxes(casi, axis1=0, axis2=2)
         outlier_in_upper_bound = numpy.percentile(casi, 95, axis=[0, 1]).astype(casi.dtype)
         numpy.clip(casi, None, outlier_in_upper_bound, out=casi)
         return DataSet(shadow_creator_dict=None, casi=casi, lidar=None, neighborhood=neighborhood, normalize=normalize,
                        casi_min=0)
 
-    def load_samples(self, train_data_ratio, test_data_ratio):
-        raise NotImplementedError
-
     def load_shadow_map(self, neighborhood, data_set):
         return load_shadow_map_common(data_set, neighborhood,
                                       self.get_model_base_dir() + "0920-1857.georef_cropped_shadow.tif")
+
+    def load_samples(self, train_data_ratio, test_data_ratio):
+        raise NotImplementedError
 
     def get_class_count(self):
         raise NotImplementedError
