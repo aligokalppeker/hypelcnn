@@ -12,7 +12,7 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/gan_infer_image_for_shadow.py" />
+    <option name="SCRIPT_NAME" value="C:\Users\Ali.Peker\Google Drive\PHD\Tez\Source\gan\gan_infer_image_for_shadow.py" />
     <option name="PARAMETERS" value="--checkpoint_path=log\model.ckpt-10000 --path=$USER_HOME$/Google~1/PHD/Tez/Source --loader_name=AVONDataLoader --make_them_shadow=shadow --convert_all=False --gan_type=cycle_gan" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
