@@ -456,38 +456,6 @@ def create_target_image_via_samples(sample_set, scene_shape):
     return image
 
 
-def get_all_shadowed_normal_data(data_set, loader, shadow_map, multiply_shadowed_data):
-    data_shape_info = data_set.get_data_shape()
-    shadow_element_count = numpy.sum(shadow_map, dtype=numpy.int)
-    normal_element_count = shadow_map.shape[0] * shadow_map.shape[1] - shadow_element_count
-    shadow_data_as_matrix = numpy.zeros(numpy.concatenate([[shadow_element_count], data_shape_info]),
-                                        dtype=numpy.float32)
-    normal_data_as_matrix = numpy.zeros(numpy.concatenate([[normal_element_count], data_shape_info]),
-                                        dtype=numpy.float32)
-    shadow_element_index = 0
-    normal_element_index = 0
-    for x_index in range(0, shadow_map.shape[0]):
-        for y_index in range(0, shadow_map.shape[1]):
-            point_value = loader.get_point_value(data_set, [y_index, x_index])
-            if shadow_map[x_index, y_index] == 1:
-                shadow_data_as_matrix[shadow_element_index, :, :, :] = point_value
-                shadow_element_index = shadow_element_index + 1
-            else:
-                normal_data_as_matrix[normal_element_index, :, :, :] = point_value
-                normal_element_index = normal_element_index + 1
-
-    # Data Multiplication Part
-    if multiply_shadowed_data:
-        shadow_data_multiplier = int(normal_element_count / shadow_element_count)
-        shadow_data_as_matrix = numpy.repeat(shadow_data_as_matrix,
-                                             repeats=int(normal_element_count / shadow_element_count), axis=0)
-        shadow_element_count = shadow_element_count * shadow_data_multiplier
-
-    normal_data_as_matrix = normal_data_as_matrix[0:shadow_element_count, :, :, :]
-
-    return normal_data_as_matrix, shadow_data_as_matrix
-
-
 def calculate_shadow_ratio(casi, shadow_map, shadow_map_inverse):
     shadow_map_multi = \
         numpy.repeat(numpy.expand_dims(shadow_map == 0, axis=2), repeats=casi.shape[2], axis=2)
@@ -510,82 +478,6 @@ def read_targets_from_image(targets, class_range):
         target_index_as_array = numpy.full((len(target_locations_as_array), 1), target_index)
         result = numpy.vstack([result, numpy.hstack((target_locations_as_array, target_index_as_array))])
     return result
-
-
-def get_targetbased_shadowed_normal_data(data_set, loader, shadow_map, samples):
-    if samples.test_targets is None and samples.training_targets is not None:
-        all_targets = samples.training_targets
-    elif samples.training_targets is None and samples.test_targets is not None:
-        all_targets = samples.test_targets
-    else:
-        all_targets = numpy.vstack([samples.test_targets, samples.training_targets])
-
-    # First Pass for target size map creation
-    class_count = loader.get_class_count().stop
-    shadow_target_count_map = numpy.zeros([class_count, 1], numpy.int32)
-    normal_target_count_map = numpy.zeros([class_count, 1], numpy.int32)
-    for target_index in range(0, all_targets.shape[0]):
-        current_target = all_targets[target_index]
-        target_id = current_target[2]
-        if target_id >= 0:
-            if shadow_map[current_target[1], current_target[0]] == 1:
-                shadow_target_count_map[target_id] = shadow_target_count_map[target_id] + 1
-            else:
-                normal_target_count_map[target_id] = normal_target_count_map[target_id] + 1
-
-    # Second Pass for target based array creation
-    shadow_target_map = {}
-    normal_target_map = {}
-    data_shape = data_set.get_data_shape()
-    for target_key in range(0, class_count):
-        shadow_target_count = shadow_target_count_map[target_key]
-        if shadow_target_count > 0:
-            shadow_target_map[target_key] = numpy.empty(numpy.concatenate([shadow_target_count, data_shape]),
-                                                        numpy.float32)
-        normal_target_count = normal_target_count_map[target_key]
-        if normal_target_count > 0:
-            normal_target_map[target_key] = numpy.empty(numpy.concatenate([normal_target_count, data_shape]),
-                                                        numpy.float32)
-
-    # Third Pass for data assignment
-    shadow_target_counter_map = numpy.zeros([class_count, 1], numpy.int32)
-    normal_target_counter_map = numpy.zeros([class_count, 1], numpy.int32)
-    for target_index in range(0, all_targets.shape[0]):
-        current_target = all_targets[target_index]
-        point_value = loader.get_point_value(data_set, current_target)
-        target_id = current_target[2]
-        if target_id >= 0:
-            if shadow_map[current_target[1], current_target[0]] == 1:
-                shadow_target_map[target_id][shadow_target_counter_map[target_id]] = point_value
-                shadow_target_counter_map[target_id] = shadow_target_counter_map[target_id] + 1
-            else:
-                normal_target_map[target_id][normal_target_counter_map[target_id]] = point_value
-                normal_target_counter_map[target_id] = normal_target_counter_map[target_id] + 1
-
-    normal_data_as_matrix = None
-    shadow_data_as_matrix = None
-    for target_key, shadow_point_values in shadow_target_map.items():
-        if target_key in normal_target_map:
-            normal_point_values = normal_target_map[target_key]
-            normal_point_count = normal_point_values.shape[0]
-            shadow_point_count = shadow_point_values.shape[0]
-            shadow_data_multiplier = int(normal_point_count / shadow_point_count)
-            shadow_data_reminder = normal_point_count % shadow_point_count
-            shadow_point_expanded_values = numpy.repeat(shadow_point_values, repeats=shadow_data_multiplier, axis=0)
-            shadow_point_expanded_values = numpy.vstack(
-                [shadow_point_expanded_values, shadow_point_expanded_values[0:shadow_data_reminder, :, :, :]])
-            if normal_data_as_matrix is None:
-                normal_data_as_matrix = normal_point_values
-            else:
-                normal_data_as_matrix = numpy.vstack([normal_data_as_matrix, normal_point_values])
-
-            if shadow_data_as_matrix is None:
-                shadow_data_as_matrix = shadow_point_expanded_values
-            else:
-                shadow_data_as_matrix = numpy.vstack([shadow_data_as_matrix, shadow_point_expanded_values])
-        else:
-            print("Shadow target key is not found in normal target list:", target_key)
-    return normal_data_as_matrix, shadow_data_as_matrix
 
 
 def shuffle_training_data_using_ratio(result, train_data_ratio):

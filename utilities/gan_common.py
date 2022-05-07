@@ -23,15 +23,6 @@ def adj_shadow_ratio(shadow_ratio, is_shadow):
     return 1. / shadow_ratio if is_shadow else shadow_ratio
 
 
-def create_dummy_shadowed_normal_data(data_set):
-    data_shape_info = data_set.get_data_shape()
-    element_count = 2000
-    shadow_data_as_matrix = numpy.full(numpy.concatenate([[element_count], data_shape_info]),
-                                       fill_value=0.5, dtype=numpy.float32)
-
-    return shadow_data_as_matrix * 2, shadow_data_as_matrix
-
-
 class InitializerHook(tf.train.SessionRunHook):
 
     def __init__(self, input_itr, normal_placeholder, shadow_placeholder, normal_data, shadow_data):

@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/gan_train_for_shadow.py" />
-    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --loader_name=GRSS2013DataLoader --max_number_of_steps=800000 --use_target_map=True --cycle_consistency_loss_weight=10 --batch_size=32 --identity_loss_weight=0.0 --use_identity_loss=False --gan_type=cycle_gan" />
+    <option name="PARAMETERS" value="--path=$USER_HOME$/Google~1/PHD/Tez/Source --loader_name=GRSS2013DataLoader --max_number_of_steps=800000 --pairing_method=target --cycle_consistency_loss_weight=10 --batch_size=32 --identity_loss_weight=0.0 --use_identity_loss=False --gan_type=cycle_gan" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

@@ -11,9 +11,9 @@ from tensorflow.contrib.data import shuffle_and_repeat
 from tensorflow.python.training.monitored_session import Scaffold, USE_DEFAULT
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
-from DataLoader import SampleSet
-from common_nn_operations import get_class, get_all_shadowed_normal_data, get_targetbased_shadowed_normal_data
+from common_nn_operations import get_class
 from cycle_gan_wrapper import CycleGANWrapper
+from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler
 from utilities.gan_common import InitializerHook, model_base_name
 from utilities.gan_wrapper import GANWrapper
 
@@ -45,8 +45,8 @@ flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",
 flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
                     'Directory where to read the image inputs.')
 
-flags.DEFINE_bool('use_target_map', False,
-                  'Whether to use target map to create train data pairs.')
+flags.DEFINE_string('pairing_method', "random",
+                    'Pairing method for the shadowed and non-shadowed samples. Options: random, target, dummy')
 
 flags.DEFINE_string('gan_type', "cycle_gan",
                     'Gan type to train, one of the values can be selected for it; cycle_gan, gan_x2y and gan_y2x')
@@ -166,45 +166,26 @@ def _validate_gan_train_inputs(logdir, is_chief, save_summaries_steps,
                 "logdir cannot be None when save_checkpoint_secs is not None")
 
 
-def get_data_from_scene(data_set, loader, shadow_map, margin):
-    samples = SampleSet(training_targets=loader.read_targets("shadow_cycle_gan/class_result.tif"),
-                        test_targets=None,
-                        validation_targets=None)
-    first_margin_start = margin
-    first_margin_end = data_set.get_scene_shape()[0] - margin
-    second_margin_start = margin
-    second_margin_end = data_set.get_scene_shape()[1] - margin
-    for target_index in range(0, samples.training_targets.shape[0]):
-        current_target = samples.training_targets[target_index]
-        if not (first_margin_start < current_target[1] < first_margin_end and
-                second_margin_start < current_target[0] < second_margin_end):
-            current_target[2] = -1
-    normal_data_as_matrix, shadow_data_as_matrix = get_targetbased_shadowed_normal_data(data_set, loader, shadow_map,
-                                                                                        samples)
-    return normal_data_as_matrix, shadow_data_as_matrix
-
-
-def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio, reg_support_rate):
-    if FLAGS.use_target_map:
-        margin = 5
-        normal_data_as_matrix, shadow_data_as_matrix = get_data_from_scene(data_set, loader, shadow_map, margin)
-    else:
-        normal_data_as_matrix, shadow_data_as_matrix = get_all_shadowed_normal_data(
+def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio, reg_support_rate, pairing_method):
+    sampling_method_map = {"target": TargetBasedSampler(margin=5),
+                           "random": RandomBasedSampler(multiply_shadowed_data=False),
+                           "dummy": DummySampler(element_count=2000, fill_value=0.5, coefficient=2)}
+    if pairing_method in sampling_method_map:
+        normal_data_as_matrix, shadow_data_as_matrix = sampling_method_map[pairing_method].get_sample_pairs(
             data_set,
             loader,
-            shadow_map, multiply_shadowed_data=False)
+            shadow_map)
+    else:
+        raise ValueError("Wrong sampling parameter value (%s)." % pairing_method)
 
-    # normal_data_as_matrix, shadow_data_as_matrix = create_dummy_shadowed_normal_data(data_set)
+    normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
+    shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
 
-    hsi_channel_len = data_set.get_casi_band_count()
-    normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:hsi_channel_len]
-    shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:hsi_channel_len]
-
-    normal_holder = tf.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape, name="x")
-    shadow_holder = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name="y")
+    normal_data_holder = tf.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape, name="x")
+    shadow_data_holder = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name="y")
 
     epoch = int((iteration_count * batch_size) / normal_data_as_matrix.shape[0])
-    data_set = tf.data.Dataset.from_tensor_slices((normal_holder, shadow_holder)).apply(
+    data_set = tf.data.Dataset.from_tensor_slices((normal_data_holder, shadow_data_holder)).apply(
         shuffle_and_repeat(buffer_size=10000, count=epoch))
     data_set = data_set.map(
         lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_, shadow_ratio, reg_support_rate),
@@ -212,7 +193,9 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
     data_set = data_set.batch(batch_size)
     data_set_itr = data_set.make_initializable_iterator()
 
-    return InitializerHook(data_set_itr, normal_holder, shadow_holder, normal_data_as_matrix, shadow_data_as_matrix)
+    return InitializerHook(data_set_itr,
+                           normal_data_holder, shadow_data_holder,
+                           normal_data_as_matrix, shadow_data_as_matrix)
 
 
 def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_ratio, reg_support_rate):
@@ -316,7 +299,9 @@ def main(_):
 
         with tf.name_scope('inputs'):
             initializer_hook = load_op(FLAGS.batch_size, FLAGS.max_number_of_steps, loader, data_set,
-                                       shadow_map, shadow_ratio, FLAGS.regularization_support_rate)
+                                       shadow_map, shadow_ratio,
+                                       FLAGS.regularization_support_rate,
+                                       FLAGS.pairing_method)
             training_input_iter = initializer_hook.input_itr
             images_x, images_y = training_input_iter.get_next()
             # Set batch size for summaries.
@@ -381,6 +366,4 @@ def main(_):
 
 
 if __name__ == "__main__":
-    # tf.flags.mark_flag_as_required('image_set_x_file_pattern')
-    # tf.flags.mark_flag_as_required('image_set_y_file_pattern')
     tf.app.run()
