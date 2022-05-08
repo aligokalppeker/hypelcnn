@@ -7,7 +7,7 @@ import numpy
 import tensorflow as tf
 from tensorflow.python.framework.errors_impl import DataLossError
 
-from utilities.stat_extractor import extract_statistics_info, print_statistics_info
+from stat_extractor import extract_statistics_info, print_statistics_info
 
 
 def main():

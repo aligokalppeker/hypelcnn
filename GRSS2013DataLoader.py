@@ -4,9 +4,9 @@ from tifffile import imread
 from DataLoader import DataLoader, SampleSet
 from common_nn_operations import read_targets_from_image, shuffle_test_data_using_ratio, load_shadow_map_common, \
     DataSet, get_data_point_func
-from utilities.gan_wrapper import GANInferenceWrapper
-from gan_common import create_simple_shadow_struct, create_gan_struct
-from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
+from cycle_gan_wrapper import CycleGANInferenceWrapper
+from gan_common import create_gan_struct, create_simple_shadow_struct
+from gan_wrapper import GANInferenceWrapper
 
 
 class GRSS2013DataLoader(DataLoader):

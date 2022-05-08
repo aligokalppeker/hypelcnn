@@ -543,11 +543,7 @@ def scale_input_to_output(input_data, output_data, axis_no):
 
 
 def load_shadow_map_common(data_set, neighborhood, shadow_file_name):
-    shadow_map = imread(shadow_file_name)
-    shadow_map = numpy.pad(shadow_map, neighborhood, mode="symmetric")
-    shadow_ratio = None
-    if data_set is not None:
-        shadow_ratio = calculate_shadow_ratio(data_set.casi,
-                                              shadow_map,
-                                              numpy.logical_not(shadow_map).astype(int))
+    shadow_map = numpy.pad(imread(shadow_file_name), neighborhood, mode="symmetric")
+    shadow_ratio = None if data_set is None else calculate_shadow_ratio(data_set.casi, shadow_map,
+                                                                        numpy.logical_not(shadow_map).astype(int))
     return shadow_map, shadow_ratio

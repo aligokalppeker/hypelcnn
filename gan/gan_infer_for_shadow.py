@@ -10,8 +10,8 @@ from absl import flags
 from tensorflow_core.python.training.session_run_hook import SessionRunContext
 
 from common_nn_operations import get_class
-from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
-from utilities.gan_wrapper import GANInferenceWrapper
+from cycle_gan_wrapper import CycleGANInferenceWrapper
+from gan_wrapper import GANInferenceWrapper
 
 required_tensorflow_version = "1.14.0"
 if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):

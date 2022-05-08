@@ -12,10 +12,10 @@ from tifffile import imwrite
 from tqdm import tqdm
 
 from common_nn_operations import get_class
+from cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan_common import export
-from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
-from utilities.gan_wrapper import GANInferenceWrapper
-from utilities.hsi_rgb_converter import get_rgb_from_hsi
+from gan_wrapper import GANInferenceWrapper
+from hsi_rgb_converter import get_rgb_from_hsi
 
 required_tensorflow_version = "1.14.0"
 if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):

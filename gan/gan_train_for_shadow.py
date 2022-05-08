@@ -13,9 +13,9 @@ from tensorflow_gan.python.train import get_sequential_train_hooks
 
 from common_nn_operations import get_class
 from cycle_gan_wrapper import CycleGANWrapper
-from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler
-from utilities.gan_common import InitializerHook, model_base_name
-from utilities.gan_wrapper import GANWrapper
+from gan_common import InitializerHook, model_base_name
+from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
+from gan_wrapper import GANWrapper
 
 required_tensorflow_version = "1.14.0"
 if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
@@ -46,7 +46,7 @@ flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
                     'Directory where to read the image inputs.')
 
 flags.DEFINE_string('pairing_method', "random",
-                    'Pairing method for the shadowed and non-shadowed samples. Options: random, target, dummy')
+                    'Pairing method for the shadowed and non-shadowed samples. Opts: random, target, dummy, neighbour')
 
 flags.DEFINE_string('gan_type', "cycle_gan",
                     'Gan type to train, one of the values can be selected for it; cycle_gan, gan_x2y and gan_y2x')
@@ -169,6 +169,7 @@ def _validate_gan_train_inputs(logdir, is_chief, save_summaries_steps,
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio, reg_support_rate, pairing_method):
     sampling_method_map = {"target": TargetBasedSampler(margin=5),
                            "random": RandomBasedSampler(multiply_shadowed_data=False),
+                           "neighbour": NeighborhoodBasedSampler(neighborhood_size=15),
                            "dummy": DummySampler(element_count=2000, fill_value=0.5, coefficient=2)}
     if pairing_method in sampling_method_map:
         normal_data_as_matrix, shadow_data_as_matrix = sampling_method_map[pairing_method].get_sample_pairs(

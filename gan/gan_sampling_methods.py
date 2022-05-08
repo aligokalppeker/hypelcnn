@@ -3,6 +3,7 @@ from __future__ import division, absolute_import, print_function
 from abc import abstractmethod, ABC
 
 import numpy
+from scipy import ndimage
 
 from DataLoader import SampleSet
 
@@ -13,10 +14,44 @@ class Sampler(ABC):
         pass
 
 
+class NeighborhoodBasedSampler(Sampler):
+
+    def __init__(self, neighborhood_size) -> None:
+        self._neighborhood_size = neighborhood_size
+
+    def get_sample_pairs(self, data_set, loader, shadow_map):
+        data_shape_info = data_set.get_data_shape()
+
+        shadow_element_count = numpy.sum(shadow_map, dtype=numpy.int)
+        shadow_data_as_matrix = numpy.zeros(numpy.concatenate([[shadow_element_count], data_shape_info]),
+                                            dtype=numpy.float32)
+
+        non_shadow_map = ndimage.binary_dilation(shadow_map, iterations=self._neighborhood_size).astype(
+            shadow_map.dtype) - shadow_map
+        normal_element_count = numpy.sum(non_shadow_map, dtype=numpy.int)
+        normal_data_as_matrix = numpy.zeros(numpy.concatenate([[normal_element_count], data_shape_info]),
+                                            dtype=numpy.float32)
+
+        shadow_element_index = 0
+        normal_element_index = 0
+        for x_index in range(0, shadow_map.shape[0]):
+            for y_index in range(0, shadow_map.shape[1]):
+                point_value = loader.get_point_value(data_set, [y_index, x_index])
+                if shadow_map[x_index, y_index] == 1:
+                    shadow_data_as_matrix[shadow_element_index, :, :, :] = point_value
+                    shadow_element_index = shadow_element_index + 1
+                elif non_shadow_map[x_index, y_index] == 1:
+                    normal_data_as_matrix[normal_element_index, :, :, :] = point_value
+                    normal_element_index = normal_element_index + 1
+
+        # Trim normal data to shadow data count, we assume that there is more normal data
+        normal_data_as_matrix = normal_data_as_matrix[0:shadow_data_as_matrix.shape[0], :, :, :]
+        return normal_data_as_matrix, shadow_data_as_matrix
+
+
 class RandomBasedSampler(Sampler):
 
     def __init__(self, multiply_shadowed_data) -> None:
-        super().__init__()
         self._multiply_shadowed_data = multiply_shadowed_data
 
     def get_sample_pairs(self, data_set, loader, shadow_map):
@@ -27,6 +62,7 @@ class RandomBasedSampler(Sampler):
                                             dtype=numpy.float32)
         normal_data_as_matrix = numpy.zeros(numpy.concatenate([[normal_element_count], data_shape_info]),
                                             dtype=numpy.float32)
+
         shadow_element_index = 0
         normal_element_index = 0
         for x_index in range(0, shadow_map.shape[0]):
@@ -39,14 +75,13 @@ class RandomBasedSampler(Sampler):
                     normal_data_as_matrix[normal_element_index, :, :, :] = point_value
                     normal_element_index = normal_element_index + 1
 
-        # Data Multiplication Part
+        # Duplicate shadow data to match size of normal data
         if self._multiply_shadowed_data:
-            shadow_data_multiplier = int(normal_element_count / shadow_element_count)
-            shadow_data_as_matrix = numpy.repeat(shadow_data_as_matrix,
-                                                 repeats=int(normal_element_count / shadow_element_count), axis=0)
-            shadow_element_count = shadow_element_count * shadow_data_multiplier
+            shadow_data_as_matrix = numpy.repeat(shadow_data_as_matrix, repeats=(
+                    normal_element_count // shadow_element_count), axis=0)
 
-        normal_data_as_matrix = normal_data_as_matrix[0:shadow_element_count, :, :, :]
+        # Trim normal data to shadow data count, we assume that there is more normal data
+        normal_data_as_matrix = normal_data_as_matrix[0:shadow_data_as_matrix.shape[0], :, :, :]
 
         return normal_data_as_matrix, shadow_data_as_matrix
 

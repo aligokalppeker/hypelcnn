@@ -5,9 +5,9 @@ from DataLoader import SampleSet
 from GULFPORTDataLoader import GULFPORTDataLoader
 from common_nn_operations import INVALID_TARGET_VALUE, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size, load_shadow_map_common
-from utilities.gan_wrapper import GANInferenceWrapper
+from cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan_common import create_simple_shadow_struct, create_gan_struct
-from utilities.cycle_gan_wrapper import CycleGANInferenceWrapper
+from gan_wrapper import GANInferenceWrapper
 
 
 class GULFPORTALTDataLoader(GULFPORTDataLoader):

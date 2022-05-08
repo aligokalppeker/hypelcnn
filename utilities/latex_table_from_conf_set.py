@@ -5,7 +5,7 @@ from collections import namedtuple
 
 import numpy
 
-from utilities.stat_extractor import extract_statistics_info, get_conf_list_from_directory
+from stat_extractor import extract_statistics_info, get_conf_list_from_directory
 
 TableInfo = namedtuple('TableInfo', ['title', 'label'])
 
