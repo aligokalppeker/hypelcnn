@@ -202,11 +202,17 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
 def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_ratio, reg_support_rate):
     with tf.name_scope("shadow_ratio_augmenter"):
         with tf.device("/cpu:0"):
-            rand_number = tf.random_uniform([1], 0.01, 0.99)[0]
-            shadow_images = tf.cond(tf.less(rand_number, reg_support_rate),
-                                    false_fn=lambda: shadow_images,
-                                    true_fn=lambda: (normal_images / shadow_ratio))
-    return normal_images, shadow_images
+            rand_number_for_augmentation = tf.random_uniform([1], 0.01, 0.99)[0]
+
+            normal_images_rand = tf.cond(tf.less(rand_number_for_augmentation, reg_support_rate),
+                                         false_fn=lambda: normal_images,
+                                         true_fn=lambda: (shadow_images * shadow_ratio))
+
+            shadow_images_rand = tf.cond(tf.less(rand_number_for_augmentation, reg_support_rate),
+                                         false_fn=lambda: shadow_images,
+                                         true_fn=lambda: (normal_images / shadow_ratio))
+
+    return normal_images_rand, shadow_images_rand
 
 
 def _get_lr(base_lr):
