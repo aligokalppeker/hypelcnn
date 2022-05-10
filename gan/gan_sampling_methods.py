@@ -16,7 +16,8 @@ class Sampler(ABC):
 
 class NeighborhoodBasedSampler(Sampler):
 
-    def __init__(self, neighborhood_size) -> None:
+    def __init__(self, neighborhood_size, margin) -> None:
+        self._margin = margin
         self._neighborhood_size = neighborhood_size
 
     def get_sample_pairs(self, data_set, loader, shadow_map):
@@ -27,7 +28,8 @@ class NeighborhoodBasedSampler(Sampler):
                                             dtype=numpy.float32)
 
         non_shadow_map = ndimage.binary_dilation(shadow_map, iterations=self._neighborhood_size).astype(
-            shadow_map.dtype) - shadow_map
+            shadow_map.dtype) - ndimage.binary_dilation(shadow_map, iterations=self._margin).astype(shadow_map.dtype)
+
         normal_element_count = numpy.sum(non_shadow_map, dtype=numpy.int)
         normal_data_as_matrix = numpy.zeros(numpy.concatenate([[normal_element_count], data_shape_info]),
                                             dtype=numpy.float32)

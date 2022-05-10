@@ -169,7 +169,7 @@ def _validate_gan_train_inputs(logdir, is_chief, save_summaries_steps,
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio, reg_support_rate, pairing_method):
     sampling_method_map = {"target": TargetBasedSampler(margin=5),
                            "random": RandomBasedSampler(multiply_shadowed_data=False),
-                           "neighbour": NeighborhoodBasedSampler(neighborhood_size=15),
+                           "neighbour": NeighborhoodBasedSampler(neighborhood_size=20, margin=2),
                            "dummy": DummySampler(element_count=2000, fill_value=0.5, coefficient=2)}
     if pairing_method in sampling_method_map:
         normal_data_as_matrix, shadow_data_as_matrix = sampling_method_map[pairing_method].get_sample_pairs(
