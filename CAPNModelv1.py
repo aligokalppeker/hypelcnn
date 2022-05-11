@@ -80,8 +80,7 @@ class CAPNModelv1(NNModel):
                                                scope=scope, normalizer_fn=slim.batch_norm)
                     data_size = (image_output.get_shape()[1] *
                                  image_output.get_shape()[2] *
-                                 image_output.get_shape()[3]).value / primary_capsule_output_space
-                    data_size = int(data_size)
+                                 image_output.get_shape()[3]).value // primary_capsule_output_space
                     image_output = tf.reshape(image_output, [batch_size, data_size, 1, primary_capsule_output_space])
 
                 with tf.variable_scope('DigitCaps_layer'):

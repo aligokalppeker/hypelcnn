@@ -185,7 +185,7 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
     normal_data_holder = tf.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape, name="x")
     shadow_data_holder = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name="y")
 
-    epoch = int((iteration_count * batch_size) / normal_data_as_matrix.shape[0])
+    epoch = (iteration_count * batch_size) // normal_data_as_matrix.shape[0]
     data_set = tf.data.Dataset.from_tensor_slices((normal_data_holder, shadow_data_holder)).apply(
         shuffle_and_repeat(buffer_size=10000, count=epoch))
     data_set = data_set.map(

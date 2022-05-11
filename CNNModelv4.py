@@ -91,7 +91,7 @@ class CNNModelv4(NNModel):
 
                 spatial_hierarchy_level = algorithm_params["spatial_hierarchy_level"]
                 net3 = self.__create_levels_as_blocks(data_format,
-                                                      int(net2.get_shape()[3].value / 2),
+                                                      net2.get_shape()[3].value // 2,
                                                       net2, spatial_hierarchy_level,
                                                       use_residual)
                 if use_residual:
@@ -143,7 +143,7 @@ class CNNModelv4(NNModel):
         fc_stage_count = math.floor(math.log(flatten_element_size / class_count, degradation_coeff))
         element_size = flatten_element_size
         for drop_out_stage_index in range(0, fc_stage_count - 1):
-            element_size = int(element_size / degradation_coeff)
+            element_size = element_size // degradation_coeff
             netinput = slim.fully_connected(netinput, element_size, weights_regularizer=None,
                                             scope='fc_' + str(drop_out_stage_index))
             netinput = slim.dropout(netinput, keep_prob=1 - algorithm_params["drop_out_ratio"],
@@ -153,7 +153,7 @@ class CNNModelv4(NNModel):
     @staticmethod
     def __create_levels_as_blocks(data_format, level_final_filter_count, netinput, block_level_count, use_residual):
         for index in range(0, block_level_count):
-            next_net = CNNModelv4.__create_a_level(int(level_final_filter_count / pow(2, index)), netinput,
+            next_net = CNNModelv4.__create_a_level(level_final_filter_count // pow(2, index), netinput,
                                                    'connector_' + str(index),
                                                    data_format)
             if use_residual:
@@ -174,13 +174,13 @@ class CNNModelv4(NNModel):
         net_input = net0
         for nn_index in range(0, count):
             if is_encoding_layers:
-                layer_filter_size = level_final_filter_count / pow(2, ((count - 1) - nn_index))
+                layer_filter_size = level_final_filter_count // pow(2, ((count - 1) - nn_index))
                 conv_name = 'conv_enc_'
             else:
-                layer_filter_size = level_final_filter_count / pow(2, nn_index)
+                layer_filter_size = level_final_filter_count // pow(2, nn_index)
                 conv_name = 'conv_dec_'
 
-            next_net = slim.conv2d(net_input, int(layer_filter_size), [1, 1],
+            next_net = slim.conv2d(net_input, layer_filter_size, [1, 1],
                                    scope=conv_name + str(nn_index),
                                    data_format=data_format)
             if use_residual:
