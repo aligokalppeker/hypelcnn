@@ -23,8 +23,10 @@ class AVONDataLoader(DataLoader):
                        casi_min=0)
 
     def load_shadow_map(self, neighborhood, data_set):
-        return load_shadow_map_common(data_set, neighborhood,
-                                      self.get_model_base_dir() + "0920-1857.georef_cropped_shadow.tif")
+        shadow_map, shadow_ratio = load_shadow_map_common(data_set, neighborhood,
+                                                          self.get_model_base_dir() + "0920-1857.georef_cropped_shadow.tif")
+        # shadow_map = ndimage.binary_dilation(shadow_map, iterations=1).astype(shadow_map.dtype)
+        return shadow_map, shadow_ratio
 
     def load_samples(self, train_data_ratio, test_data_ratio):
         raise NotImplementedError

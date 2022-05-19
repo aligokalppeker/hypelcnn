@@ -10,7 +10,8 @@ from tensorflow_core.contrib import slim
 from tensorflow_gan.python.contrib_utils import get_trainable_variables
 from tensorflow_gan.python.train import _convert_tensor_or_l_or_d
 
-from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
+from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model, \
+    _shadowdata_feature_discriminator_model
 from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, model_generator_name, \
     adj_shadow_ratio
 
@@ -28,7 +29,6 @@ class CUTModel(
             'discriminator_variables',
             'discriminator_scope',
             'discriminator_fn',
-            'feat_discriminator_real_outputs',
             'feat_discriminator_gen_outputs',
             'feat_discriminator_variables',
             'feat_discriminator_scope',
@@ -107,11 +107,16 @@ def cut_model(
         generated_data = generator_fn(generator_inputs)
     with tf.compat.v1.variable_scope(
             discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as dis_scope:
-        discriminator_gen_outputs = discriminator_fn(generated_data,
-                                                     generator_inputs)
+        discriminator_gen_outputs = discriminator_fn(generated_data, generator_inputs)
     with tf.compat.v1.variable_scope(dis_scope, reuse=True):
         real_data = _convert_tensor_or_l_or_d(real_data)
         discriminator_real_outputs = discriminator_fn(real_data, generator_inputs)
+
+    with tf.compat.v1.variable_scope(gen_scope, reuse=True):
+        feature_embeddings = generator_fn(generator_inputs, create_only_encoder=True)
+    with tf.compat.v1.variable_scope(
+            feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as feat_dis_scope:
+        feat_discriminator_gen_outputs = feat_discriminator_fn(feature_embeddings)
 
     if check_shapes:
         if not generated_data.shape.is_compatible_with(real_data.shape):
@@ -122,11 +127,13 @@ def cut_model(
     # Get model-specific variables.
     generator_variables = get_trainable_variables(gen_scope)
     discriminator_variables = get_trainable_variables(dis_scope)
+    feat_discriminator_variables = get_trainable_variables(feat_dis_scope)
 
     return CUTModel(
         generator_inputs, generated_data, generator_variables, gen_scope, generator_fn,
         real_data,
-        discriminator_real_outputs, discriminator_gen_outputs, discriminator_variables, dis_scope, discriminator_fn)
+        discriminator_real_outputs, discriminator_gen_outputs, discriminator_variables, dis_scope, discriminator_fn,
+        feat_discriminator_gen_outputs, feat_discriminator_variables, feat_dis_scope, feat_discriminator_scope)
 
 
 class CUTWrapper:
@@ -155,9 +162,10 @@ class CUTWrapper:
             generator_inputs = images_x
             real_data = images_y
 
-        gan_model = tfgan.gan_model(
+        gan_model = cut_model(
             generator_fn=_shadowdata_generator_model,
             discriminator_fn=_shadowdata_discriminator_model,
+            feat_discriminator_fn=_shadowdata_feature_discriminator_model,
             generator_inputs=generator_inputs,
             real_data=real_data)
 

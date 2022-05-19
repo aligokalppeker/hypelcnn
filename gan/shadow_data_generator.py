@@ -38,7 +38,7 @@ def _shadowdata_discriminator_model_simple(generated_data, generator_input, is_t
     return net
 
 
-def _shadowdata_generator_model(netinput, is_training=True):
+def _shadowdata_generator_model(netinput, create_only_encoder=False, is_training=True):
     with slim.arg_scope(
             [slim.conv2d, slim.conv2d_transpose, slim.convolution1d],
             # weights_initializer=initializers.variance_scaling(scale=2.0),
@@ -68,19 +68,23 @@ def _shadowdata_generator_model(netinput, is_training=True):
 
         net4 = slim.convolution1d(net3, num_filters, kernel_size // 8, padding='SAME')
         net4 = net4 + net3 + net2
+        result = net4
 
-        net5 = slim.convolution1d(net4, num_filters, kernel_size // 4, padding='SAME')
-        net5 = net5 + net4 + net3
+        if not create_only_encoder:
+            net5 = slim.convolution1d(net4, num_filters, kernel_size // 4, padding='SAME')
+            net5 = net5 + net4 + net3
 
-        net6 = slim.convolution1d(net5, num_filters, kernel_size // 2, padding='SAME')
-        net6 = net6 + net5 + net4
+            net6 = slim.convolution1d(net5, num_filters, kernel_size // 2, padding='SAME')
+            net6 = net6 + net5 + net4
 
-        net7 = slim.convolution1d(net6, num_filters, kernel_size, padding='SAME',
-                                  normalizer_fn=None,
-                                  normalizer_params=None,
-                                  weights_regularizer=None,
-                                  activation_fn=None)
-        flatten = slim.flatten(net7)
+            net7 = slim.convolution1d(net6, num_filters, kernel_size, padding='SAME',
+                                      normalizer_fn=None,
+                                      normalizer_params=None,
+                                      weights_regularizer=None,
+                                      activation_fn=None)
+            result = net7
+
+        flatten = slim.flatten(result)
         # net9 = slim.fully_connected(flatten, band_size, activation_fn=None)
     return tf.expand_dims(tf.expand_dims(flatten, axis=1), axis=1)
 
