@@ -12,6 +12,7 @@ from tensorflow.python.training.monitored_session import Scaffold, USE_DEFAULT
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
 from common_nn_operations import get_class
+from cut_wrapper import CUTWrapper
 from cycle_gan_wrapper import CycleGANWrapper
 from gan_common import InitializerHook, model_base_name
 from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
@@ -238,25 +239,6 @@ def _get_lr(base_lr):
     return tf.cond(global_step < lr_constant_steps, lambda: base_lr, _lr_decay)
 
 
-def _get_optimizer(gen_lr, dis_lr):
-    """Returns generator optimizer and discriminator optimizer.
-
-    Args:
-      gen_lr: A scalar float `Tensor` or a Python number.  The Generator learning
-          rate.
-      dis_lr: A scalar float `Tensor` or a Python number.  The Discriminator
-          learning rate.
-
-    Returns:
-      A tuple of generator optimizer and discriminator optimizer.
-    """
-    # beta1 follows
-    # https://github.com/junyanz/CycleGAN/blob/master/options.lua
-    gen_opt = tf.train.AdamOptimizer(gen_lr, beta1=0.5, use_locking=True)
-    dis_opt = tf.train.AdamOptimizer(dis_lr, beta1=0.5, use_locking=True)
-    return gen_opt, dis_opt
-
-
 def _define_train_ops(gan_model, gan_loss):
     """Defines train ops that trains `cyclegan_model` with `cyclegan_loss`.
 
@@ -270,7 +252,8 @@ def _define_train_ops(gan_model, gan_loss):
     """
     gen_lr = _get_lr(FLAGS.generator_lr)
     dis_lr = _get_lr(FLAGS.discriminator_lr)
-    gen_opt, dis_opt = _get_optimizer(gen_lr, dis_lr)
+    gen_opt = tf.train.AdamOptimizer(gen_lr, beta1=0.5, use_locking=True)
+    dis_opt = tf.train.AdamOptimizer(dis_lr, beta1=0.5, use_locking=True)
 
     train_ops = tfgan.gan_train_ops(
         gan_model,
@@ -323,6 +306,12 @@ def main(_):
                                   use_identity_loss=FLAGS.use_identity_loss,
                                   swap_inputs=False),
             "gan_y2x": GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
+                                  use_identity_loss=FLAGS.use_identity_loss,
+                                  swap_inputs=True),
+            "cut_x2y": CUTWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
+                                  use_identity_loss=FLAGS.use_identity_loss,
+                                  swap_inputs=False),
+            "cut_y2x": CUTWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
                                   use_identity_loss=FLAGS.use_identity_loss,
                                   swap_inputs=True)}
         wrapper = gan_train_wrapper_dict[gan_type]

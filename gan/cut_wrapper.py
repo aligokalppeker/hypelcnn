@@ -3,11 +3,12 @@ from __future__ import division, absolute_import, print_function
 import collections
 
 import tensorflow as tf
-import tensorflow_gan as tfgan
 from tensorflow_gan import gan_loss
 from tensorflow import reduce_mean
 from tensorflow_core.contrib import slim
 from tensorflow_gan.python.contrib_utils import get_trainable_variables
+from tensorflow_gan.python.losses.losses_impl import wasserstein_generator_loss
+from tensorflow_gan.python.losses.tuple_losses import args_to_gan_model
 from tensorflow_gan.python.train import _convert_tensor_or_l_or_d
 
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model, \
@@ -29,10 +30,14 @@ class CUTModel(
             'discriminator_variables',
             'discriminator_scope',
             'discriminator_fn',
-            'feat_discriminator_gen_outputs',
-            'feat_discriminator_variables',
-            'feat_discriminator_scope',
-            'feat_discriminator_fn',
+            'feat_discriminator_gen_inputs',
+            'feat_discriminator_gen_inputs_variables',
+            'feat_discriminator_gen_inputs_scope',
+            'feat_discriminator_gen_inputs_fn',
+            'feat_discriminator_real_data',
+            'feat_discriminator_real_data_variables',
+            'feat_discriminator_real_data_scope',
+            'feat_discriminator_real_data_fn',
     ))):
     """A CUTModel contains all the pieces needed for GAN training.
 
@@ -113,10 +118,16 @@ def cut_model(
         discriminator_real_outputs = discriminator_fn(real_data, generator_inputs)
 
     with tf.compat.v1.variable_scope(gen_scope, reuse=True):
-        feature_embeddings = generator_fn(generator_inputs, create_only_encoder=True)
+        feature_embeddings_gen_inputs = generator_fn(generator_inputs, create_only_encoder=True)
     with tf.compat.v1.variable_scope(
-            feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as feat_dis_scope:
-        feat_discriminator_gen_outputs = feat_discriminator_fn(feature_embeddings)
+            feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as gen_input_feat_dis_scope:
+        feat_discriminator_gen_inputs = feat_discriminator_fn(feature_embeddings_gen_inputs)
+
+    with tf.compat.v1.variable_scope(gen_scope, reuse=True):
+        feature_embeddings_real_data = generator_fn(generated_data, create_only_encoder=True)
+    with tf.compat.v1.variable_scope(
+            feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as real_data_feat_dis_scope:
+        feat_discriminator_real_data = feat_discriminator_fn(feature_embeddings_real_data)
 
     if check_shapes:
         if not generated_data.shape.is_compatible_with(real_data.shape):
@@ -127,13 +138,38 @@ def cut_model(
     # Get model-specific variables.
     generator_variables = get_trainable_variables(gen_scope)
     discriminator_variables = get_trainable_variables(dis_scope)
-    feat_discriminator_variables = get_trainable_variables(feat_dis_scope)
+    feat_disc_gen_inputs_variables = get_trainable_variables(gen_input_feat_dis_scope)
+    feat_disc_real_data_variables = get_trainable_variables(real_data_feat_dis_scope)
 
     return CUTModel(
         generator_inputs, generated_data, generator_variables, gen_scope, generator_fn,
         real_data,
         discriminator_real_outputs, discriminator_gen_outputs, discriminator_variables, dis_scope, discriminator_fn,
-        feat_discriminator_gen_outputs, feat_discriminator_variables, feat_dis_scope, feat_discriminator_scope)
+        feat_discriminator_gen_inputs, feat_disc_gen_inputs_variables, gen_input_feat_dis_scope, feat_discriminator_fn,
+        feat_discriminator_real_data, feat_disc_real_data_variables, real_data_feat_dis_scope, feat_discriminator_fn)
+
+
+# Contrastive loss.
+def contrastive_generator_loss_impl(
+        feat_discriminator_gen_inputs,
+        feat_discriminator_real_data,
+        discriminator_gen_outputs,
+        weights=1.0,
+        scope=None,
+        loss_collection=tf.compat.v1.GraphKeys.LOSSES,
+        reduction=tf.compat.v1.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
+        add_summaries=False):
+    generator_loss = wasserstein_generator_loss(discriminator_gen_outputs, weights=weights, scope=scope,
+                                                loss_collection=loss_collection, reduction=reduction,
+                                                add_summaries=add_summaries)
+    patch_nce_loss = tf.reduce_mean(
+        tf.nn.softmax_cross_entropy_with_logits_v2(feat_discriminator_real_data, feat_discriminator_gen_inputs))
+    if add_summaries:
+        tf.compat.v1.summary.scalar("nce_loss", patch_nce_loss)
+    return generator_loss + patch_nce_loss
+
+
+contrastive_generator_loss = args_to_gan_model(contrastive_generator_loss_impl)
 
 
 class CUTWrapper:
@@ -177,9 +213,9 @@ class CUTWrapper:
         # Define CycleGAN loss.
         loss = gan_loss(
             model,
-            # generator_loss_fn=wasserstein_generator_loss,
+            generator_loss_fn=contrastive_generator_loss,
             # discriminator_loss_fn=wasserstein_discriminator_loss,
-            tensor_pool_fn=tfgan.features.tensor_pool)
+            tensor_pool_fn=None)
         return loss
 
     def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
