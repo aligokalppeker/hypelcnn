@@ -2,27 +2,28 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import distutils
 import os
 
 import tensorflow as tf
 from absl import flags
-from tensorflow.contrib.data import shuffle_and_repeat
 from tensorflow.python.training.monitored_session import Scaffold, USE_DEFAULT
+from tensorflow_core.python import data
+from tensorflow_core.python.data.experimental import shuffle_and_repeat
+from tensorflow_core.python.framework.config import list_physical_devices, set_memory_growth
+from tensorflow_core.python.platform import gfile
+from tensorflow_core.python.training.basic_session_run_hooks import StopAtStepHook, LoggingTensorHook
+from tensorflow_core.python.training.device_setter import replica_device_setter
+from tensorflow_core.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
 from common_nn_operations import get_class
 from cut_wrapper import CUTWrapper
 from cycle_gan_wrapper import CycleGANWrapper
-from gan_common import InitializerHook, model_base_name
+from gan_common import InitializerHook, model_base_name, define_standard_train_ops
 from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
 from gan_wrapper import GANWrapper
 
-required_tensorflow_version = "1.14.0"
-if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
-    tfgan = tf.contrib.gan
-else:
-    import tensorflow_gan as tfgan
+import tensorflow_gan as tfgan
 
 flags.DEFINE_integer('batch_size', 128 * 20, 'The number of images in each batch.')
 
@@ -187,7 +188,7 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
     shadow_data_holder = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name="y")
 
     epoch = (iteration_count * batch_size) // normal_data_as_matrix.shape[0]
-    data_set = tf.data.Dataset.from_tensor_slices((normal_data_holder, shadow_data_holder)).apply(
+    data_set = data.Dataset.from_tensor_slices((normal_data_holder, shadow_data_holder)).apply(
         shuffle_and_repeat(buffer_size=10000, count=epoch))
     data_set = data_set.map(
         lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_, shadow_ratio, reg_support_rate),
@@ -214,68 +215,12 @@ def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_rati
     return normal_images_rand, shadow_images_rand
 
 
-def _get_lr(base_lr):
-    """Returns a learning rate `Tensor`.
-
-    Args:
-      base_lr: A scalar float `Tensor` or a Python number.  The base learning
-          rate.
-
-    Returns:
-      A scalar float `Tensor` of learning rate which equals `base_lr` when the
-      global training step is less than FLAGS.max_number_of_steps / 2, afterwards
-      it linearly decays to zero.
-    """
-    global_step = tf.train.get_or_create_global_step()
-    lr_constant_steps = FLAGS.max_number_of_steps // 2
-
-    def _lr_decay():
-        return tf.train.polynomial_decay(
-            learning_rate=base_lr,
-            global_step=(global_step - lr_constant_steps),
-            decay_steps=(FLAGS.max_number_of_steps - lr_constant_steps),
-            end_learning_rate=0.0)
-
-    return tf.cond(global_step < lr_constant_steps, lambda: base_lr, _lr_decay)
-
-
-def _define_train_ops(gan_model, gan_loss):
-    """Defines train ops that trains `cyclegan_model` with `cyclegan_loss`.
-
-    Args:
-      gan_model: A `CycleGANModel` namedtuple.
-      gan_loss: A `CycleGANLoss` namedtuple containing all losses for
-          `cyclegan_model`.
-
-    Returns:
-      A `GANTrainOps` namedtuple.
-    """
-    gen_lr = _get_lr(FLAGS.generator_lr)
-    dis_lr = _get_lr(FLAGS.discriminator_lr)
-    gen_opt = tf.train.AdamOptimizer(gen_lr, beta1=0.5, use_locking=True)
-    dis_opt = tf.train.AdamOptimizer(dis_lr, beta1=0.5, use_locking=True)
-
-    train_ops = tfgan.gan_train_ops(
-        gan_model,
-        gan_loss,
-        generator_optimizer=gen_opt,
-        discriminator_optimizer=dis_opt,
-        summarize_gradients=True,
-        colocate_gradients_with_ops=True,
-        check_for_unused_update_ops=False,
-        aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
-
-    tf.summary.scalar("generator_lr", gen_lr)
-    tf.summary.scalar("discriminator_lr", dis_lr)
-    return train_ops
-
-
 def main(_):
     log_dir = FLAGS.train_log_dir
-    if not tf.gfile.Exists(log_dir):
-        tf.gfile.MakeDirs(log_dir)
+    if not gfile.Exists(log_dir):
+        gfile.MakeDirs(log_dir)
 
-    with tf.device(tf.train.replica_device_setter(FLAGS.ps_tasks)):
+    with tf.device(replica_device_setter(FLAGS.ps_tasks)):
         validation_iteration_count = FLAGS.validation_itr_count
         validation_sample_count = FLAGS.validation_sample_count
         loader_name = FLAGS.loader_name
@@ -325,21 +270,23 @@ def main(_):
             the_gan_loss = wrapper.define_loss(the_gan_model)
 
         # Define CycleGAN train ops.
-        train_ops = _define_train_ops(the_gan_model, the_gan_loss)
+        train_ops = define_standard_train_ops(the_gan_model, the_gan_loss,
+                                              max_number_of_steps=FLAGS.max_number_of_steps,
+                                              generator_lr=FLAGS.generator_lr, discriminator_lr=FLAGS.discriminator_lr)
 
         # Training
         train_steps = tfgan.GANTrainSteps(1, 1)
         status_message = tf.string_join(
             [
                 "Starting train step: ",
-                tf.as_string(tf.train.get_or_create_global_step())
+                tf.as_string(get_or_create_global_step())
             ],
             name="status_message")
         if not FLAGS.max_number_of_steps:
             return
 
-        gpu = tf.config.experimental.list_physical_devices("GPU")
-        tf.config.experimental.set_memory_growth(gpu[0], True)
+        gpu = list_physical_devices("GPU")
+        set_memory_growth(gpu[0], True)
 
         training_scaffold = Scaffold(saver=tf.train.Saver(max_to_keep=20))
 
@@ -352,8 +299,8 @@ def main(_):
             hooks=[
                 initializer_hook,
                 peer_validation_hook,
-                tf.train.StopAtStepHook(num_steps=FLAGS.max_number_of_steps),
-                tf.train.LoggingTensorHook([status_message], every_n_iter=1000)
+                StopAtStepHook(num_steps=FLAGS.max_number_of_steps),
+                LoggingTensorHook([status_message], every_n_iter=1000)
             ],
             master=FLAGS.master,
             is_chief=FLAGS.task == 0)

@@ -7,7 +7,11 @@ from json import JSONDecodeError
 
 import numpy
 import tensorflow as tf
+import tensorflow_gan as tfgan
 from matplotlib import pyplot as plt
+from tensorflow_core.python.training.adam import AdamOptimizer
+from tensorflow_core.python.training.learning_rate_decay import polynomial_decay
+from tensorflow_core.python.training.training_util import get_or_create_global_step
 from tqdm import tqdm
 
 from DataLoader import ShadowOperationStruct
@@ -201,6 +205,66 @@ def construct_simple_shadow_inference_graph(input_data, shadow_ratio):
     # images = tf.cond(coin, lambda: input_data / shadow_ratio, lambda: input_data * shadow_ratio)
     images = input_data / shadow_ratio
     return images
+
+
+def _get_lr(base_lr, max_number_of_steps):
+    """Returns a learning rate `Tensor`.
+
+    Args:
+      base_lr: A scalar float `Tensor` or a Python number.  The base learning
+          rate.
+
+    Returns:
+      A scalar float `Tensor` of learning rate which equals `base_lr` when the
+      global training step is less than FLAGS.max_number_of_steps / 2, afterwards
+      it linearly decays to zero.
+    """
+    global_step = get_or_create_global_step()
+    lr_constant_steps = max_number_of_steps // 2
+
+    def _lr_decay():
+        return polynomial_decay(
+            learning_rate=base_lr,
+            global_step=(global_step - lr_constant_steps),
+            decay_steps=(max_number_of_steps - lr_constant_steps),
+            end_learning_rate=0.0)
+
+    return tf.cond(global_step < lr_constant_steps, lambda: base_lr, _lr_decay)
+
+
+def define_standard_train_ops(gan_model, gan_loss, max_number_of_steps,
+                              generator_lr, discriminator_lr):
+    """Defines train ops that trains `gan_model` with `gan_loss`.
+
+    Args:
+      discriminator_lr: Discriminator learning rate
+      generator_lr: Generator learning rate
+      max_number_of_steps: Number of max steps for learning
+      gan_model: A `GANModel` namedtuple.
+      gan_loss: A `GANLoss` namedtuple containing all losses for
+          `gan_model`.
+
+    Returns:
+      A `GANTrainOps` namedtuple.
+    """
+    gen_lr = _get_lr(generator_lr, max_number_of_steps)
+    dis_lr = _get_lr(discriminator_lr, max_number_of_steps)
+    gen_opt = AdamOptimizer(gen_lr, beta1=0.5, use_locking=True)
+    dis_opt = AdamOptimizer(dis_lr, beta1=0.5, use_locking=True)
+
+    train_ops = tfgan.gan_train_ops(
+        gan_model,
+        gan_loss,
+        generator_optimizer=gen_opt,
+        discriminator_optimizer=dis_opt,
+        summarize_gradients=True,
+        colocate_gradients_with_ops=True,
+        check_for_unused_update_ops=False,
+        aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
+
+    tf.summary.scalar("generator_lr", gen_lr)
+    tf.summary.scalar("discriminator_lr", dis_lr)
+    return train_ops
 
 
 def export(sess, input_pl, input_np, run_tensor):
