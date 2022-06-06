@@ -12,6 +12,7 @@ from tifffile import imwrite
 from tqdm import tqdm
 
 from common_nn_operations import get_class
+from cut_wrapper import CUTInferenceWrapper
 from cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan_common import export
 from gan_wrapper import GANInferenceWrapper
@@ -82,7 +83,9 @@ def main(_):
 
     gan_inference_wrapper_dict = {"cycle_gan": CycleGANInferenceWrapper(),
                                   "gan_x2y": GANInferenceWrapper(fetch_shadows=False),
-                                  "gan_y2x": GANInferenceWrapper(fetch_shadows=True)}
+                                  "gan_y2x": GANInferenceWrapper(fetch_shadows=True),
+                                  "cut_x2y": CUTInferenceWrapper(fetch_shadows=False),
+                                  "cut_y2x": CUTInferenceWrapper(fetch_shadows=True)}
 
     input_tensor, output_tensor = gan_inference_wrapper_dict[FLAGS.gan_type].make_inference_graph(data_set,
                                                                                                   shadow,

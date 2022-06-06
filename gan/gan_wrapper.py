@@ -8,7 +8,7 @@ from tensorflow_core.contrib import slim
 
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, model_generator_name, \
-    adj_shadow_ratio
+    adj_shadow_ratio, define_standard_train_ops
 
 
 class GANWrapper:
@@ -55,6 +55,15 @@ class GANWrapper:
             # discriminator_loss_fn=wasserstein_discriminator_loss,
             tensor_pool_fn=tfgan.features.tensor_pool)
         return loss
+
+    def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
+        return define_standard_train_ops(model, loss,
+                                         max_number_of_steps=max_number_of_steps,
+                                         generator_lr=kwargs["generator_lr"],
+                                         discriminator_lr=kwargs["discriminator_lr"])
+
+    def get_train_hooks_fn(self):
+        return tfgan.get_sequential_train_hooks(tfgan.GANTrainSteps(1, 1))
 
     def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                validation_iteration_count, validation_sample_count):

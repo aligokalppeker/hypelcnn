@@ -11,7 +11,7 @@ from tensorflow_core.contrib import slim
 
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
-    model_generator_name
+    model_generator_name, define_standard_train_ops
 
 model_forward_generator_name = "ModelX2Y"
 model_backward_generator_name = "ModelY2X"
@@ -98,6 +98,15 @@ class CycleGANWrapper:
                 cycle_consistency_loss_weight=self._cycle_consistency_loss_weight,
                 tensor_pool_fn=tfgan.features.tensor_pool)
         return cyclegan_loss
+
+    def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
+        return define_standard_train_ops(model, loss,
+                                         max_number_of_steps=max_number_of_steps,
+                                         generator_lr=kwargs["generator_lr"],
+                                         discriminator_lr=kwargs["discriminator_lr"])
+
+    def get_train_hooks_fn(self):
+        return tfgan.get_sequential_train_hooks(tfgan.GANTrainSteps(1, 1))
 
     def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                validation_iteration_count, validation_sample_count):

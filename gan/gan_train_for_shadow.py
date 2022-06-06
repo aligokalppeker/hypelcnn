@@ -38,6 +38,9 @@ flags.DEFINE_float('generator_lr', 0.0002,
 flags.DEFINE_float('discriminator_lr', 0.0001,
                    'The discriminator learning rate.')
 
+flags.DEFINE_float('gen_discriminator_lr', 0.0001,
+                   'The generator discriminator learning rate.')
+
 flags.DEFINE_integer('max_number_of_steps', 50000,
                      'The maximum number of gradient steps.')
 
@@ -270,12 +273,11 @@ def main(_):
             the_gan_loss = wrapper.define_loss(the_gan_model)
 
         # Define CycleGAN train ops.
-        train_ops = define_standard_train_ops(the_gan_model, the_gan_loss,
-                                              max_number_of_steps=FLAGS.max_number_of_steps,
-                                              generator_lr=FLAGS.generator_lr, discriminator_lr=FLAGS.discriminator_lr)
+        train_ops = wrapper.define_train_ops(the_gan_model, the_gan_loss, max_number_of_steps=FLAGS.max_number_of_steps,
+                                             generator_lr=FLAGS.generator_lr, discriminator_lr=FLAGS.discriminator_lr,
+                                             gen_discriminator_lr=FLAGS.gen_discriminator_lr)
 
         # Training
-        train_steps = tfgan.GANTrainSteps(1, 1)
         status_message = tf.string_join(
             [
                 "Starting train step: ",
@@ -290,12 +292,13 @@ def main(_):
 
         training_scaffold = Scaffold(saver=tf.train.Saver(max_to_keep=20))
 
+        train_hooks_fn = wrapper.get_train_hooks_fn()
         gan_train(
             train_ops,
             log_dir,
             scaffold=training_scaffold,
             save_checkpoint_steps=validation_iteration_count,
-            get_hooks_fn=tfgan.get_sequential_train_hooks(train_steps),
+            get_hooks_fn=train_hooks_fn,
             hooks=[
                 initializer_hook,
                 peer_validation_hook,
