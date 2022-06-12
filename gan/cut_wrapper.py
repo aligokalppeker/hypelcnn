@@ -286,9 +286,6 @@ class CUTModel(
             'feat_discriminator_gen_inputs_scope',
             'feat_discriminator_gen_inputs_fn',
             'feat_discriminator_real_data',
-            'feat_discriminator_real_data_variables',
-            'feat_discriminator_real_data_scope',
-            'feat_discriminator_real_data_fn',
     ))):
     """A CUTModel contains all the pieces needed for GAN training.
 
@@ -358,27 +355,24 @@ def cut_model(
     if tf.executing_eagerly():
         raise ValueError('`vut_model` doesn\'t work when executing eagerly.')
     # Create models
-    with tf.compat.v1.variable_scope(
-            generator_scope, reuse=tf.compat.v1.AUTO_REUSE) as gen_scope:
+    with tf.compat.v1.variable_scope(generator_scope, reuse=tf.compat.v1.AUTO_REUSE) as gen_scope:
         generator_inputs = _convert_tensor_or_l_or_d(generator_inputs)
         generated_data = generator_fn(generator_inputs)
-    with tf.compat.v1.variable_scope(
-            discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as dis_scope:
+    with tf.compat.v1.variable_scope(discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as dis_scope:
         discriminator_gen_outputs = discriminator_fn(generated_data, generator_inputs)
     with tf.compat.v1.variable_scope(dis_scope, reuse=True):
         real_data = _convert_tensor_or_l_or_d(real_data)
         discriminator_real_outputs = discriminator_fn(real_data, generator_inputs)
-
+    # Create cut models
     with tf.compat.v1.variable_scope(gen_scope, reuse=True):
         feature_embeddings_gen_inputs = generator_fn(generator_inputs, create_only_encoder=True)
-    with tf.compat.v1.variable_scope(
-            feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as gen_input_feat_dis_scope:
+    with tf.compat.v1.variable_scope(feat_discriminator_scope,
+                                     reuse=tf.compat.v1.AUTO_REUSE) as gen_input_feat_dis_scope:
         feat_discriminator_gen_inputs = feat_discriminator_fn(feature_embeddings_gen_inputs)
 
     with tf.compat.v1.variable_scope(gen_scope, reuse=True):
         feature_embeddings_real_data = generator_fn(generated_data, create_only_encoder=True)
-    with tf.compat.v1.variable_scope(
-            feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as real_data_feat_dis_scope:
+    with tf.compat.v1.variable_scope(feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE):
         feat_discriminator_real_data = feat_discriminator_fn(feature_embeddings_real_data)
 
     if check_shapes:
@@ -391,14 +385,13 @@ def cut_model(
     generator_variables = get_trainable_variables(gen_scope)
     discriminator_variables = get_trainable_variables(dis_scope)
     feat_disc_gen_inputs_variables = get_trainable_variables(gen_input_feat_dis_scope)
-    feat_disc_real_data_variables = get_trainable_variables(real_data_feat_dis_scope)
 
     return CUTModel(
         generator_inputs, generated_data, generator_variables, gen_scope, generator_fn,
         real_data,
         discriminator_real_outputs, discriminator_gen_outputs, discriminator_variables, dis_scope, discriminator_fn,
         feat_discriminator_gen_inputs, feat_disc_gen_inputs_variables, gen_input_feat_dis_scope, feat_discriminator_fn,
-        feat_discriminator_real_data, feat_disc_real_data_variables, real_data_feat_dis_scope, feat_discriminator_fn)
+        feat_discriminator_real_data)
 
 
 # Contrastive loss.
@@ -411,15 +404,20 @@ def contrastive_generator_loss_impl(
         loss_collection=tf.compat.v1.GraphKeys.LOSSES,
         reduction=tf.compat.v1.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
         add_summaries=False):
-    softmax_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(tf.nn.softmax(feat_discriminator_real_data),
-                                                                 feat_discriminator_gen_inputs)
-    finite_elements = tf.boolean_mask(softmax_entropy, tf.is_finite(softmax_entropy))
-    patch_nce_loss = tf.reduce_mean(finite_elements)
-    patch_nce_loss = tf.where(tf.logical_not(tf.is_finite(patch_nce_loss)), tf.zeros_like(patch_nce_loss),
-                              patch_nce_loss)
+    # Override parameter, it should be always SUM_OVER_BATCH_SIZE
+    reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
+    with tf.compat.v1.name_scope(scope, "constrastive_gen_loss", (discriminator_gen_outputs, weights)) as scope:
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(tf.nn.softmax(feat_discriminator_real_data),
+                                                          feat_discriminator_gen_inputs)
+        loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope,
+                                                         loss_collection, reduction)
+        # softmax_entropy = tf.boolean_mask(softmax_entropy, tf.is_finite(softmax_entropy))
+        # patch_nce_loss = tf.reduce_mean(softmax_entropy)
+        # patch_nce_loss = tf.where(tf.logical_not(tf.is_finite(patch_nce_loss)), tf.zeros_like(patch_nce_loss),
+        #                           patch_nce_loss)
     if add_summaries:
-        tf.compat.v1.summary.scalar("nce_loss", patch_nce_loss)
-    return patch_nce_loss
+        tf.compat.v1.summary.scalar("nce_loss", loss)
+    return loss
 
 
 contrastive_generator_loss = args_to_gan_model(contrastive_generator_loss_impl)
@@ -466,8 +464,8 @@ class CUTWrapper:
         # Define CycleGAN loss.
         loss = cut_loss(
             model,
-            # generator_loss_fn=wasserstein_generator_loss,
-            # discriminator_loss_fn=wasserstein_discriminator_loss,
+            generator_loss_fn=tuple_losses.least_squares_generator_loss,
+            discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
             gen_discriminator_loss_fn=contrastive_generator_loss,
             tensor_pool_fn=None)
         return loss
@@ -538,6 +536,7 @@ class CUTWrapper:
           loss: A GANLoss.
           generator_optimizer: The optimizer for generator updates.
           discriminator_optimizer: The optimizer for the discriminator updates.
+          gen_discriminator_optimizer: The optimizer for the generator discriminator updates.
           check_for_unused_update_ops: If `True`, throws an exception if there are
             update ops outside of the generator or discriminator scopes.
           is_chief: Specifies whether or not the training is being run by the primary
@@ -590,8 +589,7 @@ class CUTWrapper:
                 **kwargs)
 
         discriminator_global_step = None
-        if isinstance(discriminator_optimizer,
-                      tf.compat.v1.train.SyncReplicasOptimizer):
+        if isinstance(discriminator_optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
             # See comment above `generator_global_step`.
             discriminator_global_step = tf.compat.v1.get_variable(
                 'dummy_global_step_discriminator',
@@ -613,8 +611,7 @@ class CUTWrapper:
                 **kwargs)
 
         gen_discriminator_global_step = None
-        if isinstance(gen_discriminator_optimizer,
-                      tf.compat.v1.train.SyncReplicasOptimizer):
+        if isinstance(gen_discriminator_optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
             # See comment above `generator_global_step`.
             gen_discriminator_global_step = tf.compat.v1.get_variable(
                 'dummy_global_step_discriminator',
@@ -635,8 +632,7 @@ class CUTWrapper:
                 check_numerics=False,
                 **kwargs)
 
-        return CUTTrainOps(gen_train_op, disc_train_op, gen_disc_train_op,
-                           global_step_inc, sync_hooks)
+        return CUTTrainOps(gen_train_op, disc_train_op, gen_disc_train_op, global_step_inc, sync_hooks)
 
     def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
         gen_dis_lr = _get_lr(kwargs["gen_discriminator_lr"], max_number_of_steps)

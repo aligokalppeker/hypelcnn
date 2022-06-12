@@ -128,7 +128,10 @@ def _shadowdata_feature_discriminator_model(generated_data, is_training=True):
         net = generated_data
         net = slim.flatten(net)
 
-        net1 = slim.fully_connected(net, band_size // 2)
-        net2 = slim.fully_connected(net1, band_size // 4)
-        net3 = slim.fully_connected(net2, band_size // 8)
-    return net3
+        net = slim.fully_connected(net, band_size)
+        net = slim.fully_connected(net, band_size // 2)
+        net = slim.fully_connected(net, band_size // 3)
+        net = slim.fully_connected(net, band_size // 4)
+        net = slim.fully_connected(net, band_size // 5)
+        net = slim.fully_connected(net, band_size // 6)
+    return net
