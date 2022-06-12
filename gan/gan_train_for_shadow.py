@@ -23,8 +23,6 @@ from gan_common import InitializerHook, model_base_name, define_standard_train_o
 from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
 from gan_wrapper import GANWrapper
 
-import tensorflow_gan as tfgan
-
 flags.DEFINE_integer('batch_size', 128 * 20, 'The number of images in each batch.')
 
 flags.DEFINE_string('master', '', 'Name of the TensorFlow master to use.')
@@ -76,6 +74,9 @@ flags.DEFINE_integer(
 
 flags.DEFINE_float('cycle_consistency_loss_weight', 10.0,
                    'The weight of cycle consistency loss')
+
+flags.DEFINE_float('nce_loss_weight', 10.0,
+                   'The weight of nce consistency loss')
 
 flags.DEFINE_float('identity_loss_weight', 0.5,
                    'The weight of cycle consistency loss')
@@ -256,10 +257,12 @@ def main(_):
             "gan_y2x": GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
                                   use_identity_loss=FLAGS.use_identity_loss,
                                   swap_inputs=True),
-            "cut_x2y": CUTWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
+            "cut_x2y": CUTWrapper(nce_loss_weight=FLAGS.nce_loss_weight,
+                                  identity_loss_weight=FLAGS.identity_loss_weight,
                                   use_identity_loss=FLAGS.use_identity_loss,
                                   swap_inputs=False),
-            "cut_y2x": CUTWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
+            "cut_y2x": CUTWrapper(nce_loss_weight=FLAGS.nce_loss_weight,
+                                  identity_loss_weight=FLAGS.identity_loss_weight,
                                   use_identity_loss=FLAGS.use_identity_loss,
                                   swap_inputs=True)}
         wrapper = gan_train_wrapper_dict[gan_type]

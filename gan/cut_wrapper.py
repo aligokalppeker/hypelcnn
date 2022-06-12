@@ -110,12 +110,14 @@ def cut_loss(
         aux_cond_generator_weight=None,
         aux_cond_discriminator_weight=None,
         # Options.
+        nce_loss_weight=10.0,
         reduction=tf.compat.v1.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
         add_summaries=True):
     """Returns losses necessary to train generator and discriminator.
 
     Args:
-      gen_discriminator_loss_fn:
+      nce_loss_weight: NCE loss weight
+      gen_discriminator_loss_fn: Generator discriminator loss function
       model: A GANModel tuple.
       generator_loss_fn: The loss function on the generator. Takes a GANModel
         tuple. If it also takes `reduction` or `add_summaries`, it will be
@@ -191,7 +193,7 @@ def cut_loss(
 
     possible_kwargs = {'reduction': reduction, 'add_summaries': add_summaries}
     gen_dis_loss = gen_discriminator_loss_fn(
-        model, **_optional_kwargs(discriminator_loss_fn, possible_kwargs))
+        model, **_optional_kwargs(generator_loss_fn, possible_kwargs))
 
     if model.feat_discriminator_gen_inputs_scope:
         gen_dis_reg_loss = tf.compat.v1.losses.get_regularization_loss(
@@ -199,7 +201,7 @@ def cut_loss(
     else:
         gen_dis_reg_loss = 0
 
-    return CUTLoss(gan_loss_result.generator_loss + gen_dis_loss, gan_loss_result.discriminator_loss,
+    return CUTLoss(gan_loss_result.generator_loss + nce_loss_weight * gen_dis_loss, gan_loss_result.discriminator_loss,
                    gen_dis_loss + gen_dis_reg_loss)
 
 
@@ -360,8 +362,9 @@ contrastive_generator_loss = args_to_gan_model(contrastive_generator_loss_impl)
 
 class CUTWrapper:
 
-    def __init__(self, identity_loss_weight, use_identity_loss, swap_inputs) -> None:
+    def __init__(self, nce_loss_weight, identity_loss_weight, use_identity_loss, swap_inputs) -> None:
         super().__init__()
+        self._nce_loss_weight = nce_loss_weight
         self._identity_loss_weight = identity_loss_weight
         self._use_identity_loss = use_identity_loss
         self._swap_inputs = swap_inputs
@@ -401,7 +404,8 @@ class CUTWrapper:
             model,
             generator_loss_fn=tuple_losses.least_squares_generator_loss,
             discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
-            gen_discriminator_loss_fn=contrastive_generator_loss)
+            gen_discriminator_loss_fn=contrastive_generator_loss,
+            nce_loss_weight=self._nce_loss_weight)
         return loss
 
     @staticmethod
