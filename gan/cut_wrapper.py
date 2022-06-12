@@ -7,12 +7,10 @@ import tensorflow as tf
 from tensorflow import reduce_mean
 from tensorflow_core.contrib import slim
 from tensorflow_core.python.training.adam import AdamOptimizer
-from tensorflow_gan.python import namedtuples
 from tensorflow_gan.python.contrib_utils import get_trainable_variables, create_train_op
 from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.losses.tuple_losses import args_to_gan_model
-from tensorflow_gan.python.train import _convert_tensor_or_l_or_d, _validate_aux_loss_weight, _use_aux_loss, \
-    tensor_pool_adjusted_model, RunTrainOpsHook
+from tensorflow_gan.python.train import _convert_tensor_or_l_or_d, RunTrainOpsHook, gan_loss
 
 from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, model_generator_name, \
     adj_shadow_ratio, _get_lr
@@ -111,7 +109,6 @@ def cut_loss(
         mutual_information_penalty_weight=None,
         aux_cond_generator_weight=None,
         aux_cond_discriminator_weight=None,
-        tensor_pool_fn=None,
         # Options.
         reduction=tf.compat.v1.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
         add_summaries=True):
@@ -165,37 +162,19 @@ def cut_loss(
       ValueError: If `mutual_information_penalty_weight` is provided, but the
         `model` isn't an `InfoGANModel`.
     """
-    # Validate arguments.
-    gradient_penalty_weight = _validate_aux_loss_weight(
-        gradient_penalty_weight, 'gradient_penalty_weight')
-    mutual_information_penalty_weight = _validate_aux_loss_weight(
-        mutual_information_penalty_weight, 'infogan_weight')
-    aux_cond_generator_weight = _validate_aux_loss_weight(
-        aux_cond_generator_weight, 'aux_cond_generator_weight')
-    aux_cond_discriminator_weight = _validate_aux_loss_weight(
-        aux_cond_discriminator_weight, 'aux_cond_discriminator_weight')
-
-    # Verify configuration for mutual information penalty
-    if (_use_aux_loss(mutual_information_penalty_weight) and
-            not isinstance(model, namedtuples.InfoGANModel)):
-        raise ValueError(
-            'When `mutual_information_penalty_weight` is provided, `model` must be '
-            'an `InfoGANModel`. Instead, was %s.' % type(model))
-
-    # Verify configuration for mutual auxiliary condition loss (ACGAN).
-    if ((_use_aux_loss(aux_cond_generator_weight) or
-         _use_aux_loss(aux_cond_discriminator_weight)) and
-            not isinstance(model, namedtuples.ACGANModel)):
-        raise ValueError(
-            'When `aux_cond_generator_weight` or `aux_cond_discriminator_weight` '
-            'is provided, `model` must be an `ACGANModel`. Instead, was %s.' %
-            type(model))
-
-    # Optionally create pooled model.
-    if tensor_pool_fn:
-        pooled_model = tensor_pool_adjusted_model(model, tensor_pool_fn)
-    else:
-        pooled_model = model
+    gan_loss_result = gan_loss(model=model,
+                               generator_loss_fn=generator_loss_fn,
+                               discriminator_loss_fn=discriminator_loss_fn,
+                               gradient_penalty_weight=gradient_penalty_weight,
+                               gradient_penalty_epsilon=gradient_penalty_epsilon,
+                               gradient_penalty_target=gradient_penalty_target,
+                               gradient_penalty_one_sided=gradient_penalty_one_sided,
+                               mutual_information_penalty_weight=mutual_information_penalty_weight,
+                               aux_cond_generator_weight=aux_cond_generator_weight,
+                               aux_cond_discriminator_weight=aux_cond_discriminator_weight,
+                               tensor_pool_fn=None,
+                               reduction=reduction,
+                               add_summaries=add_summaries)
 
     # Create standard losses with optional kwargs, if the loss functions accept
     # them.
@@ -211,53 +190,8 @@ def cut_loss(
         return actual_kwargs
 
     possible_kwargs = {'reduction': reduction, 'add_summaries': add_summaries}
-    gen_loss = generator_loss_fn(
-        model, **_optional_kwargs(generator_loss_fn, possible_kwargs))
-    dis_loss = discriminator_loss_fn(
-        pooled_model, **_optional_kwargs(discriminator_loss_fn, possible_kwargs))
     gen_dis_loss = gen_discriminator_loss_fn(
-        pooled_model, **_optional_kwargs(discriminator_loss_fn, possible_kwargs))
-
-    # Add optional extra losses.
-    if _use_aux_loss(gradient_penalty_weight):
-        gp_loss = tuple_losses.wasserstein_gradient_penalty(
-            pooled_model,
-            epsilon=gradient_penalty_epsilon,
-            target=gradient_penalty_target,
-            one_sided=gradient_penalty_one_sided,
-            reduction=reduction,
-            add_summaries=add_summaries)
-        dis_loss += gradient_penalty_weight * gp_loss
-    if _use_aux_loss(mutual_information_penalty_weight):
-        gen_info_loss = tuple_losses.mutual_information_penalty(
-            model, reduction=reduction, add_summaries=add_summaries)
-        if tensor_pool_fn is None:
-            dis_info_loss = gen_info_loss
-        else:
-            dis_info_loss = tuple_losses.mutual_information_penalty(
-                pooled_model, reduction=reduction, add_summaries=add_summaries)
-        gen_loss += mutual_information_penalty_weight * gen_info_loss
-        dis_loss += mutual_information_penalty_weight * dis_info_loss
-    if _use_aux_loss(aux_cond_generator_weight):
-        ac_gen_loss = tuple_losses.acgan_generator_loss(
-            model, reduction=reduction, add_summaries=add_summaries)
-        gen_loss += aux_cond_generator_weight * ac_gen_loss
-    if _use_aux_loss(aux_cond_discriminator_weight):
-        ac_disc_loss = tuple_losses.acgan_discriminator_loss(
-            pooled_model, reduction=reduction, add_summaries=add_summaries)
-        dis_loss += aux_cond_discriminator_weight * ac_disc_loss
-    # Gathers auxiliary losses.
-    if model.generator_scope:
-        gen_reg_loss = tf.compat.v1.losses.get_regularization_loss(
-            model.generator_scope.name)
-    else:
-        gen_reg_loss = 0
-
-    if model.discriminator_scope:
-        dis_reg_loss = tf.compat.v1.losses.get_regularization_loss(
-            model.discriminator_scope.name)
-    else:
-        dis_reg_loss = 0
+        model, **_optional_kwargs(discriminator_loss_fn, possible_kwargs))
 
     if model.feat_discriminator_gen_inputs_scope:
         gen_dis_reg_loss = tf.compat.v1.losses.get_regularization_loss(
@@ -265,7 +199,8 @@ def cut_loss(
     else:
         gen_dis_reg_loss = 0
 
-    return CUTLoss(gen_loss + gen_reg_loss + gen_dis_loss, dis_loss + dis_reg_loss, gen_dis_loss + gen_dis_reg_loss)
+    return CUTLoss(gan_loss_result.generator_loss + gen_dis_loss, gan_loss_result.discriminator_loss,
+                   gen_dis_loss + gen_dis_reg_loss)
 
 
 class CUTModel(
@@ -466,8 +401,7 @@ class CUTWrapper:
             model,
             generator_loss_fn=tuple_losses.least_squares_generator_loss,
             discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
-            gen_discriminator_loss_fn=contrastive_generator_loss,
-            tensor_pool_fn=None)
+            gen_discriminator_loss_fn=contrastive_generator_loss)
         return loss
 
     @staticmethod
