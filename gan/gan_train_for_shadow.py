@@ -19,7 +19,7 @@ from tensorflow_gan.python.train import get_sequential_train_hooks
 from common_nn_operations import get_class
 from cut_wrapper import CUTWrapper
 from cycle_gan_wrapper import CycleGANWrapper
-from gan_common import InitializerHook, model_base_name, define_standard_train_ops
+from gan_common import InitializerHook, model_base_name
 from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
 from gan_wrapper import GANWrapper
 
