@@ -529,17 +529,33 @@ def shuffle_test_data_using_ratio(train_set, test_data_ratio):
     return test_set, train_set
 
 
-def scale_input_to_output(input_data, output_data, axis_no):
+def is_integer_num(n):
+    if isinstance(n, int):
+        return True
+    if isinstance(n, float):
+        return n.is_integer()
+    return False
+
+
+def scale_in_to_out(input_data, output_data, axis_no):
     input_channel_size = input_data.get_shape()[axis_no].value
     output_channel_size = output_data.get_shape()[axis_no].value
     scale_ratio = input_channel_size / output_channel_size
+    inv_scale_ratio = 1 / scale_ratio
 
-    output_data_indice_list = []
-    for output_data_index in range(0, output_channel_size):
-        target_index_no = min(round(output_data_index * scale_ratio), input_channel_size - 1)
-        output_data_indice_list.append(target_index_no)
+    if is_integer_num(inv_scale_ratio):
+        if int(inv_scale_ratio) == 1:
+            result = input_data
+        else:
+            result = tf.repeat(input=input_data, axis=axis_no, repeats=int(inv_scale_ratio))
+    else:
+        output_data_indice_list = []
+        for output_data_index in range(0, output_channel_size):
+            target_index_no = min(round(output_data_index * scale_ratio), input_channel_size - 1)
+            output_data_indice_list.append(target_index_no)
 
-    return tf.gather(input_data, output_data_indice_list, axis=axis_no)
+        result = tf.gather(input_data, output_data_indice_list, axis=axis_no)
+    return result
 
 
 def load_shadow_map_common(data_set, neighborhood, shadow_file_name):

@@ -6,7 +6,7 @@ from tensorflow import initializers
 from tensorflow.contrib import slim as slim
 
 from NNModel import NNModel
-from common_nn_operations import ModelOutputTensors, HistogramTensorPair, scale_input_to_output
+from common_nn_operations import ModelOutputTensors, HistogramTensorPair, scale_in_to_out
 
 
 # hyperopt old result :
@@ -81,13 +81,13 @@ class CNNModelv4(NNModel):
                                                         spectral_hierarchy_level, use_residual,
                                                         True)
                 if use_residual:
-                    net1 = net1 + scale_input_to_output(net0, net1, axis_no=3)
+                    net1 = net1 + scale_in_to_out(net0, net1, axis_no=3)
 
                 net2 = self.__create_spectral_nn_layers(data_format, level_filter_count, net1,
                                                         spectral_hierarchy_level, use_residual,
                                                         False)
                 if use_residual:
-                    net2 = net2 + scale_input_to_output(net1, net2, axis_no=3)
+                    net2 = net2 + scale_in_to_out(net1, net2, axis_no=3)
 
                 spatial_hierarchy_level = algorithm_params["spatial_hierarchy_level"]
                 net3 = self.__create_levels_as_blocks(data_format,
@@ -95,7 +95,7 @@ class CNNModelv4(NNModel):
                                                       net2, spatial_hierarchy_level,
                                                       use_residual)
                 if use_residual:
-                    net3 = net3 + scale_input_to_output(net2, net3, axis_no=3)
+                    net3 = net3 + scale_in_to_out(net2, net3, axis_no=3)
 
                 net4 = slim.flatten(net3)
 
@@ -157,7 +157,7 @@ class CNNModelv4(NNModel):
                                                    'connector_' + str(index),
                                                    data_format)
             if use_residual:
-                next_net = next_net + scale_input_to_output(netinput, next_net, axis_no=3)
+                next_net = next_net + scale_in_to_out(netinput, next_net, axis_no=3)
 
             next_net_conv = slim.conv2d(next_net, next_net.get_shape()[3], [1, 1],
                                         scope='connector_conv_' + str(index),
@@ -184,7 +184,7 @@ class CNNModelv4(NNModel):
                                    scope=conv_name + str(nn_index),
                                    data_format=data_format)
             if use_residual:
-                next_net = next_net + scale_input_to_output(net_input, next_net, axis_no=3)
+                next_net = next_net + scale_in_to_out(net_input, next_net, axis_no=3)
 
             net_input = next_net
         return net_input
