@@ -111,7 +111,7 @@ class CycleGANWrapper:
     def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                validation_iteration_count, validation_sample_count):
         element_size = data_set.get_data_shape()
-        element_size = [1, element_size[0], element_size[1], data_set.get_casi_band_count()]
+        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
 
         x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
         y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
@@ -164,7 +164,7 @@ class CycleGANInferenceWrapper:
 
     def make_inference_graph(self, data_set, is_shadow_graph, clip_invalid_values):
         element_size = data_set.get_data_shape()
-        element_size = [1, element_size[0], element_size[1], data_set.get_casi_band_count()]
+        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
         input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
         generated = self.construct_inference_graph(input_tensor, is_shadow_graph, clip_invalid_values)
         return input_tensor, generated
@@ -181,7 +181,7 @@ class CycleGANInferenceWrapper:
     def create_inference_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                               validation_sample_count):
         element_size = data_set.get_data_shape()
-        element_size = [1, element_size[0], element_size[1], data_set.get_casi_band_count()]
+        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
 
         x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
         y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')

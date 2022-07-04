@@ -660,7 +660,7 @@ class CUTWrapper:
     def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                validation_iteration_count, validation_sample_count):
         element_size = data_set.get_data_shape()
-        element_size = [1, element_size[0], element_size[1], data_set.get_casi_band_count()]
+        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
 
         x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
         y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
@@ -715,7 +715,7 @@ class CUTInferenceWrapper:
     @staticmethod
     def __create_input_tensor(data_set, is_shadow_graph):
         element_size = data_set.get_data_shape()
-        element_size = [1, element_size[0], element_size[1], data_set.get_casi_band_count()]
+        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
         input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size,
                                       name=input_x_tensor_name if is_shadow_graph else input_y_tensor_name)
         return input_tensor

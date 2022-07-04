@@ -169,9 +169,13 @@ class ValidationHook(BaseValidationHook):
         self.validation_itr_mark = self._is_validation_itr(current_iteration)
         if self.validation_itr_mark:
             print(f"Validation metrics for {self._name_suffix} #{current_iteration}")
-            div_for_gen_data = calculate_stats_from_samples(session, self._data_sample_list, self._input_tensor,
-                                                            self._forward_model,
-                                                            self._shadow_ratio, self._log_dir, current_iteration,
+            div_for_gen_data = calculate_stats_from_samples(session,
+                                                            data_sample_list=self._data_sample_list,
+                                                            images_x_input_tensor=self._input_tensor,
+                                                            generate_y_tensor=self._forward_model,
+                                                            shadow_ratio=self._shadow_ratio,
+                                                            log_dir=self._log_dir,
+                                                            current_iteration=current_iteration,
                                                             bands=self._bands,
                                                             plt_name=self._plt_name)
             self.best_ratio_holder.add_point(current_iteration, div_for_gen_data)
@@ -309,28 +313,15 @@ def divergence_for_ratios(mean, std):
 
 def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor, shadow_ratio,
                                  log_dir, current_iteration, plt_name, bands):
-    band_size = shadow_ratio.shape[0]
-    iteration_count = len(data_sample_list)
-    progress_bar = tqdm(total=iteration_count)
-    total_band_ratio = numpy.zeros([iteration_count, band_size], dtype=float)
-    inf_nan_value_count = 0
-    for index in range(0, iteration_count):
-        generated_y_data = sess.run(generate_y_tensor, feed_dict={images_x_input_tensor: data_sample_list[index]})
-        band_ratio = numpy.mean(generated_y_data / data_sample_list[index], axis=(0, 1))
+    data_sample_list_np = numpy.squeeze(numpy.asarray(data_sample_list), axis=1)
+    generated_y_data = sess.run(generate_y_tensor, feed_dict={images_x_input_tensor: data_sample_list_np})
+    ratio = generated_y_data / data_sample_list_np
+    total_band_ratio = ratio[numpy.isfinite(ratio).all(axis=3)]
 
-        is_there_inf = numpy.any(numpy.isinf(band_ratio))
-        is_there_nan = numpy.any(numpy.isnan(band_ratio))
-        if is_there_inf or is_there_nan:
-            inf_nan_value_count = inf_nan_value_count + 1
-        else:
-            total_band_ratio[index] = band_ratio
-        progress_bar.update(1)
-
-    progress_bar.close()
     final_ratio = total_band_ratio * shadow_ratio
     mean = numpy.mean(final_ratio, axis=0)
     std = numpy.std(final_ratio, axis=0)
-    print_overall_info(inf_nan_value_count, mean, numpy.mean(total_band_ratio, axis=0), std)
+    print_overall_info(mean, std)
     plot_overall_info(bands,
                       numpy.percentile(final_ratio, 50, axis=0),
                       numpy.percentile(final_ratio, 10, axis=0),
@@ -383,10 +374,7 @@ def plot_overall_info(bands, mean, lower_bound, upper_bound, iteration, plt_name
     plt.clf()
 
 
-def print_overall_info(inf_nan_value_count, mean, raw_mean, std):
-    print("inf or nan value count: %i" % inf_nan_value_count)
-    # print("Mean total ratio:")
-    # print(raw_mean)
+def print_overall_info(mean, std):
     print("Mean&std Generated vs Original Ratio: ")
     band_size = mean.shape[0]
     for band_index in range(0, band_size):
