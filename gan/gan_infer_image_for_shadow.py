@@ -14,7 +14,6 @@ from tqdm import tqdm
 from common_nn_operations import get_class
 from cut_wrapper import CUTInferenceWrapper
 from cycle_gan_wrapper import CycleGANInferenceWrapper
-from gan_common import export
 from gan_wrapper import GANInferenceWrapper
 from hsi_rgb_converter import get_rgb_from_hsi
 
@@ -105,12 +104,12 @@ def main(_):
         hsi_image = numpy.zeros([screen_size_first_dim, screen_size_sec_dim, band_size], dtype=target_data_type)
         for first_idx in range(0, screen_size_first_dim):
             for second_idx in range(0, screen_size_sec_dim):
-                input_data = loader.get_point_value(data_set, [second_idx, first_idx])[:, :, 0:band_size]
-                input_data = numpy.expand_dims(input_data, axis=0)
+                input_data = numpy.expand_dims(
+                    loader.get_point_value(data_set, [second_idx, first_idx])[:, :, 0:band_size], axis=0)
 
                 if not convert_only_the_convenient_pixels or shadow_map[
                     first_idx, second_idx] == sign_to_filter_in_shadow_map:
-                    generated_y_data = export(sess, input_tensor, input_data, output_tensor)
+                    generated_y_data = sess.run(output_tensor, feed_dict={input_tensor: input_data})
                 else:
                     generated_y_data = input_data
 

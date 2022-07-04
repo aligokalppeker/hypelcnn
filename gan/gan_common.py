@@ -169,14 +169,14 @@ class ValidationHook(BaseValidationHook):
         self.validation_itr_mark = self._is_validation_itr(current_iteration)
         if self.validation_itr_mark:
             print(f"Validation metrics for {self._name_suffix} #{current_iteration}")
-            kl_shadowed = calculate_stats_from_samples(session, self._data_sample_list, self._input_tensor,
-                                                       self._forward_model,
-                                                       self._shadow_ratio, self._log_dir, current_iteration,
-                                                       bands=self._bands,
-                                                       plt_name=self._plt_name)
-            self.best_ratio_holder.add_point(current_iteration, kl_shadowed)
+            div_for_gen_data = calculate_stats_from_samples(session, self._data_sample_list, self._input_tensor,
+                                                            self._forward_model,
+                                                            self._shadow_ratio, self._log_dir, current_iteration,
+                                                            bands=self._bands,
+                                                            plt_name=self._plt_name)
+            self.best_ratio_holder.add_point(current_iteration, div_for_gen_data)
             self.best_ratio_holder.save(self._best_ratio_addr)
-            print(f"KL divergence for {self._name_suffix}:{kl_shadowed}")
+            print(f"Divergence for {self._name_suffix}:{div_for_gen_data}")
             print(f"Best {self._name_suffix} options:{self.best_ratio_holder}")
 
 
@@ -267,12 +267,6 @@ def define_standard_train_ops(gan_model, gan_loss, max_number_of_steps,
     return train_ops
 
 
-def export(sess, input_pl, input_np, run_tensor):
-    # Grab a single image and run it through inference
-    output_np = sess.run(run_tensor, feed_dict={input_pl: input_np})
-    return output_np
-
-
 def create_simple_shadow_struct(shadow_ratio):
     simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, shadow_ratio))
     simple_shadow_struct = ShadowOperationStruct(shadow_op=simple_shadow_func, shadow_op_creater=lambda: None,
@@ -294,21 +288,23 @@ def kl_divergence(p, q):
     return numpy.sum(numpy.where(p != 0, p * numpy.log(p / q), 0))
 
 
-def kl_div_for_ratios(mean, std):
-    mean_upper_region = mean + std
-    mean_down_region = mean - std
-    min_base = min([numpy.min(mean), numpy.min(mean_upper_region), numpy.min(mean_down_region)])
-    # Only adjust according to minimum, if it is less than zero
-    if min_base > 0:
-        min_base = 0
-    mean = mean - min_base
-    mean_down_region = mean_down_region - min_base
-    mean_upper_region = mean_upper_region - min_base
-    base_arr = numpy.ones_like(mean) - min_base
-    mean_kl = abs(kl_divergence(mean, base_arr))
-    mean_upper_kl = abs(kl_divergence(mean_upper_region, base_arr))
-    mean_down_kl = abs(kl_divergence(mean_down_region, base_arr))
-    return mean_kl
+def js_divergence(p, q):
+    m = 0.5 * (p + q)
+    return 0.5 * kl_divergence(p, m) + 0.5 * kl_divergence(q, m)
+
+
+def divergence_for_ratios(mean, std):
+    # min_base = min([numpy.min(mean), numpy.min(mean_upper_region), numpy.min(mean_down_region)])
+    # min_base = numpy.min(mean)
+    # min_base = 0 if min_base > 0 else min_base  # Only adjust according to minimum, if it is less than zero
+    # base_arr = numpy.ones_like(mean)
+    # mean_upper_region = mean + std
+    # mean_upper_region = mean_upper_region - min_base
+    # mean_upper_diff = abs(js_divergence(mean_upper_region, base_arr))
+    # mean_down_region = mean - std
+    # mean_down_region = mean_down_region - min_base
+    # mean_down_diff = abs(js_divergence(mean_down_region, base_arr))
+    return abs(js_divergence(numpy.abs(mean - 1), numpy.zeros_like(mean)))
 
 
 def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor, shadow_ratio,
@@ -319,7 +315,7 @@ def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, 
     total_band_ratio = numpy.zeros([iteration_count, band_size], dtype=float)
     inf_nan_value_count = 0
     for index in range(0, iteration_count):
-        generated_y_data = export(sess, images_x_input_tensor, data_sample_list[index], generate_y_tensor)
+        generated_y_data = sess.run(generate_y_tensor, feed_dict={images_x_input_tensor: data_sample_list[index]})
         band_ratio = numpy.mean(generated_y_data / data_sample_list[index], axis=(0, 1))
 
         is_there_inf = numpy.any(numpy.isinf(band_ratio))
@@ -340,7 +336,7 @@ def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, 
                       numpy.percentile(final_ratio, 10, axis=0),
                       numpy.percentile(final_ratio, 90, axis=0),
                       current_iteration, plt_name, log_dir)
-    return kl_div_for_ratios(mean, std)
+    return divergence_for_ratios(mean, std)
 
 
 def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map, fetch_shadows):
