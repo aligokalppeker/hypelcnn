@@ -173,23 +173,24 @@ class ValidationHook(BaseValidationHook):
 
         self.validation_itr_mark = self._is_validation_itr(current_iteration)
         if self.validation_itr_mark:
-            print(f"Validation metrics for {self._name_suffix} #{current_iteration}")
-            div_for_gen_data = calculate_stats_via_tensor(sess=session,
-                                                          data_sample_list=self._data_sample_list,
-                                                          images_x_input_tensor=self._input_tensor,
-                                                          divergence_tensor=self._diver_tensor,
-                                                          mean_tensor=self._mean_tensor,
-                                                          std_tensor=self._std_tensor,
-                                                          ratio_tensor=self._ratio_tensor,
-                                                          log_dir=self._log_dir,
-                                                          current_iteration=current_iteration,
-                                                          bands=self._bands,
-                                                          plt_name=self._plt_name)
-
-            self.best_ratio_holder.add_point(current_iteration, div_for_gen_data)
+            ratio, mean, std, divergence = session.run(
+                [self._ratio_tensor, self._mean_tensor, self._std_tensor, self._diver_tensor],
+                feed_dict={self._input_tensor: self._data_sample_list})
+            self.best_ratio_holder.add_point(current_iteration, divergence)
             self.best_ratio_holder.save(self._best_ratio_addr)
-            print(f"Divergence for {self._name_suffix}:{div_for_gen_data}")
-            print(f"Best {self._name_suffix} options:{self.best_ratio_holder}")
+
+            self.print_stats(current_iteration, divergence, mean, ratio, std)
+
+    def print_stats(self, current_iteration, divergence, mean, ratio, std):
+        print(f"Validation metrics for {self._name_suffix} #{current_iteration}")
+        print_overall_info(mean, std)
+        plot_overall_info(self._bands,
+                          numpy.percentile(ratio, 50, axis=0),
+                          numpy.percentile(ratio, 10, axis=0),
+                          numpy.percentile(ratio, 90, axis=0),
+                          current_iteration, self._plt_name, self._log_dir)
+        print(f"Divergence for {self._name_suffix}:{divergence}")
+        print(f"Best {self._name_suffix} options:{self.best_ratio_holder}")
 
 
 def construct_gan_inference_graph(input_data, gan_inference_wrapper):
@@ -311,23 +312,6 @@ def create_stats_tensor(generate_y_tensor, images_x_input_tensor, shadow_ratio):
     std = reduce_std(ratio_tensor_inf_eliminated, axis=0)
     divergence = tf.abs(js_divergence(tf.abs(mean - 1), tf.zeros_like(mean)))
     return divergence, ratio_tensor_inf_eliminated, mean, std
-
-
-def calculate_stats_via_tensor(sess, data_sample_list, images_x_input_tensor,
-                               divergence_tensor, mean_tensor, std_tensor, ratio_tensor,
-                               log_dir, current_iteration, plt_name, bands):
-    ratio = sess.run(ratio_tensor, feed_dict={images_x_input_tensor: data_sample_list})
-    mean = sess.run(mean_tensor, feed_dict={images_x_input_tensor: data_sample_list})
-    std = sess.run(std_tensor, feed_dict={images_x_input_tensor: data_sample_list})
-    divergence = sess.run(divergence_tensor, feed_dict={images_x_input_tensor: data_sample_list})
-
-    print_overall_info(mean, std)
-    plot_overall_info(bands,
-                      numpy.percentile(ratio, 50, axis=0),
-                      numpy.percentile(ratio, 10, axis=0),
-                      numpy.percentile(ratio, 90, axis=0),
-                      current_iteration, plt_name, log_dir)
-    return divergence
 
 
 def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor, shadow_ratio,
