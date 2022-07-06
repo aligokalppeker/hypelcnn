@@ -28,7 +28,7 @@ def create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_
                                               shadow_map=shadow_map,
                                               shadow_ratio=shadow_ratio,
                                               input_tensor=x_input_tensor,
-                                              model=model_forward,
+                                              infer_model=model_forward,
                                               fetch_shadows=False, name_suffix="shadowed")
     de_shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
                                                  sample_count=validation_sample_count,
@@ -37,7 +37,7 @@ def create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_
                                                  shadow_map=shadow_map,
                                                  shadow_ratio=1. / shadow_ratio,
                                                  input_tensor=y_input_tensor,
-                                                 model=model_backward,
+                                                 infer_model=model_backward,
                                                  fetch_shadows=True, name_suffix="deshadowed")
     peer_validation_hook = PeerValidationHook(shadowed_validation_hook, de_shadowed_validation_hook)
     return peer_validation_hook

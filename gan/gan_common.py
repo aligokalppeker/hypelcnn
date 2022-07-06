@@ -9,10 +9,10 @@ import numpy
 import tensorflow as tf
 import tensorflow_gan as tfgan
 from matplotlib import pyplot as plt
+from tensorflow_core.python import reduce_mean, reduce_std, reduce_sum
 from tensorflow_core.python.training.adam import AdamOptimizer
 from tensorflow_core.python.training.learning_rate_decay import polynomial_decay
 from tensorflow_core.python.training.training_util import get_or_create_global_step
-from tqdm import tqdm
 
 from DataLoader import ShadowOperationStruct
 
@@ -145,9 +145,9 @@ class PeerValidationHook(tf.train.SessionRunHook):
 class ValidationHook(BaseValidationHook):
 
     def __init__(self, iteration_freq, sample_count, log_dir, loader, data_set, neighborhood, shadow_map, shadow_ratio,
-                 input_tensor, model, name_suffix, fetch_shadows):
+                 input_tensor, infer_model, name_suffix, fetch_shadows):
         super().__init__(iteration_freq, log_dir, shadow_ratio)
-        self._forward_model = model
+        self._infer_model = infer_model
         self._input_tensor = input_tensor
         self._name_suffix = name_suffix
         self._plt_name = f"band_ratio_{name_suffix}"
@@ -156,8 +156,13 @@ class ValidationHook(BaseValidationHook):
         self._bands = loader.get_band_measurements()
         self._data_sample_list = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
                                                           shadow_map, fetch_shadows=fetch_shadows)
+        self._diver_tensor, self._ratio_tensor, self._mean_tensor, self._std_tensor = create_stats_tensor(
+            self._infer_model,
+            self._input_tensor,
+            shadow_ratio)
         for idx, _data_sample in enumerate(self._data_sample_list):
             self._data_sample_list[idx] = numpy.expand_dims(_data_sample, axis=0)
+        self._data_sample_list = numpy.squeeze(numpy.asarray(self._data_sample_list), axis=1)
 
     def after_run(self, run_context, run_values):
         session = run_context.session
@@ -169,15 +174,18 @@ class ValidationHook(BaseValidationHook):
         self.validation_itr_mark = self._is_validation_itr(current_iteration)
         if self.validation_itr_mark:
             print(f"Validation metrics for {self._name_suffix} #{current_iteration}")
-            div_for_gen_data = calculate_stats_from_samples(session,
-                                                            data_sample_list=self._data_sample_list,
-                                                            images_x_input_tensor=self._input_tensor,
-                                                            generate_y_tensor=self._forward_model,
-                                                            shadow_ratio=self._shadow_ratio,
-                                                            log_dir=self._log_dir,
-                                                            current_iteration=current_iteration,
-                                                            bands=self._bands,
-                                                            plt_name=self._plt_name)
+            div_for_gen_data = calculate_stats_via_tensor(sess=session,
+                                                          data_sample_list=self._data_sample_list,
+                                                          images_x_input_tensor=self._input_tensor,
+                                                          divergence_tensor=self._diver_tensor,
+                                                          mean_tensor=self._mean_tensor,
+                                                          std_tensor=self._std_tensor,
+                                                          ratio_tensor=self._ratio_tensor,
+                                                          log_dir=self._log_dir,
+                                                          current_iteration=current_iteration,
+                                                          bands=self._bands,
+                                                          plt_name=self._plt_name)
+
             self.best_ratio_holder.add_point(current_iteration, div_for_gen_data)
             self.best_ratio_holder.save(self._best_ratio_addr)
             print(f"Divergence for {self._name_suffix}:{div_for_gen_data}")
@@ -288,46 +296,67 @@ def create_gan_struct(gan_inference_wrapper, model_base_dir, ckpt_relative_path)
     return gan_struct
 
 
-def kl_divergence(p, q):
-    return numpy.sum(numpy.where(p != 0, p * numpy.log(p / q), 0))
+def create_stats_tensor(generate_y_tensor, images_x_input_tensor, shadow_ratio):
+    def kl_divergence(p, q):
+        return reduce_sum(tf.where(tf.not_equal(p, 0.), p * tf.log(p / q), tf.zeros_like(p)))
+
+    def js_divergence(p, q):
+        m = 0.5 * (p + q)
+        return 0.5 * kl_divergence(p, m) + 0.5 * kl_divergence(q, m)
+
+    ratio_tensor = tf.squeeze(generate_y_tensor / images_x_input_tensor * shadow_ratio, axis=[1, 2])
+    finite_map_tensor = tf.reduce_all(tf.is_finite(ratio_tensor), axis=1)
+    ratio_tensor_inf_eliminated = ratio_tensor[finite_map_tensor]
+    mean = reduce_mean(ratio_tensor_inf_eliminated, axis=0)
+    std = reduce_std(ratio_tensor_inf_eliminated, axis=0)
+    divergence = tf.abs(js_divergence(tf.abs(mean - 1), tf.zeros_like(mean)))
+    return divergence, ratio_tensor_inf_eliminated, mean, std
 
 
-def js_divergence(p, q):
-    m = 0.5 * (p + q)
-    return 0.5 * kl_divergence(p, m) + 0.5 * kl_divergence(q, m)
+def calculate_stats_via_tensor(sess, data_sample_list, images_x_input_tensor,
+                               divergence_tensor, mean_tensor, std_tensor, ratio_tensor,
+                               log_dir, current_iteration, plt_name, bands):
+    ratio = sess.run(ratio_tensor, feed_dict={images_x_input_tensor: data_sample_list})
+    mean = sess.run(mean_tensor, feed_dict={images_x_input_tensor: data_sample_list})
+    std = sess.run(std_tensor, feed_dict={images_x_input_tensor: data_sample_list})
+    divergence = sess.run(divergence_tensor, feed_dict={images_x_input_tensor: data_sample_list})
 
-
-def divergence_for_ratios(mean, std):
-    # min_base = min([numpy.min(mean), numpy.min(mean_upper_region), numpy.min(mean_down_region)])
-    # min_base = numpy.min(mean)
-    # min_base = 0 if min_base > 0 else min_base  # Only adjust according to minimum, if it is less than zero
-    # base_arr = numpy.ones_like(mean)
-    # mean_upper_region = mean + std
-    # mean_upper_region = mean_upper_region - min_base
-    # mean_upper_diff = abs(js_divergence(mean_upper_region, base_arr))
-    # mean_down_region = mean - std
-    # mean_down_region = mean_down_region - min_base
-    # mean_down_diff = abs(js_divergence(mean_down_region, base_arr))
-    return abs(js_divergence(numpy.abs(mean - 1), numpy.zeros_like(mean)))
+    print_overall_info(mean, std)
+    plot_overall_info(bands,
+                      numpy.percentile(ratio, 50, axis=0),
+                      numpy.percentile(ratio, 10, axis=0),
+                      numpy.percentile(ratio, 90, axis=0),
+                      current_iteration, plt_name, log_dir)
+    return divergence
 
 
 def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor, shadow_ratio,
                                  log_dir, current_iteration, plt_name, bands):
-    data_sample_list_np = numpy.squeeze(numpy.asarray(data_sample_list), axis=1)
-    generated_y_data = sess.run(generate_y_tensor, feed_dict={images_x_input_tensor: data_sample_list_np})
-    ratio = generated_y_data / data_sample_list_np
-    total_band_ratio = ratio[numpy.isfinite(ratio).all(axis=3)]
+    def divergence_for_ratios(mean):
+        def kl_divergence(p, q):
+            return numpy.sum(numpy.where(p != 0, p * numpy.log(p / q), 0))
 
-    final_ratio = total_band_ratio * shadow_ratio
+        def js_divergence(p, q):
+            m = 0.5 * (p + q)
+            return 0.5 * kl_divergence(p, m) + 0.5 * kl_divergence(q, m)
+
+        return abs(js_divergence(numpy.abs(mean - 1), numpy.zeros_like(mean)))
+
+    generated_y_data = sess.run(generate_y_tensor, feed_dict={images_x_input_tensor: data_sample_list})
+    ratio = generated_y_data / data_sample_list
+    ratio_inf_eliminated = ratio[numpy.isfinite(ratio).all(axis=3)]
+
+    final_ratio = ratio_inf_eliminated * shadow_ratio
     mean = numpy.mean(final_ratio, axis=0)
     std = numpy.std(final_ratio, axis=0)
+    divergence = divergence_for_ratios(mean)
     print_overall_info(mean, std)
     plot_overall_info(bands,
                       numpy.percentile(final_ratio, 50, axis=0),
                       numpy.percentile(final_ratio, 10, axis=0),
                       numpy.percentile(final_ratio, 90, axis=0),
                       current_iteration, plt_name, log_dir)
-    return divergence_for_ratios(mean, std)
+    return divergence
 
 
 def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map, fetch_shadows):

@@ -80,7 +80,7 @@ class GANWrapper:
                                                   shadow_map=shadow_map,
                                                   shadow_ratio=adj_shadow_ratio(shadow_ratio, self._swap_inputs),
                                                   input_tensor=y_input_tensor if self._swap_inputs else x_input_tensor,
-                                                  model=model_for_validation.generated_data,
+                                                  infer_model=model_for_validation.generated_data,
                                                   fetch_shadows=False,
                                                   name_suffix="deshadowed" if self._swap_inputs else "shadowed")
         return shadowed_validation_hook
@@ -153,6 +153,6 @@ class GANInferenceWrapper:
                               shadow_map=shadow_map,
                               shadow_ratio=adj_shadow_ratio(shadow_ratio, self.fetch_shadows),
                               input_tensor=input_tensor,
-                              model=self.construct_inference_graph(input_tensor, None),
+                              infer_model=self.construct_inference_graph(input_tensor, None),
                               fetch_shadows=self.fetch_shadows,
                               name_suffix="")
