@@ -9,10 +9,13 @@ import numpy
 import tensorflow as tf
 import tensorflow_gan as tfgan
 from matplotlib import pyplot as plt
+from tensorflow_core.contrib.learn.python.learn.summary_writer_cache import SummaryWriterCache
 from tensorflow_core.python import reduce_mean, reduce_std, reduce_sum
+from tensorflow_core.python.summary.summary import scalar
 from tensorflow_core.python.training.adam import AdamOptimizer
 from tensorflow_core.python.training.learning_rate_decay import polynomial_decay
-from tensorflow_core.python.training.training_util import get_or_create_global_step
+from tensorflow_core.python.training.session_run_hook import SessionRunHook
+from tensorflow_core.python.training.training_util import get_or_create_global_step, get_global_step
 
 from DataLoader import ShadowOperationStruct
 
@@ -99,7 +102,7 @@ class BestRatioHolder:
         return str(self.data_holder)
 
 
-class BaseValidationHook(tf.train.SessionRunHook):
+class BaseValidationHook(SessionRunHook):
     @staticmethod
     def export(sess, input_pl, input_np, output_tensor):
         # Grab a single image and run it through inference
@@ -115,7 +118,7 @@ class BaseValidationHook(tf.train.SessionRunHook):
         self.validation_itr_mark = False
 
     def after_create_session(self, session, coord):
-        self._global_step_tensor = tf.train.get_global_step()
+        self._global_step_tensor = get_global_step()
 
     def _is_validation_itr(self, current_iteration):
         result = True
@@ -124,7 +127,7 @@ class BaseValidationHook(tf.train.SessionRunHook):
         return result
 
 
-class PeerValidationHook(tf.train.SessionRunHook):
+class PeerValidationHook(SessionRunHook):
     def __init__(self, *validation_base_hooks):
         self._validation_base_hooks = validation_base_hooks
 
@@ -147,6 +150,7 @@ class ValidationHook(BaseValidationHook):
     def __init__(self, iteration_freq, sample_count, log_dir, loader, data_set, neighborhood, shadow_map, shadow_ratio,
                  input_tensor, infer_model, name_suffix, fetch_shadows):
         super().__init__(iteration_freq, log_dir, shadow_ratio)
+        self._writer = None
         self._infer_model = infer_model
         self._input_tensor = input_tensor
         self._name_suffix = name_suffix
@@ -160,25 +164,29 @@ class ValidationHook(BaseValidationHook):
             self._infer_model,
             self._input_tensor,
             shadow_ratio)
+        self._diver_summary = scalar(f"divergence_{name_suffix}", self._diver_tensor, collections=["custom"])
+
         for idx, _data_sample in enumerate(self._data_sample_list):
             self._data_sample_list[idx] = numpy.expand_dims(_data_sample, axis=0)
         self._data_sample_list = numpy.squeeze(numpy.asarray(self._data_sample_list), axis=1)
 
+    def after_create_session(self, session, coord):
+        self._global_step_tensor = tf.train.get_global_step()
+        self._writer = SummaryWriterCache.get(self._log_dir)
+
     def after_run(self, run_context, run_values):
-        session = run_context.session
-        if self._global_step_tensor is None:
-            current_iteration = 0
-        else:
-            current_iteration = session.run(self._global_step_tensor)
+        current_iteration = run_context.session.run(
+            self._global_step_tensor) if self._global_step_tensor is not None else 0
 
         self.validation_itr_mark = self._is_validation_itr(current_iteration)
         if self.validation_itr_mark:
-            ratio, mean, std, divergence = session.run(
-                [self._ratio_tensor, self._mean_tensor, self._std_tensor, self._diver_tensor],
+            ratio, mean, std, divergence, divergence_summary = run_context.session.run(
+                [self._ratio_tensor, self._mean_tensor, self._std_tensor, self._diver_tensor, self._diver_summary],
                 feed_dict={self._input_tensor: self._data_sample_list})
             self.best_ratio_holder.add_point(current_iteration, divergence)
             self.best_ratio_holder.save(self._best_ratio_addr)
 
+            self._writer.add_summary(divergence_summary, current_iteration)
             self.print_stats(current_iteration, divergence, mean, ratio, std)
 
     def print_stats(self, current_iteration, divergence, mean, ratio, std):
