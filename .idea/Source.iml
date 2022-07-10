@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/utilities" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/gan/log" />
       <excludeFolder url="file://$MODULE_DIR$/successful_logs" />
+      <excludeFolder url="file://$MODULE_DIR$/data" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.7 (phd)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

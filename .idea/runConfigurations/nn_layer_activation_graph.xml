@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/nn_layer_activation_graph.py" />
-    <option name="PARAMETERS" value="--path=$PROJECT_DIR$ --batch_size=1 --model_name=CNNModelv4 --loader_name=GRSS2013DataLoader --neighborhood=1 --importer=GeneratorImporter --output_path=C:\GoogleDriveBack\PHD\Tez\Source\log\ --base_log_path=C:\GoogleDriveBack\PHD\Tez\Source\log\episode_0\run_0\model.ckpt-7999 --algorithm_param_path=C:\GoogleDriveBack\PHD\Tez\Source\algorithm_param_output_cnnv4.json" />
+    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --batch_size=1 --model_name=CNNModelv4 --loader_name=GRSS2013DataLoader --neighborhood=1 --importer=GeneratorImporter --output_path=$PROJECT_DIR$/log/ --base_log_path=$PROJECT_DIR$/log/episode_0/run_0/model.ckpt-7999 --algorithm_param_path=$PROJECT_DIR$/algorithm_param_output_cnnv4.json" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

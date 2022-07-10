@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utilities/display_ground_truth.py" />
-    <option name="PARAMETERS" value="--path=$PROJECT_DIR$ --loader_name=GRSS2013DataLoader --output_path=C:\GoogleDriveBack\PHD\Tez\Source\" />
+    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --loader_name=GRSS2013DataLoader --output_path=$PROJECT_DIR$/" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
