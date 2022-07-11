@@ -17,7 +17,11 @@ Developed using Tensorflow 1.x(Tested on version 1.10 to 1.15). This repository 
   - Contrastive Unpaired Translation(CUT) GAN
   - Training and evaluation codes.
 
-Source codes can be used for best practices of applying tensorflow in training large data sets, integrating the metrics, merging two different neural networks for data augmentation
+Source codes can be used for best practices of applying tensorflow 1.x for;
+ - training large data sets
+ - integrating custom metrics
+ - merging two different neural networks for data augmentation
+ - reading summary file
 
 # Data sets
 Data set files are too large to commit on repository. Access to data sets can be done using this URL;
@@ -55,6 +59,8 @@ Work with Python 3.6 and 3.7. Library requirements are placed in "requirements.t
 - gan/gan_train_for_shadow.py : Gan training runner.
 - gan/*_wrapper.py : Wrappers for various gan archs.
 - utilities/tfrecord_writer.py : TF record generator from samples.
+- utilities/hsi_rgb_converter.py : HSI to RGB conversion script.
+- utilities/read_summary_file.py : Reads tensorflow summary file and extract some statistical information.
 
 # In progress
 - Source code documentation
