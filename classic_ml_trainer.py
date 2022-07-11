@@ -55,7 +55,9 @@ def main():
         data_importer = InMemoryImporter.InMemoryImporter()
         training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, scene_shape, color_list = \
             data_importer.read_data_set(loader_name=loader_name, path=data_path,
-                                        test_data_ratio=0, neighborhood=neighborhood, normalize=False)
+                                        test_data_ratio=0,
+                                        train_data_ratio=0.1,
+                                        neighborhood=neighborhood, normalize=False)
 
         flattened_training_data = flatten_data(training_data_with_labels.data)
         flattened_validation_data = flatten_data(validation_data_with_labels.data)
@@ -148,17 +150,17 @@ def print_output(algorithm_params, average_accuracy, conf_matrix, kappa, overall
     print("KAPPA:%5.5f" % kappa)
     print("Confusion Matrix:")
     print(conf_matrix)
-    file_id = name + "_run" + str(index)
-    log_directory = "log/"
-    log_path = os.path.join(base_log_path, log_directory + "confusion_matrix_" + file_id + ".csv")
+    file_id = f"{name}_run{index}"
+
+    log_path = os.path.join(base_log_path, f"confusion_matrix_{file_id}.csv")
     numpy.savetxt(log_path, conf_matrix, fmt="%d", delimiter=",")
 
-    metrics_file = open(os.path.join(base_log_path, log_directory + "metrics_" + file_id + ".txt"), "w")
+    metrics_file = open(os.path.join(base_log_path, f"metrics_{file_id}.txt"), "w")
     print("OA,AA,KAPPA", file=metrics_file)
     print("%.6f,%.6f,%.6f" % (overall_accuracy, average_accuracy, kappa), file=metrics_file)
     metrics_file.close()
 
-    params_file = open(os.path.join(base_log_path, log_directory + "params_" + file_id + ".json"), "w")
+    params_file = open(os.path.join(base_log_path, f"params_{file_id}.json"), "w")
     print(algorithm_params, file=params_file)
     params_file.close()
 
