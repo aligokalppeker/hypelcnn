@@ -1,7 +1,7 @@
 # HypeLCNN Overview
 This repository includes source codes for hyperspectral and LiDAR fusion system for classification and GAN based hyperspectral sample generation.
 
-Developed using Tensorflow 1.x(Tested on version 1.10 to 1.15). This repository includes a complete suite for hyperspectral and lidar, neural net based classification. Primary features :
+Developed using Tensorflow 1.x(Tested on version 1.15). This repository includes a complete suite for hyperspectral and lidar, neural net based classification. Primary features:
 - Support for hyperparameter estimation
 - Plug-in based neural network implementation( via NNModel interface )
 - Plug-in based data set integration( via DataLoader interface )
@@ -31,7 +31,7 @@ https://drive.google.com/drive/folders/1oiNRuPAkQ1MpJEUjKYE8YtXpcM405usE?usp=sha
 Each data set has its own licensing, and you should include them in your paper/work.
 
 # Requirements
-Work with Python 3.6 and 3.7. Library requirements are placed in "requirements.txt".
+Works with Python 3.7 and library requirements are placed in "requirements.txt".
 
 # Source Files
 - notebook.ipynb : A sample notebook for executing the developed ML models.
