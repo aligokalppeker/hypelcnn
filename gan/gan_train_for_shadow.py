@@ -9,14 +9,13 @@ from absl import flags
 from tensorflow.python.training.monitored_session import Scaffold, USE_DEFAULT
 from tensorflow_core.python import data
 from tensorflow_core.python.data.experimental import shuffle_and_repeat
-from tensorflow_core.python.framework.config import list_physical_devices, set_memory_growth
 from tensorflow_core.python.platform import gfile
 from tensorflow_core.python.training.basic_session_run_hooks import StopAtStepHook, LoggingTensorHook
 from tensorflow_core.python.training.device_setter import replica_device_setter
 from tensorflow_core.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
-from common_nn_operations import get_class
+from common_nn_operations import get_class, set_all_gpu_config
 from cut_wrapper import CUTWrapper
 from cycle_gan_wrapper import CycleGANWrapper
 from gan_common import InitializerHook, model_base_name
@@ -290,8 +289,7 @@ def main(_):
         if not FLAGS.max_number_of_steps:
             return
 
-        gpu = list_physical_devices("GPU")
-        set_memory_growth(gpu[0], True)
+        set_all_gpu_config()
 
         training_scaffold = Scaffold(saver=tf.train.Saver(max_to_keep=20))
 

@@ -563,3 +563,17 @@ def load_shadow_map_common(data_set, neighborhood, shadow_file_name):
     shadow_ratio = None if data_set is None else calculate_shadow_ratio(data_set.casi, shadow_map,
                                                                         numpy.logical_not(shadow_map).astype(int))
     return shadow_map, shadow_ratio
+
+
+def set_all_gpu_config():
+    gpus = tf.config.experimental.list_physical_devices("GPU")
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices("GPU")
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)

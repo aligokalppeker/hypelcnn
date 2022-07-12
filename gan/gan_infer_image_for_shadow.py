@@ -11,8 +11,10 @@ from absl import flags
 from tifffile import imwrite
 from tqdm import tqdm
 
-from common_nn_operations import get_class
-from gan_infer_for_shadow import get_wrapper_dict
+from common_nn_operations import get_class, set_all_gpu_config
+from cut_wrapper import CUTInferenceWrapper
+from cycle_gan_wrapper import CycleGANInferenceWrapper
+from gan_wrapper import GANInferenceWrapper
 from hsi_rgb_converter import get_rgb_from_hsi
 
 required_tensorflow_version = "1.14.0"
@@ -84,8 +86,7 @@ def main(_):
                                                                                                   shadow,
                                                                                                   clip_invalid_values=False)
 
-    gpu = tf.config.experimental.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(gpu[0], True)
+    set_all_gpu_config()
     with tf.Session() as sess:
         if make_them_shadow != "none":
             gan_inference_wrapper_dict[FLAGS.gan_type].create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
@@ -120,7 +121,7 @@ def main(_):
             convert_region_suffix = "all"
 
         imwrite(os.path.join(FLAGS.output_path, f"shadow_image_{make_them_shadow}_{convert_region_suffix}.tif"),
-                hsi_image, planarconfig='contig')
+                hsi_image, planarconfig="contig")
 
         hsi_image = hsi_image.astype(float)
         hsi_image -= data_set.casi_min
@@ -128,6 +129,15 @@ def main(_):
         hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 255).astype(numpy.uint8)
         imwrite(os.path.join(FLAGS.output_path, f"shadow_image_rgb_{make_them_shadow}_{convert_region_suffix}.tif"),
                 hsi_as_rgb)
+
+
+def get_wrapper_dict():
+    gan_inference_wrapper_dict = {"cycle_gan": CycleGANInferenceWrapper(),
+                                  "gan_x2y": GANInferenceWrapper(fetch_shadows=False),
+                                  "gan_y2x": GANInferenceWrapper(fetch_shadows=True),
+                                  "cut_x2y": CUTInferenceWrapper(fetch_shadows=False),
+                                  "cut_y2x": CUTInferenceWrapper(fetch_shadows=True)}
+    return gan_inference_wrapper_dict
 
 
 if __name__ == '__main__':

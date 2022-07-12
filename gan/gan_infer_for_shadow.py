@@ -9,7 +9,7 @@ import tensorflow as tf
 from absl import flags
 from tensorflow_core.python.training.session_run_hook import SessionRunContext
 
-from common_nn_operations import get_class
+from common_nn_operations import get_class, set_all_gpu_config
 from cut_wrapper import CUTInferenceWrapper
 from cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan_wrapper import GANInferenceWrapper
@@ -67,8 +67,7 @@ def main(_):
                                                                             shadow_ratio=shadow_ratio,
                                                                             validation_sample_count=FLAGS.number_of_samples)
 
-    gpu = tf.config.experimental.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(gpu[0], True)
+    set_all_gpu_config()
     with tf.Session() as sess:
         gan_inference_wrapper_dict[FLAGS.gan_type].create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
         hook.after_create_session(sess, None)
