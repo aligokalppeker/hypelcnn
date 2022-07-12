@@ -10,6 +10,7 @@ from absl import flags
 from tensorflow_core.python.training.session_run_hook import SessionRunContext
 
 from common_nn_operations import get_class
+from cut_wrapper import CUTInferenceWrapper
 from cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan_wrapper import GANInferenceWrapper
 
@@ -57,9 +58,7 @@ def main(_):
     # print_tensors_in_checkpoint_file(FLAGS.checkpoint_path, tensor_name='ModelX2Y', all_tensors=True)
     shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
 
-    gan_inference_wrapper_dict = {"cycle_gan": CycleGANInferenceWrapper(),
-                                  "gan_x2y": GANInferenceWrapper(fetch_shadows=False),
-                                  "gan_y2x": GANInferenceWrapper(fetch_shadows=True)}
+    gan_inference_wrapper_dict = get_wrapper_dict()
 
     hook = gan_inference_wrapper_dict[FLAGS.gan_type].create_inference_hook(data_set=data_set, loader=loader,
                                                                             log_dir=log_dir,
@@ -76,16 +75,14 @@ def main(_):
         run_context = SessionRunContext(original_args=None, session=sess)
         hook.after_run(run_context=run_context, run_values=None)
 
-        # normal_data_as_matrix, shadow_data_as_matrix = loader.get_targetbased_shadowed_normal_data(data_set,
-        #                                                                                            loader,
-        #                                                                                            shadow_map,
-        #                                                                                            loader.load_samples(
-        #                                                                                                0.1))
-        # # normal_data_as_matrix, shadow_data_as_matrix = loader.get_all_shadowed_normal_data(data_set,
-        # #                                                                             loader,
-        # #                                                                             shadow_map)
-        # print("Target based shadow index")
-        # print(1 / numpy.squeeze(numpy.mean(normal_data_as_matrix, axis=0) / numpy.mean(shadow_data_as_matrix, axis=0)))
+
+def get_wrapper_dict():
+    gan_inference_wrapper_dict = {"cycle_gan": CycleGANInferenceWrapper(),
+                                  "gan_x2y": GANInferenceWrapper(fetch_shadows=False),
+                                  "gan_y2x": GANInferenceWrapper(fetch_shadows=True),
+                                  "cut_x2y": CUTInferenceWrapper(fetch_shadows=False),
+                                  "cut_y2x": CUTInferenceWrapper(fetch_shadows=True)}
+    return gan_inference_wrapper_dict
 
 
 if __name__ == '__main__':

@@ -3,12 +3,11 @@ from __future__ import division, absolute_import, print_function
 import tensorflow as tf
 import tensorflow_gan as tfgan
 from tensorflow_gan import gan_loss
-from tensorflow import reduce_mean
 from tensorflow_core.contrib import slim
 
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, model_generator_name, \
-    adj_shadow_ratio, define_standard_train_ops
+    adj_shadow_ratio, define_standard_train_ops, create_inference_for_matrix_input
 
 
 class GANWrapper:
@@ -91,36 +90,10 @@ class GANInferenceWrapper:
         self.fetch_shadows = fetch_shadows
 
     def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
-        shp = input_tensor.get_shape()
-
-        output_tensor_in_col = []
-        for first_dim in range(shp[1]):
-            output_tensor_in_row = []
-            for second_dim in range(shp[2]):
-                input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 0), 0)
-                with tf.variable_scope(model_base_name):
-                    with tf.variable_scope(model_generator_name, reuse=tf.AUTO_REUSE):
-                        generated_tensor = _shadowdata_generator_model(input_cell, False)
-                        if clip_invalid_values:
-                            input_mean = reduce_mean(input_cell)
-                            generated_mean = reduce_mean(generated_tensor)
-
-                if clip_invalid_values:
-                    result_tensor = tf.cond(
-                        tf.less(generated_mean, input_mean) if is_shadow_graph else tf.greater(generated_mean,
-                                                                                               input_mean),
-                        lambda: generated_tensor,
-                        lambda: input_cell)
-                else:
-                    result_tensor = generated_tensor
-
-                output_tensor_in_row.append(tf.squeeze(result_tensor, [0, 1]))
-            image_output_row = tf.concat(output_tensor_in_row, axis=0)
-            output_tensor_in_col.append(image_output_row)
-
-        image_output_row = tf.stack(output_tensor_in_col)
-
-        return image_output_row
+        with tf.variable_scope(model_base_name):
+            with tf.variable_scope(model_generator_name, reuse=tf.AUTO_REUSE):
+                result = create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values)
+        return result
 
     @staticmethod
     def __create_input_tensor(data_set, is_shadow_graph):

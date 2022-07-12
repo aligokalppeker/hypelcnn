@@ -12,8 +12,8 @@ from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.losses.tuple_losses import args_to_gan_model
 from tensorflow_gan.python.train import _convert_tensor_or_l_or_d, RunTrainOpsHook, gan_loss
 
-from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, model_generator_name, \
-    adj_shadow_ratio, _get_lr
+from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, adj_shadow_ratio, _get_lr
+from gan_wrapper import GANInferenceWrapper
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model, \
     _shadowdata_feature_discriminator_model
 
@@ -678,70 +678,6 @@ class CUTWrapper:
         return shadowed_validation_hook
 
 
-class CUTInferenceWrapper:
+class CUTInferenceWrapper(GANInferenceWrapper):
     def __init__(self, fetch_shadows):
-        self.fetch_shadows = fetch_shadows
-
-    def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
-        shp = input_tensor.get_shape()
-
-        output_tensor_in_col = []
-        for first_dim in range(shp[1]):
-            output_tensor_in_row = []
-            for second_dim in range(shp[2]):
-                input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 0), 0)
-                with tf.variable_scope(model_base_name):
-                    with tf.variable_scope(model_generator_name, reuse=tf.AUTO_REUSE):
-                        generated_tensor = _shadowdata_generator_model(input_cell, False)
-                        if clip_invalid_values:
-                            input_mean = reduce_mean(input_cell)
-                            generated_mean = reduce_mean(generated_tensor)
-
-                if clip_invalid_values:
-                    result_tensor = tf.cond(tf.less(generated_mean, input_mean),
-                                            lambda: generated_tensor,
-                                            lambda: input_cell)
-                else:
-                    result_tensor = generated_tensor
-
-                output_tensor_in_row.append(tf.squeeze(result_tensor, [0, 1]))
-            image_output_row = tf.concat(output_tensor_in_row, axis=0)
-            output_tensor_in_col.append(image_output_row)
-
-        image_output_row = tf.stack(output_tensor_in_col)
-
-        return image_output_row
-
-    @staticmethod
-    def __create_input_tensor(data_set, is_shadow_graph):
-        element_size = data_set.get_data_shape()
-        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
-        input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size,
-                                      name=input_x_tensor_name if is_shadow_graph else input_y_tensor_name)
-        return input_tensor
-
-    def make_inference_graph(self, data_set, is_shadow_graph, clip_invalid_values):
-        input_tensor = self.__create_input_tensor(data_set, is_shadow_graph)
-        generated = self.construct_inference_graph(input_tensor, is_shadow_graph, clip_invalid_values)
-        return input_tensor, generated
-
-    def create_generator_restorer(self):
-        # Restore all the variables that were saved in the checkpoint.
-        gan_restorer = tf.train.Saver(
-            slim.get_variables_to_restore(include=[model_base_name]),
-            name='GeneratorRestoreHandler'
-        )
-        return gan_restorer
-
-    def create_inference_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                              validation_sample_count):
-        input_tensor = self.__create_input_tensor(data_set, self.fetch_shadows)
-        return ValidationHook(iteration_freq=0,
-                              sample_count=validation_sample_count,
-                              log_dir=log_dir,
-                              loader=loader, data_set=data_set, neighborhood=neighborhood,
-                              shadow_map=shadow_map,
-                              shadow_ratio=adj_shadow_ratio(shadow_ratio, self.fetch_shadows),
-                              input_tensor=input_tensor,
-                              infer_model=self.construct_inference_graph(input_tensor, None),
-                              fetch_shadows=self.fetch_shadows, name_suffix="")
+        super().__init__(fetch_shadows)

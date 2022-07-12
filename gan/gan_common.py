@@ -18,6 +18,7 @@ from tensorflow_core.python.training.session_run_hook import SessionRunHook
 from tensorflow_core.python.training.training_util import get_or_create_global_step, get_global_step
 
 from DataLoader import ShadowOperationStruct
+from shadow_data_generator import _shadowdata_generator_model
 
 model_generator_name = "Generator"
 model_base_name = "Model"
@@ -303,6 +304,30 @@ def create_gan_struct(gan_inference_wrapper, model_base_dir, ckpt_relative_path)
     gan_struct = ShadowOperationStruct(shadow_op=gan_shadow_func, shadow_op_creater=gan_shadow_op_creater,
                                        shadow_op_initializer=gan_shadow_op_initializer)
     return gan_struct
+
+
+def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values):
+    first_dim_idx = 1
+    second_dim_idx = 2
+    shp = input_tensor.get_shape()
+    output_tensor_in_col = []
+    for first_dim in range(shp[first_dim_idx]):
+        output_tensor_in_row = []
+        for second_dim in range(shp[second_dim_idx]):
+            input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 1), 1)
+            generated_tensor = _shadowdata_generator_model(input_cell, False)
+            if clip_invalid_values:
+                input_mean = reduce_mean(input_cell)
+                generated_mean = reduce_mean(generated_tensor)
+                result_tensor = tf.cond(
+                    tf.less(generated_mean, input_mean) if is_shadow_graph else tf.greater(generated_mean, input_mean),
+                    true_fn=lambda: generated_tensor,
+                    false_fn=lambda: input_cell)
+            else:
+                result_tensor = generated_tensor
+            output_tensor_in_row.append(result_tensor)
+        output_tensor_in_col.append(tf.concat(output_tensor_in_row, axis=second_dim_idx))
+    return tf.concat(output_tensor_in_col, axis=first_dim_idx)
 
 
 def create_stats_tensor(generate_y_tensor, images_x_input_tensor, shadow_ratio):

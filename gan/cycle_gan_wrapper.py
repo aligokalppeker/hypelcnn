@@ -6,12 +6,11 @@ from tensorflow_gan import gan_loss
 from tensorflow_gan.python import namedtuples
 from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.train import _validate_aux_loss_weight
-from tensorflow import reduce_mean
 from tensorflow_core.contrib import slim
 
 from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
-    model_generator_name, define_standard_train_ops
+    model_generator_name, define_standard_train_ops, create_inference_for_matrix_input
 
 model_forward_generator_name = "ModelX2Y"
 model_backward_generator_name = "ModelY2X"
@@ -125,42 +124,13 @@ class CycleGANWrapper:
 
 class CycleGANInferenceWrapper:
     def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
-        if is_shadow_graph:
-            model_name = model_forward_generator_name
-        else:
-            model_name = model_backward_generator_name
+        model_name = model_forward_generator_name if is_shadow_graph else model_backward_generator_name
+        with tf.variable_scope(model_base_name):
+            with tf.variable_scope(model_name):
+                with tf.variable_scope(model_generator_name, reuse=tf.AUTO_REUSE):
+                    result = create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values)
 
-        shp = input_tensor.get_shape()
-
-        output_tensor_in_col = []
-        for first_dim in range(shp[1]):
-            output_tensor_in_row = []
-            for second_dim in range(shp[2]):
-                input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 0), 0)
-                with tf.variable_scope(model_base_name):
-                    with tf.variable_scope(model_name):
-                        with tf.variable_scope(model_generator_name, reuse=tf.AUTO_REUSE):
-                            generated_tensor = _shadowdata_generator_model(input_cell, False)
-                            if clip_invalid_values:
-                                input_mean = reduce_mean(input_cell)
-                                generated_mean = reduce_mean(generated_tensor)
-
-                if clip_invalid_values:
-                    result_tensor = tf.cond(
-                        tf.less(generated_mean, input_mean) if is_shadow_graph else tf.greater(generated_mean,
-                                                                                               input_mean),
-                        true_fn=lambda: generated_tensor,
-                        false_fn=lambda: input_cell)
-                else:
-                    result_tensor = generated_tensor
-
-                output_tensor_in_row.append(tf.squeeze(result_tensor, [0, 1]))
-            image_output_row = tf.concat(output_tensor_in_row, axis=0)
-            output_tensor_in_col.append(image_output_row)
-
-        image_output_row = tf.stack(output_tensor_in_col)
-
-        return image_output_row
+        return result
 
     def make_inference_graph(self, data_set, is_shadow_graph, clip_invalid_values):
         element_size = data_set.get_data_shape()
