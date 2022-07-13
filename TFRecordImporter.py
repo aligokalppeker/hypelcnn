@@ -14,7 +14,7 @@ TFRecordSpecialData = namedtuple('TFRecordSpecialData', ['shape'])
 
 class TFRecordImporter(DataImporter):
 
-    def read_data_set(self, loader_name, path, test_data_ratio, neighborhood, normalize):
+    def read_data_set(self, loader_name, path, train_data_ratio, test_data_ratio, neighborhood, normalize):
         loader = get_class(loader_name + '.' + loader_name)(path)
 
         model_base_dir = loader.get_model_base_dir()
@@ -58,12 +58,9 @@ class TFRecordImporter(DataImporter):
         testing_data_set = tf.data.TFRecordDataset(testing_path_placeholder).map(
             lambda inp: self.extract_fn(inp, test_data_with_labels.data.shape[1:4], class_count, 'testing'))
 
-        return TFRecordDataTensor(dataset=testing_data_set, importer=self,
-                                  path_placeholder=testing_path_placeholder), \
-               TFRecordDataTensor(dataset=training_data_set, importer=self,
-                                  path_placeholder=training_path_placeholder), \
-               TFRecordDataTensor(dataset=testing_data_set, importer=self,
-                                  path_placeholder=testing_path_placeholder)
+        return TFRecordDataTensor(dataset=testing_data_set, importer=self, path_placeholder=testing_path_placeholder), \
+               TFRecordDataTensor(dataset=training_data_set, importer=self, path_placeholder=training_path_placeholder), \
+               TFRecordDataTensor(dataset=testing_data_set, importer=self, path_placeholder=testing_path_placeholder)
 
     def perform_tensor_initialize(self, session, tensor, nn_params):
         session.run(nn_params.input_iterator.initializer,

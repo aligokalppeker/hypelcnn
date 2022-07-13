@@ -15,7 +15,7 @@ from common_nn_operations import get_class, set_all_gpu_config
 from cut_wrapper import CUTInferenceWrapper
 from cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan_wrapper import GANInferenceWrapper
-from hsi_rgb_converter import get_rgb_from_hsi
+from utilities.hsi_rgb_converter import get_rgb_from_hsi
 
 required_tensorflow_version = "1.14.0"
 if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):

@@ -18,7 +18,7 @@ class GeneratorImporter(DataImporter):
     @staticmethod
     def _iterator_function(targets, loader, data_set):
         for point in targets:
-            yield (loader.get_point_value(data_set, point), point[2])
+            yield loader.get_point_value(data_set, point), point[2]
 
     def read_data_set(self, loader_name, path, train_data_ratio, test_data_ratio, neighborhood, normalize):
         start_time = time.time()

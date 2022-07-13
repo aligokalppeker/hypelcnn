@@ -4,8 +4,6 @@ import collections
 import inspect
 
 import tensorflow as tf
-from tensorflow import reduce_mean
-from tensorflow_core.contrib import slim
 from tensorflow_core.python.training.adam import AdamOptimizer
 from tensorflow_gan.python.contrib_utils import get_trainable_variables, create_train_op
 from tensorflow_gan.python.losses import tuple_losses
