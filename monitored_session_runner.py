@@ -176,7 +176,8 @@ def run_monitored_session(cross_entropy, log_dir, required_steps, class_range,
         session.run(tf.group(tf.global_variables_initializer(),
                              tf.local_variables_initializer()))
         initializer_hook.after_create_session(session, None)
-        while session.run(test_hook._global_step_tensor) < required_steps:
+        step_tensor = tf.train.get_global_step()
+        while session.run(step_tensor) < required_steps:
             try:
                 session.run(train_step)
                 test_hook.after_run_with_session(session)

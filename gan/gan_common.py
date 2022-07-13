@@ -202,31 +202,17 @@ class ValidationHook(BaseValidationHook):
         print(f"Best {self._name_suffix} options:{self.best_ratio_holder}")
 
 
-def construct_gan_inference_graph(input_data, gan_inference_wrapper):
+def construct_gan_inference_graph(input_data, wrapper):
     with tf.device('/cpu:0'):
-        hs_converted = gan_inference_wrapper.construct_inference_graph(tf.expand_dims(input_data[:, :, :-1], axis=0),
-                                                                       is_shadow_graph=True,
-                                                                       clip_invalid_values=False)
+        hs_converted = wrapper.construct_inference_graph(tf.expand_dims(input_data[:, :, :-1], axis=0),
+                                                         is_shadow_graph=True,
+                                                         clip_invalid_values=False)
     axis_id = 2
-    return tf.concat(axis=axis_id, values=[hs_converted, tf.expand_dims(input_data[:, :, -1], axis=-1)])
-
-
-def construct_gan_inference_graph_randomized(input_data, wrapper):
-    # coin = tf.less(tf.random_uniform([1], 0, 1.0)[0], 0.5)
-    # images = tf.cond(coin,
-    #                  lambda: GRSS2013DataLoader.construct_cyclegan_inference_graph(input_data,
-    #                                                                                model_forward_generator_name),
-    #                  lambda: GRSS2013DataLoader.construct_cyclegan_inference_graph(input_data,
-    #                                                                                model_backward_generator_name))
-    images = construct_gan_inference_graph(input_data, wrapper)
-    return images
+    return tf.concat(axis=axis_id, values=[hs_converted[0], input_data[:, :, -1, numpy.newaxis]])
 
 
 def construct_simple_shadow_inference_graph(input_data, shadow_ratio):
-    # coin = tf.less(tf.random_uniform([1], 0, 1.0)[0], 0.5)
-    # images = tf.cond(coin, lambda: input_data / shadow_ratio, lambda: input_data * shadow_ratio)
-    images = input_data / shadow_ratio
-    return images
+    return input_data / shadow_ratio
 
 
 def _get_lr(base_lr, max_number_of_steps):
@@ -290,14 +276,14 @@ def define_standard_train_ops(gan_model, gan_loss, max_number_of_steps,
 
 
 def create_simple_shadow_struct(shadow_ratio):
-    simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, shadow_ratio))
+    simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, numpy.append(shadow_ratio, 1)))
     simple_shadow_struct = ShadowOperationStruct(shadow_op=simple_shadow_func, shadow_op_creater=lambda: None,
                                                  shadow_op_initializer=lambda restorer, session: None)
     return simple_shadow_struct
 
 
 def create_gan_struct(gan_inference_wrapper, model_base_dir, ckpt_relative_path):
-    gan_shadow_func = lambda inp: (construct_gan_inference_graph_randomized(inp, gan_inference_wrapper))
+    gan_shadow_func = lambda inp: (construct_gan_inference_graph(inp, gan_inference_wrapper))
     gan_shadow_op_creater = gan_inference_wrapper.create_generator_restorer
     gan_shadow_op_initializer = lambda restorer, session: (
         restorer.restore(session, model_base_dir + ckpt_relative_path))
