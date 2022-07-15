@@ -3,7 +3,7 @@ import os
 
 import tensorflow as tf
 
-from common_nn_operations import get_class
+from common_nn_operations import get_importer_from_name
 
 
 def main(_):
@@ -28,10 +28,10 @@ def main(_):
                         help='Target path to write the files to')
     flags, unparsed = parser.parse_known_args()
 
-    inmemoryimporter = get_class('InMemoryImporter.InMemoryImporter')()
+    inmemory_importer = get_importer_from_name("InMemoryImporter")
     training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_ratio, class_count, scene_shape, color_list = \
-        inmemoryimporter.read_data_set(flags.loader_name, flags.path, flags.train_ratio, flags.test_ratio,
-                                       flags.neighborhood, True)
+        inmemory_importer.read_data_set(flags.loader_name, flags.path, flags.train_ratio, flags.test_ratio,
+                                        flags.neighborhood, True)
 
     write_metadata_record(os.path.join(flags.target_path, 'metadata.tfrecord'),
                           training_data_with_labels.data, test_data_with_labels.data,

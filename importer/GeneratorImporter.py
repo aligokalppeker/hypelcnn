@@ -4,8 +4,8 @@ from collections import namedtuple
 import numpy
 import tensorflow as tf
 
-from DataImporter import DataImporter
-from common_nn_operations import get_class
+from common_nn_operations import get_loader_from_name
+from importer.DataImporter import DataImporter
 
 GeneratorDataTensor = namedtuple('GeneratorDataTensor', ['dataset', 'importer'])
 
@@ -23,7 +23,7 @@ class GeneratorImporter(DataImporter):
     def read_data_set(self, loader_name, path, train_data_ratio, test_data_ratio, neighborhood, normalize):
         start_time = time.time()
 
-        loader = get_class(loader_name + '.' + loader_name)(path)
+        loader = get_loader_from_name(loader_name, path)
 
         data_set = loader.load_data(neighborhood, normalize)
         sample_set = loader.load_samples(train_data_ratio, test_data_ratio)

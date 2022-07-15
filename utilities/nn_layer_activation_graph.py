@@ -9,10 +9,10 @@ import numpy
 import tensorflow as tf
 from tensorflow.contrib import slim
 
-from DataImporter import DataImporter
-from GeneratorImporter import GeneratorDataTensor, GeneratorImporter
+from importer.DataImporter import DataImporter
+from importer.GeneratorImporter import GeneratorDataTensor, GeneratorImporter
 from cmd_parser import parse_cmd
-from common_nn_operations import get_class, simple_nn_iterator, ModelInputParams, NNParams
+from common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams, get_model_from_name
 
 
 class ControlledDataImporter(DataImporter):
@@ -100,13 +100,11 @@ def main(_):
                         help='Path for saving output images')
     flags = parse_cmd(parser)
 
-    model = get_class(flags.model_name + '.' + flags.model_name)()
-    algorithm_params = model.get_default_params(flags.batch_size)
+    nn_model = get_model_from_name(flags.model_name)()
+    algorithm_params = nn_model.get_default_params(flags.batch_size)
     if flags.algorithm_param_path is not None:
         algorithm_params = json.load(open(flags.algorithm_param_path, 'r'))
 
-    importer_name = flags.importer_name
-    # data_importer = get_class(importer_name + '.' + importer_name)()
     data_importer = ControlledDataImporter()
 
     training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, \
@@ -121,7 +119,7 @@ def main(_):
         validation_data_with_labels,
         class_range)
 
-    deep_nn_template = tf.make_template('nn_core', model.create_tensor_graph, class_count=class_range.stop)
+    deep_nn_template = tf.make_template('nn_core', nn_model.create_tensor_graph, class_count=class_range.stop)
 
     start_time = time.time()
 

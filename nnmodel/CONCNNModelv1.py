@@ -2,8 +2,8 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from hyperopt import hp
 
-from NNModel import NNModel
 from common_nn_operations import ModelOutputTensors
+from nnmodel.NNModel import NNModel
 
 
 class CONCNNModelv1(NNModel):

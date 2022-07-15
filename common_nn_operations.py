@@ -438,6 +438,18 @@ def get_class(kls):
     return m
 
 
+def get_model_from_name(model_name):
+    return get_class("nnmodel." + model_name + '.' + model_name)()
+
+
+def get_importer_from_name(importer_name):
+    return get_class("importer." + importer_name + '.' + importer_name)()
+
+
+def get_loader_from_name(loader_name, path):
+    return get_class("loader." + loader_name + '.' + loader_name)(path)
+
+
 def create_colored_image(target_image, color_list):
     image_colorized = numpy.zeros([target_image.shape[0], target_image.shape[1], 3], dtype=numpy.uint8)
     for col_index in range(0, target_image.shape[0]):

@@ -1,13 +1,13 @@
 import numpy
 from tifffile import imread
 
-from DataLoader import SampleSet
-from GULFPORTDataLoader import GULFPORTDataLoader
 from common_nn_operations import INVALID_TARGET_VALUE, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size, load_shadow_map_common
-from gan.cycle_gan_wrapper import CycleGANInferenceWrapper
-from gan.gan_common import create_gan_struct, create_simple_shadow_struct
-from gan.gan_wrapper import GANInferenceWrapper
+from gan.gan_utilities import create_gan_struct, create_simple_shadow_struct
+from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
+from gan.wrappers.gan_wrapper import GANInferenceWrapper
+from loader.DataLoader import SampleSet
+from loader.GULFPORTDataLoader import GULFPORTDataLoader
 
 
 class GULFPORTALTDataLoader(GULFPORTDataLoader):

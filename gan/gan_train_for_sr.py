@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import distutils
 import math
 import os
 from math import floor, ceil
@@ -14,15 +13,11 @@ from absl import flags
 from tensorflow.contrib.data import shuffle_and_repeat
 from tifffile import imwrite
 
-from GRSS2013DataLoader import GRSS2013DataLoader
-from GRSS2018DataLoader import GRSS2018DataLoader
-from sr_data_generator import _srdata_generator_model, _srdata_discriminator_model, extract_common_normalizer
+from loader.GRSS2013DataLoader import GRSS2013DataLoader
+from loader.GRSS2018DataLoader import GRSS2018DataLoader
+from sr_data_models import _srdata_generator_model, _srdata_discriminator_model, extract_common_normalizer
 
-required_tensorflow_version = "1.14.0"
-if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
-    tfgan = tf.contrib.gan
-else:
-    import tensorflow_gan as tfgan
+import tensorflow_gan as tfgan
 
 flags.DEFINE_integer('batch_size', 3, 'The number of images in each batch.')
 
@@ -324,7 +319,7 @@ def main(_):
         tfgan.gan_train(
             train_ops,
             FLAGS.train_log_dir,
-            save_checkpoint_secs=60*10,
+            save_checkpoint_secs=60 * 10,
             get_hooks_fn=tfgan.get_sequential_train_hooks(train_steps),
             hooks=[
                 initializer_hook,

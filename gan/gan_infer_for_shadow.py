@@ -9,16 +9,10 @@ import tensorflow as tf
 from absl import flags
 from tensorflow_core.python.training.session_run_hook import SessionRunContext
 
-from common_nn_operations import get_class, set_all_gpu_config
-from cut_wrapper import CUTInferenceWrapper
-from cycle_gan_wrapper import CycleGANInferenceWrapper
-from gan_wrapper import GANInferenceWrapper
-
-required_tensorflow_version = "1.14.0"
-if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
-    tfgan = tf.contrib.gan
-else:
-    pass
+from common_nn_operations import set_all_gpu_config, get_loader_from_name
+from gan.wrappers.cut_wrapper import CUTInferenceWrapper
+from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
+from gan.wrappers.gan_wrapper import GANInferenceWrapper
 
 flags.DEFINE_integer('neighborhood', 0, 'Neighborhood of samples.')
 flags.DEFINE_integer('number_of_samples', 6000, 'Number of samples.')
@@ -49,8 +43,7 @@ def main(_):
 
     _validate_flags()
 
-    loader_name = FLAGS.loader_name
-    loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
+    loader = get_loader_from_name(FLAGS.loader_name, FLAGS.path)
     data_set = loader.load_data(neighborhood, True)
     log_dir = "./"
 

@@ -15,12 +15,12 @@ from tensorflow_core.python.training.device_setter import replica_device_setter
 from tensorflow_core.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
-from common_nn_operations import get_class, set_all_gpu_config
-from cut_wrapper import CUTWrapper
-from cycle_gan_wrapper import CycleGANWrapper
-from gan_common import InitializerHook, model_base_name
+from common_nn_operations import set_all_gpu_config, get_loader_from_name
+from gan.wrappers.cut_wrapper import CUTWrapper
+from gan.wrappers.cycle_gan_wrapper import CycleGANWrapper
+from gan.wrappers.gan_common import InitializerHook, model_base_name
 from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
-from gan_wrapper import GANWrapper
+from gan.wrappers.gan_wrapper import GANWrapper
 
 flags.DEFINE_integer('batch_size', 128 * 20, 'The number of images in each batch.')
 
@@ -226,9 +226,8 @@ def main(_):
     with tf.device(replica_device_setter(FLAGS.ps_tasks)):
         validation_iteration_count = FLAGS.validation_itr_count
         validation_sample_count = FLAGS.validation_sample_count
-        loader_name = FLAGS.loader_name
         neighborhood = 0
-        loader = get_class(loader_name + "." + loader_name)(FLAGS.path)
+        loader = get_loader_from_name(FLAGS.loader_name, FLAGS.path)
         data_set = loader.load_data(neighborhood, True)
 
         shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)

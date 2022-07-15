@@ -5,12 +5,13 @@ import time
 
 import numpy
 import tensorflow as tf
-from tensorflow.contrib import slim
+from tensorflow_core.contrib.framework.python.ops.variables import get_variables_to_restore
+
 from tifffile import imsave
 
 from cmd_parser import parse_cmd
-from common_nn_operations import get_class, simple_nn_iterator, ModelInputParams, NNParams, \
-    perform_prediction, create_colored_image
+from common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams, \
+    perform_prediction, create_colored_image, get_importer_from_name, get_model_from_name
 
 
 def main(_):
@@ -20,13 +21,12 @@ def main(_):
                         help='Path for saving output images')
     flags = parse_cmd(parser)
 
-    model = get_class(flags.model_name + '.' + flags.model_name)()
-    algorithm_params = model.get_default_params(flags.batch_size)
+    nn_model = get_model_from_name(flags.model_name)
+    algorithm_params = nn_model.get_default_params(flags.batch_size)
     if flags.algorithm_param_path is not None:
         algorithm_params = json.load(open(flags.algorithm_param_path, 'r'))
 
-    importer_name = flags.importer_name
-    data_importer = get_class(importer_name + '.' + importer_name)()
+    data_importer = get_importer_from_name(flags.importer_name)
 
     training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, \
     scene_shape, color_list = \
@@ -41,7 +41,7 @@ def main(_):
         validation_data_with_labels,
         class_range)
 
-    deep_nn_template = tf.make_template('nn_core', model.create_tensor_graph, class_count=class_range.stop)
+    deep_nn_template = tf.make_template('nn_core', nn_model.create_tensor_graph, class_count=class_range.stop)
 
     start_time = time.time()
 
@@ -57,8 +57,8 @@ def main(_):
 
     prediction = numpy.empty([scene_shape[0] * scene_shape[1]], dtype=numpy.uint8)
 
-    saver = tf.train.Saver(var_list=slim.get_variables_to_restore(include=["nn_core"],
-                                                                  exclude=["image_gen_net_"]))
+    saver = tf.train.Saver(var_list=get_variables_to_restore(include=["nn_core"],
+                                                             exclude=["image_gen_net_"]))
     config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     config.gpu_options.allow_growth = True
     config.gpu_options.per_process_gpu_memory_fraction = 1.0

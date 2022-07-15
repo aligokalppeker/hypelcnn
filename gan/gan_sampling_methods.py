@@ -5,7 +5,7 @@ from abc import abstractmethod, ABC
 import numpy
 from scipy import ndimage
 
-from DataLoader import SampleSet
+from loader.DataLoader import SampleSet
 
 
 class Sampler(ABC):

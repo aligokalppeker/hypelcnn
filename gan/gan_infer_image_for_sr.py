@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import os
 
-import distutils
 import cv2
 import numpy
 import tensorflow as tf
@@ -12,16 +11,10 @@ from absl import flags
 from tifffile import imwrite
 from tqdm import tqdm
 
-from GRSS2013DataLoader import GRSS2013DataLoader
-from GRSS2018DataLoader import GRSS2018DataLoader
-from sr_data_generator import construct_inference_graph, model_forward_generator_name, \
+from loader.GRSS2013DataLoader import GRSS2013DataLoader
+from loader.GRSS2018DataLoader import GRSS2018DataLoader
+from sr_data_models import construct_inference_graph, model_forward_generator_name, \
     model_backward_generator_name, create_generator_restorer, extract_common_normalizer
-
-required_tensorflow_version = "1.14.0"
-if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
-    tfgan = tf.contrib.gan
-else:
-    import tensorflow_gan as tfgan
 
 flags.DEFINE_string('checkpoint_path', '',
                     'CycleGAN checkpoint path created by sr_gann_train.py. '

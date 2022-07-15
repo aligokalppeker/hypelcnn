@@ -3,8 +3,8 @@ from collections import namedtuple
 import numpy as np
 import tensorflow as tf
 
-from DataImporter import DataImporter
-from common_nn_operations import get_class
+from importer.DataImporter import DataImporter
+from common_nn_operations import get_loader_from_name
 
 TFRecordDataInfo = namedtuple('TFRecordDataInfo', ['data', 'path'])
 TFRecordDataTensor = namedtuple('InMemoryDataTensor', ['dataset', 'importer', 'path_placeholder'])
@@ -15,7 +15,7 @@ TFRecordSpecialData = namedtuple('TFRecordSpecialData', ['shape'])
 class TFRecordImporter(DataImporter):
 
     def read_data_set(self, loader_name, path, train_data_ratio, test_data_ratio, neighborhood, normalize):
-        loader = get_class(loader_name + '.' + loader_name)(path)
+        loader = get_loader_from_name(loader_name, path)
 
         model_base_dir = loader.get_model_base_dir()
         for record in tf.python_io.tf_record_iterator(model_base_dir + 'metadata.tfrecord'):

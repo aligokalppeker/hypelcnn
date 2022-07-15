@@ -5,20 +5,10 @@ from hyperopt import hp
 from tensorflow import initializers
 from tensorflow.contrib import slim as slim
 
-from NNModel import NNModel
 from common_nn_operations import ModelOutputTensors, HistogramTensorPair, scale_in_to_out
+from nnmodel.NNModel import NNModel
 
 
-# hyperopt old result :
-# {
-#   "batch_size": 48,
-#   "drop_out_ratio": 0.3055297115008223,
-#   "learning_rate": 0.0002937010046830672,
-#   "learning_rate_decay_factor": 0.96,
-#   "learning_rate_decay_step": 350,
-#   "lrelu_alpha": 0.1802203883485628,
-#   "filter_count": 4800
-# }
 class CNNModelv4(NNModel):
 
     def get_hyper_param_space(self):

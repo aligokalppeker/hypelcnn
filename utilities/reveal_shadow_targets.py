@@ -7,8 +7,8 @@ import numpy
 from tifffile import imwrite
 
 from cmd_parser import parse_cmd
-from common_nn_operations import get_class, create_target_image_via_samples, INVALID_TARGET_VALUE, create_colored_image, \
-    calculate_shadow_ratio
+from common_nn_operations import create_target_image_via_samples, INVALID_TARGET_VALUE, create_colored_image, \
+    calculate_shadow_ratio, get_loader_from_name
 
 BUILDING_CLASS = 7
 BUILDING_SHADOW_CLASS = 6
@@ -30,8 +30,7 @@ def main():
                         help='Path for saving output images')
     flags = parse_cmd(parser)
 
-    loader_name = flags.loader_name
-    loader = get_class(loader_name + '.' + loader_name)(flags.path)
+    loader = get_loader_from_name(flags.loader_name, flags.path)
     sample_set = loader.load_samples(0.1, 0.1)
     data_set = loader.load_data(0, True)
     scene_shape = data_set.get_scene_shape()

@@ -7,7 +7,7 @@ import tensorflow as tf
 from cv2 import resize, matchTemplate, minMaxLoc, rectangle, TM_CCORR_NORMED, INTER_CUBIC, INTER_AREA
 
 from cmd_parser import parse_cmd
-from common_nn_operations import get_class
+from common_nn_operations import get_loader_from_name
 
 
 def main(_):
@@ -23,11 +23,11 @@ def main(_):
     lidar_grss2018_scale = lidar_grss2013_scale / 2.5
 
     loader_name = "GRSS2013DataLoader"
-    loader = get_class(loader_name + '.' + loader_name)(flags.path)
+    loader = get_loader_from_name(loader_name, flags.path)
     grss_2013_data_set = loader.load_data(0, normalize)
 
     loader_name = "GRSS2018DataLoader"
-    loader = get_class(loader_name + '.' + loader_name)(flags.path)
+    loader = get_loader_from_name(loader_name, flags.path)
     grss_2018_data_set = loader.load_data(0, normalize)
 
     grss_2013_band = 8

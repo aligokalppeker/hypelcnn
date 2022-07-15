@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from tifffile import imwrite
 
 from cmd_parser import parse_cmd
-from common_nn_operations import get_class
+from common_nn_operations import get_loader_from_name
 
 
 def main():
@@ -15,8 +15,7 @@ def main():
                         help='Path for saving output images')
     flags = parse_cmd(parser)
 
-    loader_name = flags.loader_name
-    loader = get_class(loader_name + '.' + loader_name)(flags.path)
+    loader = get_loader_from_name(flags.loader_name, flags.path)
 
     sample_set = loader.load_samples(0.1, 0.1)
     data_set = loader.load_data(0, True)

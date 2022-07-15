@@ -17,8 +17,7 @@ from tensorflow_core.python.training.learning_rate_decay import polynomial_decay
 from tensorflow_core.python.training.session_run_hook import SessionRunHook
 from tensorflow_core.python.training.training_util import get_or_create_global_step, get_global_step
 
-from DataLoader import ShadowOperationStruct
-from shadow_data_generator import _shadowdata_generator_model
+from gan.shadow_data_models import _shadowdata_generator_model
 
 model_generator_name = "Generator"
 model_base_name = "Model"
@@ -202,19 +201,6 @@ class ValidationHook(BaseValidationHook):
         print(f"Best {self._name_suffix} options:{self.best_ratio_holder}")
 
 
-def construct_gan_inference_graph(input_data, wrapper):
-    with tf.device('/cpu:0'):
-        hs_converted = wrapper.construct_inference_graph(tf.expand_dims(input_data[:, :, :-1], axis=0),
-                                                         is_shadow_graph=True,
-                                                         clip_invalid_values=False)
-    axis_id = 2
-    return tf.concat(axis=axis_id, values=[hs_converted[0], input_data[:, :, -1, numpy.newaxis]])
-
-
-def construct_simple_shadow_inference_graph(input_data, shadow_ratio):
-    return input_data / shadow_ratio
-
-
 def _get_lr(base_lr, max_number_of_steps):
     """Returns a learning rate `Tensor`.
 
@@ -273,23 +259,6 @@ def define_standard_train_ops(gan_model, gan_loss, max_number_of_steps,
     tf.summary.scalar("generator_lr", gen_lr)
     tf.summary.scalar("discriminator_lr", dis_lr)
     return train_ops
-
-
-def create_simple_shadow_struct(shadow_ratio):
-    simple_shadow_func = lambda inp: (construct_simple_shadow_inference_graph(inp, numpy.append(shadow_ratio, 1)))
-    simple_shadow_struct = ShadowOperationStruct(shadow_op=simple_shadow_func, shadow_op_creater=lambda: None,
-                                                 shadow_op_initializer=lambda restorer, session: None)
-    return simple_shadow_struct
-
-
-def create_gan_struct(gan_inference_wrapper, model_base_dir, ckpt_relative_path):
-    gan_shadow_func = lambda inp: (construct_gan_inference_graph(inp, gan_inference_wrapper))
-    gan_shadow_op_creater = gan_inference_wrapper.create_generator_restorer
-    gan_shadow_op_initializer = lambda restorer, session: (
-        restorer.restore(session, model_base_dir + ckpt_relative_path))
-    gan_struct = ShadowOperationStruct(shadow_op=gan_shadow_func, shadow_op_creater=gan_shadow_op_creater,
-                                       shadow_op_initializer=gan_shadow_op_initializer)
-    return gan_struct
 
 
 def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values):

@@ -8,18 +8,18 @@ import time
 import tensorflow as tf
 from hyperopt import fmin, tpe, Trials, space_eval
 from numpy import std, mean
-from tensorflow.contrib import slim
+from tensorflow_core.contrib.framework.python.ops.variables import get_model_variables
 
 from cmd_parser import parse_cmd
-from common_nn_operations import create_graph, TrainingResult, AugmentationInfo, get_class
+from common_nn_operations import create_graph, TrainingResult, AugmentationInfo, get_model_from_name, \
+    get_importer_from_name
 from monitored_session_runner import run_monitored_session
 
 episode_run_index = 0
 
 
 def perform_an_episode(flags, algorithm_params, model, base_log_path):
-    importer_name = flags.importer_name
-    data_importer = get_class(importer_name + '.' + importer_name)()
+    data_importer = get_importer_from_name(flags.importer_name)
 
     training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, \
     scene_shape, color_list = \
@@ -106,7 +106,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
             tf.summary.scalar('validation_kappa', validation_nn_params.metrics.kappa)
 
             if flags.log_model_params:
-                for variable in slim.get_model_variables():
+                for variable in get_model_variables():
                     tf.summary.histogram(variable.op.name, variable)
 
             episode_start_time = time.time()
@@ -168,7 +168,7 @@ def main(_):
 
     print('Input information:', flags)
 
-    nn_model = get_class(flags.model_name + '.' + flags.model_name)()
+    nn_model = get_model_from_name(flags.model_name)
 
     if flags.max_evals == 1:
         print('Running in single execution training mode')

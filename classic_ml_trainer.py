@@ -11,9 +11,8 @@ from sklearn.svm import SVC
 from tifffile import imsave
 from tqdm import tqdm
 
-import GeneratorImporter
-import InMemoryImporter
-from common_nn_operations import get_class, create_colored_image
+from importer import InMemoryImporter, GeneratorImporter
+from common_nn_operations import create_colored_image, get_loader_from_name
 
 
 def main():
@@ -89,7 +88,7 @@ def main():
 
 
 def perform_full_scene_classification(data_path, loader_name, neighborhood, estimator, batch_size):
-    loader = get_class(loader_name + '.' + loader_name)(data_path)
+    loader = get_loader_from_name(loader_name, data_path)
     data_set = loader.load_data(neighborhood, False)
     scene_shape = data_set.get_scene_shape()
     all_scene_target_array = GeneratorImporter.GeneratorImporter.create_all_scene_target_array(scene_shape)

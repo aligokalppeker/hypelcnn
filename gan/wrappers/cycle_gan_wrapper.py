@@ -8,8 +8,8 @@ from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.train import _validate_aux_loss_weight
 from tensorflow_core.contrib import slim
 
-from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model
-from gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
+from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
+from gan.wrappers.gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
     model_generator_name, define_standard_train_ops, create_inference_for_matrix_input
 
 model_forward_generator_name = "ModelX2Y"

@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/gan/gan_infer_for_shadow.py" />
-    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --checkpoint_path=..\GULFPORT\shadow_cycle_gan\modelv3\model.ckpt-108000 --loader_name=GULFPORTALTDataLoader --neighborhood=0 --number_of_samples=6000 --gan_type=cycle_gan" />
+    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --checkpoint_path=log\model.ckpt-5000 --loader_name=AVONDataLoader --neighborhood=0 --number_of_samples=6000 --gan_type=cycle_gan" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

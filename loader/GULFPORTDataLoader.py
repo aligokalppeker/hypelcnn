@@ -1,9 +1,9 @@
 import numpy
 from tifffile import imread
 
-from DataLoader import DataLoader, SampleSet
 from common_nn_operations import read_targets_from_image, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size, shuffle_test_data_using_ratio, DataSet, get_data_point_func
+from loader.DataLoader import DataLoader, SampleSet
 
 
 class GULFPORTDataLoader(DataLoader):

@@ -10,10 +10,10 @@ from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.losses.tuple_losses import args_to_gan_model
 from tensorflow_gan.python.train import _convert_tensor_or_l_or_d, RunTrainOpsHook, gan_loss
 
-from gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, adj_shadow_ratio, _get_lr
-from gan_wrapper import GANInferenceWrapper
-from shadow_data_generator import _shadowdata_generator_model, _shadowdata_discriminator_model, \
+from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model, \
     _shadowdata_feature_discriminator_model
+from gan.wrappers.gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, adj_shadow_ratio, _get_lr
+from gan.wrappers.gan_wrapper import GANInferenceWrapper
 
 
 class CUTTrainSteps(

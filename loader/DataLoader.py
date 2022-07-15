@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 
 SampleSet = namedtuple('SampleSet', ['validation_targets', 'training_targets', 'test_targets'])
-ShadowOperationStruct = namedtuple('ShadowOperationStruct', ['shadow_op', 'shadow_op_creater', 'shadow_op_initializer'])
 
 
 class DataLoader(ABC):

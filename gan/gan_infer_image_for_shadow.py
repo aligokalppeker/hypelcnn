@@ -11,17 +11,11 @@ from absl import flags
 from tifffile import imwrite
 from tqdm import tqdm
 
-from common_nn_operations import get_class, set_all_gpu_config
-from cut_wrapper import CUTInferenceWrapper
-from cycle_gan_wrapper import CycleGANInferenceWrapper
-from gan_wrapper import GANInferenceWrapper
+from common_nn_operations import set_all_gpu_config, get_loader_from_name
+from gan.wrappers.cut_wrapper import CUTInferenceWrapper
+from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
+from gan.wrappers.gan_wrapper import GANInferenceWrapper
 from utilities.hsi_rgb_converter import get_rgb_from_hsi
-
-required_tensorflow_version = "1.14.0"
-if distutils.version.LooseVersion(tf.__version__) < distutils.version.LooseVersion(required_tensorflow_version):
-    tfgan = tf.contrib.gan
-else:
-    pass
 
 flags.DEFINE_string('checkpoint_path', '',
                     'GAN checkpoint path created by gan_train_for_shadow.py. '
@@ -58,8 +52,7 @@ def main(_):
     _validate_flags()
     make_them_shadow = FLAGS.make_them_shadow
 
-    loader_name = FLAGS.loader_name
-    loader = get_class(loader_name + '.' + loader_name)(FLAGS.path)
+    loader = get_loader_from_name(FLAGS.loader_name, FLAGS.path)
     data_set = loader.load_data(0, True)
     target_data_type = data_set.get_unnormalized_casi_dtype()
     shadow_map, _ = loader.load_shadow_map(0, data_set)
