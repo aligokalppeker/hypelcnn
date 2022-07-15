@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="deep_classification_multigpu" type="PythonConfigurationType" factoryName="Python" singleton="false">
     <module name="Source" />
-    <option name="INTERPRETER_OPTIONS" value="-B" />
+    <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
