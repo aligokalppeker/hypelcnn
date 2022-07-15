@@ -3,10 +3,11 @@
 This repository includes source codes for hyperspectral and LiDAR fusion system for classification and GAN based
 hyperspectral sample generation.
 
-Developed using Tensorflow 1.x(Tested on version 1.15). This repository includes a complete suite for hyperspectral and
-lidar, neural net based classification. Primary features:
+This repository includes a complete suite for hyperspectral and lidar, neural net based classification.
 
-- Support for hyperparameter estimation
+Primary features are:
+
+- Support for hyperparameter estimation via hyperopt
 - Plug-in based neural network implementation( via NNModel interface )
 - Plug-in based data set integration( via DataLoader interface )
 - Data efficient implementations for training( memory efficient/in-memory/record based )
@@ -21,12 +22,13 @@ lidar, neural net based classification. Primary features:
     - Contrastive Unpaired Translation(CUT) GAN
     - Training and evaluation codes.
 
-Source codes can be used for best practices of applying tensorflow 1.x for;
+Project is developed using Tensorflow 1.x(Tested on version 1.15). Source codes can be used for best practices of
+applying Tensorflow 1.x for;
 
-- training large data sets
-- integrating custom metrics
-- merging two different neural networks for data augmentation
-- reading summary file
+- Training large data sets
+- Merging two different neural networks for data augmentation
+- Integrating custom metrics
+- Reading summary file and extracting extra information from it.
 
 # Data sets
 
@@ -42,22 +44,23 @@ Works with Python 3.7 and library requirements are placed in "requirements.txt".
 
 # Source Files
 
-- nnmodel package
+- nnmodel package => Classification model abstraction and implementation
     - NNModel.py : Neural Network definition interface, provides methods for declaring loss function, base parameter
       values, hyper parameter value range.
     - CNNModelv4.py : Model declaration source code for CNN Model V4 (Network model HypeLCNN).
     - DUALCNNModelv1.py : Model declaration source code for CNN Dual Model.
     - CONCNNModelv1.py : Model declaration source code for Context CNN Model.
     - CAPNModelv1.py : Capsule Network Model v2.
-- importer package
+- modelconfigs => Parameter values for corresponding NN models.
+- importer package => TF import strategies
     - DataImporter.py : DataImporter interface class.
-    - InMemoryImporter.py : Tensorflow(1.x)-Placeholder based in memory data importer(fastest but memory inefficient
+    - InMemoryImporter.py : Placeholder based in memory data importer(fastest but memory inefficient
       implementation).
-    - GeneratorImporter.py : Tensorflow(1.x)-Generator based data importer(memory efficient but slower than in memory
+    - GeneratorImporter.py : Generator based data importer(memory efficient but slower than in memory
       implementation.
-    - TFRecordImporter.py : Tensorflow(1.x)-TFRecord based data importer. TFRecord files can be created using
-      utilities\tfrecord_writer.py.
-- loader package
+    - TFRecordImporter.py : TFRecord based data importer. TFRecord files can be created using
+      tfrecord_writer in utilities package.
+- loader package => Data set loader abstraction and various implementations.
     - DataLoader.py : DataLoader interface class, used for integrating different data sets to the training/inference
       system.
     - GRSS2013DataLoader.py : GRSS2013 data set loader implementation.
@@ -65,21 +68,20 @@ Works with Python 3.7 and library requirements are placed in "requirements.txt".
     - GULFPORTDataLoader.py : Gulfport data set loader implementation.
     - GULFPORTALTDataLoader.py : Gulfport data set alternative loader implementation(shadow data augmentation).
     - AVONDataLoader.py : AVON data set loader implementation.
-- gan package
+- gan package => HSI shadow data transformation learning and shadowed data sampling with various GAN methods.
     - gan/gan_infer_for_shadow.py : Gan inference implementation.
     - gan/gan_train_for_shadow.py : Gan training runner.
     - gan.wrapper package
         - gan/*_wrapper.py : Wrappers for various gan archs.
-- utilities package
+- utilities package => Various utility functions for HSI visualization, TF summary read, HSI-LIDAR registration 
     - tfrecord_writer.py : TF record generator from samples.
     - hsi_rgb_converter.py : HSI to RGB conversion script.
     - read_summary_file.py : Reads tensorflow summary file and extract some statistical information.
 - deep_classification_multigpu.py : Terrain classification training execution class.
-- classic_ml_trainer : SVM and Random Forest Classifier implementation using scikit-learn.
-- load_checkpoint_calc_accuracy : Loads a checkpoint file and data set and performs scene classification.
-- monitored_session_runner.py : Tensorflw(1.x) Monitored session runner implementation.
+- load_checkpoint_calc_accuracy.py : Loads a checkpoint file and data set and performs scene classification.
+- monitored_session_runner.py : Tensorflow(1.x) Monitored session runner implementation.
+- classic_ml_trainer.py : SVM and Random Forest Classifier implementation using scikit-learn.
 - notebook.ipynb : A sample notebook for executing the developed ML models.
-- modelconfigs/*.json : Parameter values for different models.
 
 # In progress
 
