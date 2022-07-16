@@ -9,7 +9,7 @@ from tensorflow_core.contrib.framework.python.ops.variables import get_variables
 
 from tifffile import imsave
 
-from cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
+from cmd_parser import add_parse_cmds_for_classification
 from common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams, \
     perform_prediction, create_colored_image, get_importer_from_name, get_model_from_name
 

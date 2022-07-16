@@ -111,7 +111,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
 
             episode_start_time = time.time()
 
-            log_dir = os.path.join(base_log_path, 'log/episode_' + str(episode_run_index) + '/run_' + str(run_index))
+            log_dir = os.path.join(base_log_path, 'episode_' + str(episode_run_index) + '/run_' + str(run_index))
             training_result = run_monitored_session(cross_entropy, log_dir, required_steps, class_range,
                                                     flags.save_checkpoint_steps, flags.validation_steps,
                                                     train_step,
