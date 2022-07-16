@@ -1,9 +1,14 @@
-from collections import namedtuple
-
 import numpy
 import tensorflow as tf
 
-ShadowOperationStruct = namedtuple('ShadowOperationStruct', ['shadow_op', 'shadow_op_creater', 'shadow_op_initializer'])
+
+class ShadowOpHolder:
+
+    def __init__(self, shadow_op, shadow_op_creater, shadow_op_initializer) -> None:
+        super().__init__()
+        self.shadow_op_initializer = shadow_op_initializer
+        self.shadow_op_creater = shadow_op_creater
+        self.shadow_op = shadow_op
 
 
 def _construct_gan_inference_graph(input_data, wrapper):
@@ -17,9 +22,8 @@ def _construct_gan_inference_graph(input_data, wrapper):
 
 def create_simple_shadow_struct(shadow_ratio):
     simple_shadow_func = lambda inp: (inp / numpy.append(shadow_ratio, 1))
-    simple_shadow_struct = ShadowOperationStruct(shadow_op=simple_shadow_func, shadow_op_creater=lambda: None,
-                                                 shadow_op_initializer=lambda restorer, session: None)
-    return simple_shadow_struct
+    return ShadowOpHolder(shadow_op=simple_shadow_func, shadow_op_creater=lambda: None,
+                          shadow_op_initializer=lambda restorer, session: None)
 
 
 def create_gan_struct(gan_inference_wrapper, model_base_dir, ckpt_relative_path):
@@ -27,6 +31,5 @@ def create_gan_struct(gan_inference_wrapper, model_base_dir, ckpt_relative_path)
     gan_shadow_op_creater = gan_inference_wrapper.create_generator_restorer
     gan_shadow_op_initializer = lambda restorer, session: (
         restorer.restore(session, model_base_dir + ckpt_relative_path))
-    gan_struct = ShadowOperationStruct(shadow_op=gan_shadow_func, shadow_op_creater=gan_shadow_op_creater,
-                                       shadow_op_initializer=gan_shadow_op_initializer)
-    return gan_struct
+    return ShadowOpHolder(shadow_op=gan_shadow_func, shadow_op_creater=gan_shadow_op_creater,
+                          shadow_op_initializer=gan_shadow_op_initializer)
