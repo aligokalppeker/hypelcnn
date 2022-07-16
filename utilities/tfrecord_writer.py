@@ -3,7 +3,7 @@ import os
 
 import tensorflow as tf
 
-from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, type_ensure_strtobool
 from common_nn_operations import get_importer_from_name
 
 
@@ -36,8 +36,7 @@ def main(_):
 
 
 def add_parse_cmds_for_apps(parser):
-    parser.add_argument('--compressed', nargs='?', const=True, type=bool,
-                        default=False,
+    parser.add_argument('--compressed', nargs='?', const=True, type=type_ensure_strtobool, default=False,
                         help='If true, performs compression')
 
 

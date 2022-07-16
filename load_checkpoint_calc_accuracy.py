@@ -16,7 +16,6 @@ from common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams,
 
 def main(_):
     parser = argparse.ArgumentParser()
-    add_parse_cmds_for_loggers(parser)
     add_parse_cmds_for_classification(parser)
     flags, unparsed = parser.parse_known_args()
 

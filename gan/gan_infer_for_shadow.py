@@ -45,8 +45,11 @@ def main(_):
 
 
 def add_parse_cmds_for_app(parser):
-    parser.add_argument("--number_of_samples", nargs="?", type=int, default=6000, help="Number of samples.")
-    parser.add_argument("--gan_type", nargs="?", type=str, default="cycle_gan",
+    parser.add_argument("--number_of_samples", nargs="?", type=int,
+                        default=6000,
+                        help="Number of samples.")
+    parser.add_argument("--gan_type", nargs="?", type=str,
+                        default="cycle_gan",
                         help="Gan type to train, possible values; cycle_gan, gan_x2y and gan_y2x")
 
 

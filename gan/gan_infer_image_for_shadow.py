@@ -10,7 +10,7 @@ import tensorflow as tf
 from tifffile import imwrite
 from tqdm import tqdm
 
-from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, type_ensure_strtobool
 from common_nn_operations import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
@@ -23,7 +23,7 @@ def add_parse_cmds_for_app(parser):
                         help="Gan type to train, possible values; cycle_gan, gan_x2y and gan_y2x")
     parser.add_argument("--make_them_shadow", nargs="?", type=str, default="",
                         help="makes the scene shadowed(shadow), non shadowed(deshadow), or empty(none)")
-    parser.add_argument("--convert_all", nargs="?", type=bool, default=False,
+    parser.add_argument("--convert_all", nargs="?", type=type_ensure_strtobool, default=False,
                         help="Whether to convert filtered pixels(shadowed or not) or all.")
 
 

@@ -1,5 +1,9 @@
 import os
+from distutils.util import strtobool
 
+
+def type_ensure_strtobool(val):
+    return bool(strtobool(str(val)))
 
 def add_parse_cmds_for_classification(parser):
     add_parse_cmds_for_loader(parser)
@@ -9,22 +13,22 @@ def add_parse_cmds_for_classification(parser):
     parser.add_argument("--importer_name", nargs="?", const=True, type=str,
                         default="InMemoryImporter",
                         help="Data set loader name, Values : GRSS2013DataLoader")
-    parser.add_argument("--perform_validation", nargs="?", const=True, type=bool,
+    parser.add_argument("--perform_validation", nargs="?", const=True, type=type_ensure_strtobool,
                         default=False,
                         help="If true, performs validation after training phase.")
-    parser.add_argument("--augment_data_with_rotation", nargs="?", const=True, type=bool,
+    parser.add_argument("--augment_data_with_rotation", nargs="?", const=True, type=type_ensure_strtobool,
                         default=False,
                         help="If true, input data is augmented with synthetic rotational(90 degrees) input.")
     parser.add_argument("--augment_data_with_shadow", nargs="?", const=True, type=str,
                         default=None,
                         help="Given a method name, input data is augmented with shadow data(cycle_gan or simple")
-    parser.add_argument("--augment_data_with_reflection", nargs="?", const=True, type=bool,
+    parser.add_argument("--augment_data_with_reflection", nargs="?", const=True, type=type_ensure_strtobool,
                         default=False,
                         help="If true, input data is augmented with synthetic reflection input.")
     parser.add_argument("--augmentation_random_threshold", nargs="?", type=float,
                         default=0.5,
                         help="Augmentation randomization threshold.")
-    parser.add_argument("--offline_augmentation", nargs="?", const=True, type=bool,
+    parser.add_argument("--offline_augmentation", nargs="?", const=True, type=type_ensure_strtobool,
                         default=False,
                         help="If added, input data is augmented offline in a randomized fashion.")
     parser.add_argument("--device", nargs="?", type=str,
@@ -57,7 +61,7 @@ def add_parse_cmds_for_classification(parser):
     parser.add_argument("--all_data_shuffle_ratio", nargs="?", type=float,
                         default=None,
                         help="If given as a valid ratio, validation and training data is shuffled and redistributed")
-    parser.add_argument("--log_model_params", nargs="?", const=True, type=bool,
+    parser.add_argument("--log_model_params", nargs="?", const=True, type=type_ensure_strtobool,
                         default=False,
                         help="If added, logs model histogram to the tensorboard file.")
 

@@ -11,7 +11,8 @@ from sklearn.svm import SVC
 from tifffile import imsave
 from tqdm import tqdm
 
-from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
+    type_ensure_strtobool
 from importer import InMemoryImporter, GeneratorImporter
 from common_nn_operations import create_colored_image, get_loader_from_name
 
@@ -68,10 +69,10 @@ def main():
 
 
 def add_parse_cmds_for_app(parser):
-    parser.add_argument("--hyperparamopt", nargs="?", const=True, type=bool,
+    parser.add_argument("--hyperparamopt", nargs="?", const=True, type=type_ensure_strtobool,
                         default=False,
                         help="If true, performs hyper parameter optimization.")
-    parser.add_argument("--fullscene", nargs="?", const=True, type=bool,
+    parser.add_argument("--fullscene", nargs="?", const=True, type=type_ensure_strtobool,
                         default=False,
                         help="If true, performs full scene classification.")
     parser.add_argument("--split_count", nargs="?", type=int,

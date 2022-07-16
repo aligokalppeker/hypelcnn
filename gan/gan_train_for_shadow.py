@@ -14,7 +14,8 @@ from tensorflow_core.python.training.device_setter import replica_device_setter
 from tensorflow_core.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
-from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
+    type_ensure_strtobool
 from common_nn_operations import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANWrapper
@@ -27,7 +28,7 @@ def add_parse_cmds_for_app(parser):
     parser.add_argument("--gan_type", nargs="?", type=str, default="cycle_gan",
                         help="Gan type to train, possible values; cycle_gan, gan_x2y and gan_y2x")
 
-    parser.add_argument("--use_identity_loss", nargs="?", type=bool, default=True,
+    parser.add_argument("--use_identity_loss", nargs="?", type=type_ensure_strtobool, default=True,
                         help="Whether to use identity loss during training.")
     parser.add_argument("--identity_loss_weight", nargs="?", type=float, default=0.5,
                         help="The weight of cycle consistency loss.")
