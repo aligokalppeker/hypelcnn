@@ -2,57 +2,41 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import distutils
+import argparse
 import os
 
 import numpy
 import tensorflow as tf
-from absl import flags
 from tifffile import imwrite
 from tqdm import tqdm
 
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers
 from common_nn_operations import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper
 from utilities.hsi_rgb_converter import get_rgb_from_hsi
 
-flags.DEFINE_string('checkpoint_path', '',
-                    'GAN checkpoint path created by gan_train_for_shadow.py. '
-                    '(e.g. "/mylogdir/model.ckpt-18442")')
 
-flags.DEFINE_string('loader_name', "GRSS2013DataLoader",
-                    'Directory where to read the image inputs.')
-
-flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
-                    'Directory where to read the image inputs.')
-
-flags.DEFINE_string('output_path', '',
-                    'Output path to create tiff files. '
-                    '(e.g. "/mylogdir/")')
-
-flags.DEFINE_string('gan_type', "cycle_gan",
-                    'Gan type to train, one of the values can be selected for it; cycle_gan, gan_x2y and gan_y2x')
-
-flags.DEFINE_string('make_them_shadow', "",
-                    'makes the scene shadowed(shadow), non shadowed(deshadow), or anything(none)')
-
-flags.DEFINE_bool('convert_all', False,
-                  'Whether to convert filtered pixels(shadowed or not) or all.')
-
-FLAGS = flags.FLAGS
-
-
-def _validate_flags():
-    flags.register_validator('checkpoint_path', bool,
-                             'Must provide `checkpoint_path`.')
+def add_parse_cmds_for_app(parser):
+    parser.add_argument("--gan_type", nargs="?", type=str, default="cycle_gan",
+                        help="Gan type to train, possible values; cycle_gan, gan_x2y and gan_y2x")
+    parser.add_argument("--make_them_shadow", nargs="?", type=str, default="",
+                        help="makes the scene shadowed(shadow), non shadowed(deshadow), or empty(none)")
+    parser.add_argument("--convert_all", nargs="?", type=bool, default=False,
+                        help="Whether to convert filtered pixels(shadowed or not) or all.")
 
 
 def main(_):
-    _validate_flags()
-    make_them_shadow = FLAGS.make_them_shadow
+    parser = argparse.ArgumentParser()
+    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_app(parser)
+    flags, unparsed = parser.parse_known_args()
 
-    loader = get_loader_from_name(FLAGS.loader_name, FLAGS.path)
+    make_them_shadow = flags.make_them_shadow
+
+    loader = get_loader_from_name(flags.loader_name, flags.path)
     data_set = loader.load_data(0, True)
     target_data_type = data_set.get_unnormalized_casi_dtype()
     shadow_map, _ = loader.load_shadow_map(0, data_set)
@@ -61,7 +45,7 @@ def main(_):
     element_size = data_set.get_data_shape()
     element_size = [element_size[0], element_size[1], data_set.get_casi_band_count()]
 
-    convert_only_the_convenient_pixels = not FLAGS.convert_all
+    convert_only_the_convenient_pixels = not flags.convert_all
     if make_them_shadow == "shadow":
         shadow = True
         sign_to_filter_in_shadow_map = 0
@@ -75,14 +59,14 @@ def main(_):
 
     gan_inference_wrapper_dict = get_wrapper_dict()
 
-    input_tensor, output_tensor = gan_inference_wrapper_dict[FLAGS.gan_type].make_inference_graph(data_set,
+    input_tensor, output_tensor = gan_inference_wrapper_dict[flags.gan_type].make_inference_graph(data_set,
                                                                                                   shadow,
                                                                                                   clip_invalid_values=False)
 
     set_all_gpu_config()
     with tf.Session() as sess:
         if make_them_shadow != "none":
-            gan_inference_wrapper_dict[FLAGS.gan_type].create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
+            gan_inference_wrapper_dict[flags.gan_type].create_generator_restorer().restore(sess, flags.base_log_path)
 
         screen_size_first_dim = scene_shape[0]
         screen_size_sec_dim = scene_shape[1]
@@ -113,14 +97,14 @@ def main(_):
         else:
             convert_region_suffix = "all"
 
-        imwrite(os.path.join(FLAGS.output_path, f"shadow_image_{make_them_shadow}_{convert_region_suffix}.tif"),
+        imwrite(os.path.join(flags.output_path, f"shadow_image_{make_them_shadow}_{convert_region_suffix}.tif"),
                 hsi_image, planarconfig="contig")
 
         hsi_image = hsi_image.astype(float)
         hsi_image -= data_set.casi_min
         hsi_image /= data_set.casi_max
         hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 255).astype(numpy.uint8)
-        imwrite(os.path.join(FLAGS.output_path, f"shadow_image_rgb_{make_them_shadow}_{convert_region_suffix}.tif"),
+        imwrite(os.path.join(flags.output_path, f"shadow_image_rgb_{make_them_shadow}_{convert_region_suffix}.tif"),
                 hsi_as_rgb)
 
 

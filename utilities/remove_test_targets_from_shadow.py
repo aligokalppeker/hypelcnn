@@ -1,19 +1,17 @@
 import argparse
-import os
 
 import matplotlib.pyplot as plt
 from tifffile import imwrite
 
-from cmd_parser import parse_cmd
+from cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
 from common_nn_operations import get_loader_from_name
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--output_path', nargs='?', const=True, type=str,
-                        default=os.path.dirname(__file__),
-                        help='Path for saving output images')
-    flags = parse_cmd(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_classification(parser)
+    flags, unparsed = parser.parse_known_args()
 
     loader = get_loader_from_name(flags.loader_name, flags.path)
 

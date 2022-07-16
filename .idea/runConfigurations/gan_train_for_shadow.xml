@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/gan/gan_train_for_shadow.py" />
-    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --loader_name=AVONDataLoader --max_number_of_steps=800000 --pairing_method=neighbour --cycle_consistency_loss_weight=10 --batch_size=32 --identity_loss_weight=0.0 --use_identity_loss=False --gan_type=cycle_gan --regularization_support_rate=0.35" />
+    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --loader_name=AVONDataLoader --max_number_of_steps=800000 --pairing_method=neighbour --cycle_consistency_loss_weight=10 --batch_size=32 --identity_loss_weight=0.0 --use_identity_loss=False --gan_type=cycle_gan --regularization_support_rate=0.35 --base_log_path=./gan/log" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

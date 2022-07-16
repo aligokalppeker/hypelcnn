@@ -2,56 +2,22 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import argparse
 import math
-import os
 from math import floor, ceil
 
 import cv2
 import numpy
 import tensorflow as tf
-from absl import flags
 from tensorflow.contrib.data import shuffle_and_repeat
 from tifffile import imwrite
 
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers
 from loader.GRSS2013DataLoader import GRSS2013DataLoader
 from loader.GRSS2018DataLoader import GRSS2018DataLoader
 from sr_data_models import _srdata_generator_model, _srdata_discriminator_model, extract_common_normalizer
 
 import tensorflow_gan as tfgan
-
-flags.DEFINE_integer('batch_size', 3, 'The number of images in each batch.')
-
-flags.DEFINE_string('master', '', 'Name of the TensorFlow master to use.')
-
-flags.DEFINE_string('train_log_dir', os.path.join(os.path.dirname(__file__), 'log'),
-                    'Directory where to write event logs.')
-
-flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
-                    'Directory where to read the image inputs.')
-
-flags.DEFINE_float('generator_lr', 0.0002,
-                   'The compression model learning rate.')
-
-flags.DEFINE_float('discriminator_lr', 0.0002,
-                   'The discriminator learning rate.')
-
-flags.DEFINE_integer('max_number_of_steps', 5000,
-                     'The maximum number of gradient steps.')
-
-flags.DEFINE_integer(
-    'ps_tasks', 0,
-    'The number of parameter servers. If the value is 0, then the parameters '
-    'are handled locally by the worker.')
-
-flags.DEFINE_integer(
-    'task', 0,
-    'The Task ID. This value is used when training with multiple workers to '
-    'identify each worker.')
-
-flags.DEFINE_float('cycle_consistency_loss_weight', 10.0,
-                   'The weight of cycle consistency loss')
-
-FLAGS = flags.FLAGS
 
 
 class InitializerHook(tf.train.SessionRunHook):
@@ -102,7 +68,7 @@ def get_grss2018_data(hsi_grss2018, hsi2013_x_idx, hsi2013_y_idx, scale, spatial
     return grss_2018_scaled
 
 
-def load_op(batch_size, iteration_count):
+def load_op(batch_size, iteration_count, path):
     hsi_2013_spatial_repeat = 10
     hsi_2018_spectral_repeat = 3
 
@@ -110,8 +76,8 @@ def load_op(batch_size, iteration_count):
     neighborhood = 0
     band_size = 144
 
-    grss2013_data_set = GRSS2013DataLoader(FLAGS.path).load_data(neighborhood, False)
-    grss2018_data_set = GRSS2018DataLoader(FLAGS.path).load_data(neighborhood, False)
+    grss2013_data_set = GRSS2013DataLoader(path).load_data(neighborhood, False)
+    grss2018_data_set = GRSS2018DataLoader(path).load_data(neighborhood, False)
     hsi2013_global_minimum, hsi2018_global_minimum, hsi2013_global_maximum, hsi2018_global_maximum = \
         extract_common_normalizer(grss2013_data_set.casi, grss2018_data_set.casi)
 
@@ -207,7 +173,7 @@ def _define_model(images_x, images_y):
     return cyclegan_model
 
 
-def _get_lr(base_lr):
+def _get_lr(base_lr, step):
     """Returns a learning rate `Tensor`.
 
     Args:
@@ -216,17 +182,17 @@ def _get_lr(base_lr):
 
     Returns:
       A scalar float `Tensor` of learning rate which equals `base_lr` when the
-      global training step is less than FLAGS.max_number_of_steps / 2, afterwards
+      global training step is less than flags.max_number_of_steps / 2, afterwards
       it linearly decays to zero.
     """
     global_step = tf.train.get_or_create_global_step()
-    lr_constant_steps = FLAGS.max_number_of_steps // 2
+    lr_constant_steps = step // 2
 
     def _lr_decay():
         return tf.train.polynomial_decay(
             learning_rate=base_lr,
             global_step=(global_step - lr_constant_steps),
-            decay_steps=(FLAGS.max_number_of_steps - lr_constant_steps),
+            decay_steps=(step - lr_constant_steps),
             end_learning_rate=0.0)
 
     return tf.cond(global_step < lr_constant_steps, lambda: base_lr, _lr_decay)
@@ -251,7 +217,7 @@ def _get_optimizer(gen_lr, dis_lr):
     return gen_opt, dis_opt
 
 
-def _define_train_ops(cyclegan_model, cyclegan_loss):
+def _define_train_ops(cyclegan_model, cyclegan_loss, step, gen_lr, dis_lr):
     """Defines train ops that trains `cyclegan_model` with `cyclegan_loss`.
 
     Args:
@@ -262,8 +228,8 @@ def _define_train_ops(cyclegan_model, cyclegan_loss):
     Returns:
       A `GANTrainOps` namedtuple.
     """
-    gen_lr = _get_lr(FLAGS.generator_lr)
-    dis_lr = _get_lr(FLAGS.discriminator_lr)
+    gen_lr = _get_lr(gen_lr, step)
+    dis_lr = _get_lr(dis_lr, step)
     gen_opt, dis_opt = _get_optimizer(gen_lr, dis_lr)
 
     train_ops = tfgan.gan_train_ops(
@@ -281,18 +247,44 @@ def _define_train_ops(cyclegan_model, cyclegan_loss):
     return train_ops
 
 
-def main(_):
-    if not tf.gfile.Exists(FLAGS.train_log_dir):
-        tf.gfile.MakeDirs(FLAGS.train_log_dir)
+def add_parse_cmds_for_app(parser):
+    parser.add_argument("--cycle_consistency_loss_weight", nargs="?", type=float, default=10.0,
+                        help="The weight of cycle consistency loss.")
 
-    with tf.device(tf.train.replica_device_setter(FLAGS.ps_tasks)):
+    parser.add_argument("--generator_lr", nargs="?", type=float, default=0.0002,
+                        help="The compression model learning rate.")
+    parser.add_argument("--discriminator_lr", nargs="?", type=float, default=0.0001,
+                        help="The discriminator learning rate.")
+
+    parser.add_argument("--master", nargs="?", type=str, default="",
+                        help="Name of the TensorFlow master to use.")
+    parser.add_argument("--ps_tasks", nargs="?", type=int, default=0,
+                        help="The number of parameter servers. If the value is 0, "
+                             "then the parameters are handled locally by the worker.")
+    parser.add_argument("--task", nargs="?", type=int, default=0,
+                        help="The Task ID. This value is used when training with multiple workers to "
+                             "identify each worker.")
+
+
+def main(_):
+    parser = argparse.ArgumentParser()
+    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_app(parser)
+    add_parse_cmds_for_trainers(parser)
+    flags, unparsed = parser.parse_known_args()
+
+    if not tf.gfile.Exists(flags.base_log_path):
+        tf.gfile.MakeDirs(flags.base_log_path)
+
+    with tf.device(tf.train.replica_device_setter(flags.ps_tasks)):
         with tf.name_scope('inputs'):
-            initializer_hook = load_op(FLAGS.batch_size, FLAGS.max_number_of_steps)
+            initializer_hook = load_op(flags.batch_size, flags.step, flags.path)
             training_input_iter = initializer_hook.input_itr
             images_x, images_y = training_input_iter.get_next()
             # Set batch size for summaries.
-            # images_x.set_shape([FLAGS.batch_size, None, None, None])
-            # images_y.set_shape([FLAGS.batch_size, None, None, None])
+            # images_x.set_shape([flags.batch_size, None, None, None])
+            # images_y.set_shape([flags.batch_size, None, None, None])
 
         # Define CycleGAN model.
         cyclegan_model = _define_model(images_x, images_y)
@@ -300,11 +292,12 @@ def main(_):
         # Define CycleGAN loss.
         cyclegan_loss = tfgan.cyclegan_loss(
             cyclegan_model,
-            cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
+            cycle_consistency_loss_weight=flags.cycle_consistency_loss_weight,
             tensor_pool_fn=tfgan.features.tensor_pool)
 
         # Define CycleGAN train ops.
-        train_ops = _define_train_ops(cyclegan_model, cyclegan_loss)
+        train_ops = _define_train_ops(cyclegan_model, cyclegan_loss, flags.step, gen_lr=flags.generator_lr,
+                                      dis_lr=flags.discriminator_lr)
 
         # Training
         train_steps = tfgan.GANTrainSteps(1, 1)
@@ -314,23 +307,21 @@ def main(_):
                 tf.as_string(tf.train.get_or_create_global_step())
             ],
             name='status_message')
-        if not FLAGS.max_number_of_steps:
+        if not flags.step:
             return
         tfgan.gan_train(
             train_ops,
-            FLAGS.train_log_dir,
+            flags.base_log_path,
             save_checkpoint_secs=60 * 10,
             get_hooks_fn=tfgan.get_sequential_train_hooks(train_steps),
             hooks=[
                 initializer_hook,
-                tf.train.StopAtStepHook(num_steps=FLAGS.max_number_of_steps),
+                tf.train.StopAtStepHook(num_steps=flags.step),
                 tf.train.LoggingTensorHook([status_message], every_n_iter=10)
             ],
-            master=FLAGS.master,
-            is_chief=FLAGS.task == 0)
+            master=flags.master,
+            is_chief=flags.task == 0)
 
 
 if __name__ == '__main__':
-    # tf.flags.mark_flag_as_required('image_set_x_file_pattern')
-    # tf.flags.mark_flag_as_required('image_set_y_file_pattern')
     tf.app.run()

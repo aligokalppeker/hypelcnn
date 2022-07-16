@@ -10,7 +10,7 @@ from hyperopt import fmin, tpe, Trials, space_eval
 from numpy import std, mean
 from tensorflow_core.contrib.framework.python.ops.variables import get_model_variables
 
-from cmd_parser import parse_cmd
+from cmd_parser import add_parse_cmds_for_classification
 from common_nn_operations import create_graph, TrainingResult, AugmentationInfo, get_model_from_name, \
     get_importer_from_name
 from monitored_session_runner import run_monitored_session
@@ -164,7 +164,9 @@ def convert_trial_to_dictvalues(trial):
 
 
 def main(_):
-    flags = parse_cmd(argparse.ArgumentParser())
+    parser = argparse.ArgumentParser()
+    add_parse_cmds_for_classification(parser)
+    flags, unparsed = parser.parse_known_args()
 
     print('Input information:', flags)
 

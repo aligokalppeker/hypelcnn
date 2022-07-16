@@ -9,17 +9,16 @@ from tensorflow_core.contrib.framework.python.ops.variables import get_variables
 
 from tifffile import imsave
 
-from cmd_parser import parse_cmd
+from cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
 from common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams, \
     perform_prediction, create_colored_image, get_importer_from_name, get_model_from_name
 
 
 def main(_):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--output_path', nargs='?', const=True, type=str,
-                        default=os.path.dirname(__file__),
-                        help='Path for saving output images')
-    flags = parse_cmd(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_classification(parser)
+    flags, unparsed = parser.parse_known_args()
 
     nn_model = get_model_from_name(flags.model_name)
     algorithm_params = nn_model.get_default_params(flags.batch_size)

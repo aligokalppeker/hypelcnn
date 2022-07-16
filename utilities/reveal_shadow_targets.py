@@ -1,12 +1,11 @@
 import argparse
-import os
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy
 from tifffile import imwrite
 
-from cmd_parser import parse_cmd
+from cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
 from common_nn_operations import create_target_image_via_samples, INVALID_TARGET_VALUE, create_colored_image, \
     calculate_shadow_ratio, get_loader_from_name
 
@@ -25,10 +24,9 @@ def create_shadow_corrected_image(casi_normalized, casi, shadow_map):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--output_path', nargs='?', const=True, type=str,
-                        default=os.path.dirname(__file__),
-                        help='Path for saving output images')
-    flags = parse_cmd(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_classification(parser)
+    flags, unparsed = parser.parse_known_args()
 
     loader = get_loader_from_name(flags.loader_name, flags.path)
     sample_set = loader.load_samples(0.1, 0.1)

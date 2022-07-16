@@ -11,37 +11,17 @@ from sklearn.svm import SVC
 from tifffile import imsave
 from tqdm import tqdm
 
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers
 from importer import InMemoryImporter, GeneratorImporter
 from common_nn_operations import create_colored_image, get_loader_from_name
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path', nargs='?', const=True, type=str,
-                        default='C:/Users/AliGökalp/Documents/phd/data/2013_DFTC/2013_DFTC',
-                        help='Input data path')
-    parser.add_argument('--loader_name', nargs='?', const=True, type=str,
-                        default='GRSS2013DataLoader',
-                        help='Data set loader name, Values : GRSS2013DataLoader')
-    parser.add_argument('--neighborhood', nargs='?', type=int,
-                        default=5,
-                        help='Neighborhood for data extraction')
-    parser.add_argument('--hyperparamopt', nargs='?', const=True, type=bool,
-                        default=False,
-                        help='If true, performs hyper parameter optimization.')
-    parser.add_argument('--fullscene', nargs='?', const=True, type=bool,
-                        default=False,
-                        help='If true, performs full scene classification.')
-    parser.add_argument('--batch_size', nargs='?', type=int,
-                        default=20,
-                        help='Batch size')
-    parser.add_argument('--split_count', nargs='?', type=int,
-                        default=1,
-                        help='Split count')
-    parser.add_argument('--base_log_path', nargs='?', const=True, type=str,
-                        default=os.path.dirname(__file__),
-                        help='Base path for saving logs')
-
+    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_app(parser)
+    add_parse_cmds_for_trainers(parser)
     flags, unparsed = parser.parse_known_args()
 
     loader_name = flags.loader_name
@@ -49,7 +29,7 @@ def main():
     neighborhood = flags.neighborhood
 
     for run_index in range(flags.split_count):
-        print('Starting episode#%d' % run_index)
+        print("Starting episode#%d" % run_index)
 
         data_importer = InMemoryImporter.InMemoryImporter()
         training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_dict, class_range, scene_shape, color_list = \
@@ -64,12 +44,12 @@ def main():
         start_time = time.time()
         estimator = RandomForestClassifier(n_estimators=50, n_jobs=8, max_features=int(2 * sqrt(144)), verbose=False)
         # estimator = ExtraTreesClassifier(n_estimators=10000, n_jobs=8, verbose=1)
-        # estimator = SVC(kernel='poly', degree=1, cache_size=200, verbose=True)  # GRSS2013
-        # estimator = SVC(kernel='rbf', gamma=1e-09, C=10000, cache_size=200) # GRSS2013
-        # estimator = SVC(kernel='rbf', gamma=1e-06, C=1000000, cache_size=1000, verbose=True)  # GULFPORT
+        # estimator = SVC(kernel="poly", degree=1, cache_size=200, verbose=True)  # GRSS2013
+        # estimator = SVC(kernel="rbf", gamma=1e-09, C=10000, cache_size=200) # GRSS2013
+        # estimator = SVC(kernel="rbf", gamma=1e-06, C=1000000, cache_size=1000, verbose=True)  # GULFPORT
 
         estimator.fit(flattened_training_data, training_data_with_labels.labels)
-        print('Completed training(%.3f sec)' % (time.time() - start_time))
+        print("Completed training(%.3f sec)" % (time.time() - start_time))
         predicted_validation_data = estimator.predict(flattened_validation_data)
 
         overall_accuracy = accuracy_score(validation_data_with_labels.labels, predicted_validation_data)
@@ -85,6 +65,18 @@ def main():
 
         if flags.fullscene:
             perform_full_scene_classification(data_path, loader_name, neighborhood, estimator, flags.batch_size)
+
+
+def add_parse_cmds_for_app(parser):
+    parser.add_argument("--hyperparamopt", nargs="?", const=True, type=bool,
+                        default=False,
+                        help="If true, performs hyper parameter optimization.")
+    parser.add_argument("--fullscene", nargs="?", const=True, type=bool,
+                        default=False,
+                        help="If true, performs full scene classification.")
+    parser.add_argument("--split_count", nargs="?", type=int,
+                        default=1,
+                        help="Split count")
 
 
 def perform_full_scene_classification(data_path, loader_name, neighborhood, estimator, batch_size):
@@ -164,5 +156,5 @@ def print_output(algorithm_params, average_accuracy, conf_matrix, kappa, overall
     params_file.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

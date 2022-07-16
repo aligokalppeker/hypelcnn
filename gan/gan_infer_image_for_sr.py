@@ -2,30 +2,20 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import argparse
 import os
 
 import cv2
 import numpy
 import tensorflow as tf
-from absl import flags
 from tifffile import imwrite
 from tqdm import tqdm
 
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers
 from loader.GRSS2013DataLoader import GRSS2013DataLoader
 from loader.GRSS2018DataLoader import GRSS2018DataLoader
 from sr_data_models import construct_inference_graph, model_forward_generator_name, \
     model_backward_generator_name, create_generator_restorer, extract_common_normalizer
-
-flags.DEFINE_string('checkpoint_path', '',
-                    'CycleGAN checkpoint path created by sr_gann_train.py. '
-                    '(e.g. "/mylogdir/model.ckpt-18442")')
-flags.DEFINE_string('output_path', '',
-                    'Output path to create tiff files. '
-                    '(e.g. "/mylogdir/")')
-flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
-                    'Directory where to read the image inputs.')
-
-FLAGS = flags.FLAGS
 
 
 def make_inference_graph(model_name, size):
@@ -40,24 +30,21 @@ def export(sess, input_pl, input_np, output_tensor):
     return output_np
 
 
-def _validate_flags():
-    flags.register_validator('checkpoint_path', bool,
-                             'Must provide `checkpoint_path`.')
-    flags.register_validator('output_path', bool, 'Must provide `output_path`.')
-
-
 def main(_):
-    numpy.set_printoptions(precision=5, suppress=True)
+    parser = argparse.ArgumentParser()
+    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loggers(parser)
+    flags, unparsed = parser.parse_known_args()
 
-    _validate_flags()
+    numpy.set_printoptions(precision=5, suppress=True)
 
     images_x_hwc_pl, generated_y = make_inference_graph(model_forward_generator_name, 10)
     images_y_hwc_pl, generated_x = make_inference_graph(model_backward_generator_name, 10)
 
-    grss2013_loader = GRSS2013DataLoader(FLAGS.path)
+    grss2013_loader = GRSS2013DataLoader(flags.path)
     grss2013_data_set = grss2013_loader.load_data(0, False)
 
-    grss2018_loader = GRSS2018DataLoader(FLAGS.path)
+    grss2018_loader = GRSS2018DataLoader(flags.path)
     grss2018_data_set = grss2018_loader.load_data(0, False)
 
     hsi2013_global_minimum, hsi2018_global_minimum, hsi2013_global_maximum, hsi2018_global_maximum = \
@@ -89,7 +76,7 @@ def main(_):
     progress_bar = tqdm(total=scene_first_dim_size * scene_second_dim_size)
 
     with tf.Session() as sess:
-        create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
+        create_generator_restorer().restore(sess, flags.base_log_path)
 
         for first_dim_idx in range(first_dim_start_index, first_dim_start_index + scene_first_dim_size):
             for second_dim_idx in range(second_dim_start_index, second_dim_start_index + scene_second_dim_size):
@@ -159,7 +146,7 @@ def main(_):
                 # generated_x_data = export(sess, images_y_hwc_pl, generated_grss2018_data, generated_x)
 
     progress_bar.close()
-    imwrite(os.path.join(FLAGS.output_path, "generated_image.tif"),
+    imwrite(os.path.join(flags.output_path, "generated_image.tif"),
             generated_grss2018_scene, planarconfig='contig')
 
 

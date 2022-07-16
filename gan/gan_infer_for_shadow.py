@@ -2,70 +2,52 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import distutils
+import argparse
 
 import numpy
 import tensorflow as tf
-from absl import flags
 from tensorflow_core.python.training.session_run_hook import SessionRunContext
 
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers
 from common_nn_operations import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper
 
-flags.DEFINE_integer('neighborhood', 0, 'Neighborhood of samples.')
-flags.DEFINE_integer('number_of_samples', 6000, 'Number of samples.')
-flags.DEFINE_string('checkpoint_path', '',
-                    'GAN checkpoint path created by gan_train_for_shadow.py. '
-                    '(e.g. "/mylogdir/model.ckpt-18442")')
-
-flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",
-                    'Directory where to read the image inputs.')
-
-flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
-                    'Directory where to read the image inputs.')
-
-flags.DEFINE_string('gan_type', "cycle_gan",
-                    'Gan type to train, one of the values can be selected for it; cycle_gan, gan_x2y and gan_y2x')
-
-FLAGS = flags.FLAGS
-
-
-def _validate_flags():
-    flags.register_validator('checkpoint_path', bool,
-                             'Must provide `checkpoint_path`.')
-
 
 def main(_):
+    parser = argparse.ArgumentParser()
+    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_app(parser)
+    flags, unparsed = parser.parse_known_args()
+
     numpy.set_printoptions(precision=5, suppress=True)
-    neighborhood = FLAGS.neighborhood
-
-    _validate_flags()
-
-    loader = get_loader_from_name(FLAGS.loader_name, FLAGS.path)
-    data_set = loader.load_data(neighborhood, True)
-    log_dir = "./"
-
-    # test_x_data = numpy.full([1, 1, band_size], fill_value=1.0, dtype=float)
-    # print_tensors_in_checkpoint_file(FLAGS.checkpoint_path, tensor_name='ModelX2Y', all_tensors=True)
-    shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
+    loader = get_loader_from_name(flags.loader_name, flags.path)
+    data_set = loader.load_data(flags.neighborhood, True)
+    shadow_map, shadow_ratio = loader.load_shadow_map(flags.neighborhood, data_set)
 
     gan_inference_wrapper_dict = get_wrapper_dict()
 
-    hook = gan_inference_wrapper_dict[FLAGS.gan_type].create_inference_hook(data_set=data_set, loader=loader,
-                                                                            log_dir=log_dir,
-                                                                            neighborhood=neighborhood,
+    hook = gan_inference_wrapper_dict[flags.gan_type].create_inference_hook(data_set=data_set, loader=loader,
+                                                                            log_dir=flags.base_log_path,
+                                                                            neighborhood=flags.neighborhood,
                                                                             shadow_map=shadow_map,
                                                                             shadow_ratio=shadow_ratio,
-                                                                            validation_sample_count=FLAGS.number_of_samples)
+                                                                            validation_sample_count=flags.number_of_samples)
 
     set_all_gpu_config()
     with tf.Session() as sess:
-        gan_inference_wrapper_dict[FLAGS.gan_type].create_generator_restorer().restore(sess, FLAGS.checkpoint_path)
+        gan_inference_wrapper_dict[flags.gan_type].create_generator_restorer().restore(sess, flags.base_log_path)
         hook.after_create_session(sess, None)
         run_context = SessionRunContext(original_args=None, session=sess)
         hook.after_run(run_context=run_context, run_values=None)
+
+
+def add_parse_cmds_for_app(parser):
+    parser.add_argument("--number_of_samples", nargs="?", type=int, default=6000, help="Number of samples.")
+    parser.add_argument("--gan_type", nargs="?", type=str, default="cycle_gan",
+                        help="Gan type to train, possible values; cycle_gan, gan_x2y and gan_y2x")
 
 
 def get_wrapper_dict():

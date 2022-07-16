@@ -3,35 +3,21 @@ import os
 
 import tensorflow as tf
 
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers
 from common_nn_operations import get_importer_from_name
 
 
 def main(_):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path', nargs='?', const=True, type=str,
-                        default='C:/Users/AliGökalp/Documents/phd/data/2013_DFTC/2013_DFTC',
-                        help='Input data path')
-    parser.add_argument('--loader_name', nargs='?', const=True, type=str,
-                        default='GRSS2013DataLoader',
-                        help='Data set loader name, Values : GRSS2013DataLoader')
-    parser.add_argument('--neighborhood', nargs='?', type=int,
-                        default=5,
-                        help='Neighborhood for data extraction')
-    parser.add_argument('--test_ratio', nargs='?', type=float,
-                        default=0.05,
-                        help='Ratio of training data to use in testing')
-    parser.add_argument('--compressed', nargs='?', const=True, type=bool,
-                        default=False,
-                        help='If true, performs compression')
-    parser.add_argument('--target_path', nargs='?', const=True, type=str,
-                        default=os.path.dirname(__file__),
-                        help='Target path to write the files to')
+    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_apps(parser)
     flags, unparsed = parser.parse_known_args()
 
     inmemory_importer = get_importer_from_name("InMemoryImporter")
     training_data_with_labels, test_data_with_labels, validation_data_with_labels, shadow_ratio, class_count, scene_shape, color_list = \
-        inmemory_importer.read_data_set(flags.loader_name, flags.path, flags.train_ratio, flags.test_ratio,
-                                        flags.neighborhood, True)
+        inmemory_importer.read_data_set(flags.loader_name, flags.path, flags.train_ratio, 0.05, flags.neighborhood,
+                                        True)
 
     write_metadata_record(os.path.join(flags.target_path, 'metadata.tfrecord'),
                           training_data_with_labels.data, test_data_with_labels.data,
@@ -47,6 +33,12 @@ def main(_):
                       validation_data_with_labels.data, validation_data_with_labels.labels,
                       flags.compressed)
     pass
+
+
+def add_parse_cmds_for_apps(parser):
+    parser.add_argument('--compressed', nargs='?', const=True, type=bool,
+                        default=False,
+                        help='If true, performs compression')
 
 
 def write_to_tfrecord(train_filename, data, labels, compressed):

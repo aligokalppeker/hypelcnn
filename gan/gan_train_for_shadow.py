@@ -2,10 +2,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
+import argparse
 
 import tensorflow as tf
-from absl import flags
 from tensorflow.python.training.monitored_session import Scaffold, USE_DEFAULT
 from tensorflow_core.python import data
 from tensorflow_core.python.data.experimental import shuffle_and_repeat
@@ -15,6 +14,7 @@ from tensorflow_core.python.training.device_setter import replica_device_setter
 from tensorflow_core.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
+from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers
 from common_nn_operations import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANWrapper
@@ -22,71 +22,47 @@ from gan.wrappers.gan_common import InitializerHook, model_base_name
 from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
 from gan.wrappers.gan_wrapper import GANWrapper
 
-flags.DEFINE_integer('batch_size', 128 * 20, 'The number of images in each batch.')
 
-flags.DEFINE_string('master', '', 'Name of the TensorFlow master to use.')
+def add_parse_cmds_for_app(parser):
+    parser.add_argument("--gan_type", nargs="?", type=str, default="cycle_gan",
+                        help="Gan type to train, possible values; cycle_gan, gan_x2y and gan_y2x")
 
-flags.DEFINE_string('train_log_dir', os.path.join(os.path.dirname(__file__), 'log'),
-                    'Directory where to write event logs.')
+    parser.add_argument("--use_identity_loss", nargs="?", type=bool, default=True,
+                        help="Whether to use identity loss during training.")
+    parser.add_argument("--identity_loss_weight", nargs="?", type=float, default=0.5,
+                        help="The weight of cycle consistency loss.")
 
-flags.DEFINE_float('generator_lr', 0.0002,
-                   'The compression model learning rate.')
+    parser.add_argument("--regularization_support_rate", nargs="?", type=float, default=0.0,
+                        help="The regularization support rate, ranges from 0 to 1, 1 means full support.")
 
-flags.DEFINE_float('discriminator_lr', 0.0001,
-                   'The discriminator learning rate.')
+    parser.add_argument("--cycle_consistency_loss_weight", nargs="?", type=float, default=10.0,
+                        help="The weight of cycle consistency loss.")
+    parser.add_argument("--nce_loss_weight", nargs="?", type=float, default=10.0,
+                        help="The weight of NCE loss.")
 
-flags.DEFINE_float('gen_discriminator_lr', 0.0001,
-                   'The generator discriminator learning rate.')
+    parser.add_argument("--validation_steps", nargs="?", type=int, default=1000,
+                        help="Validation frequency")
+    parser.add_argument("--validation_sample_count", nargs="?", type=int, default=300,
+                        help="Validation sample count")
 
-flags.DEFINE_integer('max_number_of_steps', 50000,
-                     'The maximum number of gradient steps.')
+    parser.add_argument("--generator_lr", nargs="?", type=float, default=0.0002,
+                        help="The compression model learning rate.")
+    parser.add_argument("--discriminator_lr", nargs="?", type=float, default=0.0001,
+                        help="The discriminator learning rate.")
+    parser.add_argument("--gen_discriminator_lr", nargs="?", type=float, default=0.0001,
+                        help="The generator discriminator learning rate.")
+    parser.add_argument("--pairing_method", nargs="?", type=str, default="random",
+                        help="Pairing method for the shadowed and non-shadowed samples. "
+                             "Opts: random, target, dummy, neighbour")
 
-flags.DEFINE_string('loader_name', "C:/GoogleDriveBack/PHD/Tez/Source",
-                    'Directory where to read the image inputs.')
-
-flags.DEFINE_string('path', "C:/GoogleDriveBack/PHD/Tez/Source",
-                    'Directory where to read the image inputs.')
-
-flags.DEFINE_string('pairing_method', "random",
-                    'Pairing method for the shadowed and non-shadowed samples. Opts: random, target, dummy, neighbour')
-
-flags.DEFINE_string('gan_type', "cycle_gan",
-                    'Gan type to train, one of the values can be selected for it; cycle_gan, gan_x2y and gan_y2x')
-
-flags.DEFINE_integer(
-    'validation_itr_count', 1000,
-    'Iteration count to calculate validation statistics')
-
-flags.DEFINE_integer(
-    'validation_sample_count', 300,
-    'Validation sample count')
-
-flags.DEFINE_integer(
-    'ps_tasks', 0,
-    'The number of parameter servers. If the value is 0, then the parameters '
-    'are handled locally by the worker.')
-
-flags.DEFINE_integer(
-    'task', 0,
-    'The Task ID. This value is used when training with multiple workers to '
-    'identify each worker.')
-
-flags.DEFINE_float('cycle_consistency_loss_weight', 10.0,
-                   'The weight of cycle consistency loss')
-
-flags.DEFINE_float('nce_loss_weight', 10.0,
-                   'The weight of nce consistency loss')
-
-flags.DEFINE_float('identity_loss_weight', 0.5,
-                   'The weight of cycle consistency loss')
-
-flags.DEFINE_bool('use_identity_loss', True,
-                  'Whether to use identity loss during training.')
-
-flags.DEFINE_float('regularization_support_rate', 0.0,
-                   'The regularization support rate, ranges from 0 to 1, 1 means full support')
-
-FLAGS = flags.FLAGS
+    parser.add_argument("--master", nargs="?", type=str, default="",
+                        help="Name of the TensorFlow master to use.")
+    parser.add_argument("--ps_tasks", nargs="?", type=int, default=0,
+                        help="The number of parameter servers. If the value is 0, "
+                             "then the parameters are handled locally by the worker.")
+    parser.add_argument("--task", nargs="?", type=int, default=0,
+                        help="The Task ID. This value is used when training with multiple workers to "
+                             "identify each worker.")
 
 
 def gan_train(train_ops,
@@ -134,8 +110,6 @@ def gan_train(train_ops,
     Returns:
       Output of the call to `training.train`.
     """
-    _validate_gan_train_inputs(logdir, is_chief, save_summaries_steps,
-                               save_checkpoint_secs)
     new_hooks = get_hooks_fn(train_ops)
     if hooks is not None:
         hooks = list(hooks) + list(new_hooks)
@@ -158,17 +132,6 @@ def gan_train(train_ops,
         while not session.should_stop():
             gstep = session.run(train_ops.global_step_inc_op)
     return gstep
-
-
-def _validate_gan_train_inputs(logdir, is_chief, save_summaries_steps,
-                               save_checkpoint_secs):
-    if logdir is None and is_chief:
-        if save_summaries_steps:
-            raise ValueError(
-                "logdir cannot be None when save_summaries_steps is not None")
-        if save_checkpoint_secs:
-            raise ValueError(
-                "logdir cannot be None when save_checkpoint_secs is not None")
 
 
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio, reg_support_rate, pairing_method):
@@ -219,24 +182,31 @@ def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_rati
 
 
 def main(_):
-    log_dir = FLAGS.train_log_dir
+    parser = argparse.ArgumentParser()
+    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_trainers(parser)
+    add_parse_cmds_for_app(parser)
+    flags, unparsed = parser.parse_known_args()
+
+    log_dir = flags.base_log_path
     if not gfile.Exists(log_dir):
         gfile.MakeDirs(log_dir)
 
-    with tf.device(replica_device_setter(FLAGS.ps_tasks)):
-        validation_iteration_count = FLAGS.validation_itr_count
-        validation_sample_count = FLAGS.validation_sample_count
+    with tf.device(replica_device_setter(flags.ps_tasks)):
+        validation_iteration_count = flags.validation_steps
+        validation_sample_count = flags.validation_sample_count
         neighborhood = 0
-        loader = get_loader_from_name(FLAGS.loader_name, FLAGS.path)
+        loader = get_loader_from_name(flags.loader_name, flags.path)
         data_set = loader.load_data(neighborhood, True)
 
         shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
 
         with tf.name_scope('inputs'):
-            initializer_hook = load_op(FLAGS.batch_size, FLAGS.max_number_of_steps, loader, data_set,
+            initializer_hook = load_op(flags.batch_size, flags.step, loader, data_set,
                                        shadow_map, shadow_ratio,
-                                       FLAGS.regularization_support_rate,
-                                       FLAGS.pairing_method)
+                                       flags.regularization_support_rate,
+                                       flags.pairing_method)
             training_input_iter = initializer_hook.input_itr
             images_x, images_y = training_input_iter.get_next()
             # Set batch size for summaries.
@@ -244,24 +214,24 @@ def main(_):
             # images_y.set_shape([FLAGS.batch_size, None, None, None])
 
         # Define model.
-        gan_type = FLAGS.gan_type
+        gan_type = flags.gan_type
         gan_train_wrapper_dict = {
-            "cycle_gan": CycleGANWrapper(cycle_consistency_loss_weight=FLAGS.cycle_consistency_loss_weight,
-                                         identity_loss_weight=FLAGS.identity_loss_weight,
-                                         use_identity_loss=FLAGS.use_identity_loss),
-            "gan_x2y": GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
-                                  use_identity_loss=FLAGS.use_identity_loss,
+            "cycle_gan": CycleGANWrapper(cycle_consistency_loss_weight=flags.cycle_consistency_loss_weight,
+                                         identity_loss_weight=flags.identity_loss_weight,
+                                         use_identity_loss=flags.use_identity_loss),
+            "gan_x2y": GANWrapper(identity_loss_weight=flags.identity_loss_weight,
+                                  use_identity_loss=flags.use_identity_loss,
                                   swap_inputs=False),
-            "gan_y2x": GANWrapper(identity_loss_weight=FLAGS.identity_loss_weight,
-                                  use_identity_loss=FLAGS.use_identity_loss,
+            "gan_y2x": GANWrapper(identity_loss_weight=flags.identity_loss_weight,
+                                  use_identity_loss=flags.use_identity_loss,
                                   swap_inputs=True),
-            "cut_x2y": CUTWrapper(nce_loss_weight=FLAGS.nce_loss_weight,
-                                  identity_loss_weight=FLAGS.identity_loss_weight,
-                                  use_identity_loss=FLAGS.use_identity_loss,
+            "cut_x2y": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
+                                  identity_loss_weight=flags.identity_loss_weight,
+                                  use_identity_loss=flags.use_identity_loss,
                                   swap_inputs=False),
-            "cut_y2x": CUTWrapper(nce_loss_weight=FLAGS.nce_loss_weight,
-                                  identity_loss_weight=FLAGS.identity_loss_weight,
-                                  use_identity_loss=FLAGS.use_identity_loss,
+            "cut_y2x": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
+                                  identity_loss_weight=flags.identity_loss_weight,
+                                  use_identity_loss=flags.use_identity_loss,
                                   swap_inputs=True)}
         wrapper = gan_train_wrapper_dict[gan_type]
 
@@ -274,9 +244,9 @@ def main(_):
             the_gan_loss = wrapper.define_loss(the_gan_model)
 
         # Define CycleGAN train ops.
-        train_ops = wrapper.define_train_ops(the_gan_model, the_gan_loss, max_number_of_steps=FLAGS.max_number_of_steps,
-                                             generator_lr=FLAGS.generator_lr, discriminator_lr=FLAGS.discriminator_lr,
-                                             gen_discriminator_lr=FLAGS.gen_discriminator_lr)
+        train_ops = wrapper.define_train_ops(the_gan_model, the_gan_loss, max_number_of_steps=flags.step,
+                                             generator_lr=flags.generator_lr, discriminator_lr=flags.discriminator_lr,
+                                             gen_discriminator_lr=flags.gen_discriminator_lr)
 
         # Training
         status_message = tf.string_join(
@@ -285,8 +255,6 @@ def main(_):
                 tf.as_string(get_or_create_global_step())
             ],
             name="status_message")
-        if not FLAGS.max_number_of_steps:
-            return
 
         set_all_gpu_config()
 
@@ -302,11 +270,11 @@ def main(_):
             hooks=[
                 initializer_hook,
                 peer_validation_hook,
-                StopAtStepHook(num_steps=FLAGS.max_number_of_steps),
+                StopAtStepHook(num_steps=flags.step),
                 LoggingTensorHook([status_message], every_n_iter=1000)
             ],
-            master=FLAGS.master,
-            is_chief=FLAGS.task == 0)
+            master=flags.master,
+            is_chief=flags.task == 0)
 
 
 if __name__ == "__main__":
