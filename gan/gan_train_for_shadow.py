@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import json
 
 import tensorflow as tf
 from tensorflow.python.training.monitored_session import Scaffold, USE_DEFAULT
@@ -16,7 +17,7 @@ from tensorflow_gan.python.train import get_sequential_train_hooks
 
 from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
     type_ensure_strtobool
-from common_nn_operations import set_all_gpu_config, get_loader_from_name
+from common_nn_operations import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
 from gan.wrappers.cut_wrapper import CUTWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANWrapper
 from gan.wrappers.gan_common import InitializerHook, model_base_name
@@ -210,9 +211,6 @@ def main(_):
                                        flags.pairing_method)
             training_input_iter = initializer_hook.input_itr
             images_x, images_y = training_input_iter.get_next()
-            # Set batch size for summaries.
-            # images_x.set_shape([FLAGS.batch_size, None, None, None])
-            # images_y.set_shape([FLAGS.batch_size, None, None, None])
 
         # Define model.
         gan_type = flags.gan_type
@@ -272,7 +270,8 @@ def main(_):
                 initializer_hook,
                 peer_validation_hook,
                 StopAtStepHook(num_steps=flags.step),
-                LoggingTensorHook([status_message], every_n_iter=1000)
+                LoggingTensorHook([status_message], every_n_iter=1000),
+                TextSummaryAtStartHook(log_dir, "flags", json.dumps(vars(flags), indent=3))
             ],
             master=flags.master,
             is_chief=flags.task == 0)

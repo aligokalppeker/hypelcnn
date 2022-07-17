@@ -93,17 +93,17 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
             if not flags.perform_validation:
                 validation_nn_params = None
 
-            tf.summary.scalar('training_cross_entropy', cross_entropy)
-            tf.summary.scalar('training_learning_rate', learning_rate)
+            tf.summary.scalar("training_cross_entropy", cross_entropy)
+            tf.summary.scalar("training_learning_rate", learning_rate)
 
-            tf.summary.text('test_confusion', tf.as_string(testing_nn_params.metrics.confusion))
-            tf.summary.scalar('test_overall_accuracy', testing_nn_params.metrics.accuracy)
+            tf.summary.text("test_confusion", tf.as_string(testing_nn_params.metrics.confusion))
+            tf.summary.scalar("test_overall_accuracy", testing_nn_params.metrics.accuracy)
 
-            tf.summary.text('validation_confusion', tf.as_string(validation_nn_params.metrics.confusion))
-            tf.summary.scalar('validation_overall_accuracy', validation_nn_params.metrics.accuracy)
+            tf.summary.text("validation_confusion", tf.as_string(validation_nn_params.metrics.confusion))
+            tf.summary.scalar("validation_overall_accuracy", validation_nn_params.metrics.accuracy)
 
-            tf.summary.scalar('validation_average_accuracy', validation_nn_params.metrics.mean_per_class_accuracy)
-            tf.summary.scalar('validation_kappa', validation_nn_params.metrics.kappa)
+            tf.summary.scalar("validation_average_accuracy", validation_nn_params.metrics.mean_per_class_accuracy)
+            tf.summary.scalar("validation_kappa", validation_nn_params.metrics.kappa)
 
             if flags.log_model_params:
                 for variable in get_model_variables():
@@ -112,40 +112,40 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
             episode_start_time = time.time()
 
             log_dir = os.path.join(base_log_path, 'episode_' + str(episode_run_index) + '/run_' + str(run_index))
-            training_result = run_monitored_session(cross_entropy, log_dir, required_steps, class_range,
+            training_result = run_monitored_session(cross_entropy, log_dir, class_range,
                                                     flags.save_checkpoint_steps, flags.validation_steps,
-                                                    train_step,
+                                                    train_step, required_steps,
                                                     augmentation_info, flags.device,
                                                     training_nn_params, training_tensor,
                                                     testing_nn_params, testing_tensor,
-                                                    validation_nn_params, validation_tensor)
+                                                    validation_nn_params, validation_tensor,
+                                                    json.dumps(vars(flags), indent=3),
+                                                    json.dumps(algorithm_params, indent=3))
 
-            print('Done training for %.3f sec' % (time.time() - episode_start_time))
+            print(f"Done training for {time.time() - episode_start_time:.3f} sec")
 
             testing_accuracy_list.append(training_result.test_accuracy)
             loss_list.append(training_result.loss)
             if flags.perform_validation:
-                print('Run #%d, Validation accuracy=%g, Testing accuracy=%g, loss=%.2f' % (
-                    run_index, training_result.validation_accuracy, training_result.test_accuracy,
-                    training_result.loss))
+                print(
+                    f"Run #{run_index:d}, Validation accuracy={training_result.validation_accuracy:g}, Testing accuracy={training_result.test_accuracy:g}, loss={training_result.loss:.2f}")
                 validation_accuracy_list.append(training_result.validation_accuracy)
             else:
-                print('Run #%d, Testing accuracy=%g, loss=%.2f' % (
-                    run_index, training_result.test_accuracy,
-                    training_result.loss))
+                print(
+                    f"Run #{run_index:d}, Testing accuracy={training_result.test_accuracy:g}, loss={training_result.loss:.2f}")
 
     mean_validation_accuracy = None
     if flags.perform_validation:
         mean_validation_accuracy = mean(validation_accuracy_list)
         std_validation_accuracy = std(validation_accuracy_list)
         print(
-            'Validation result: (%g) +- (%g)' % (mean_validation_accuracy, std_validation_accuracy))
+            f"Validation result: ({mean_validation_accuracy[0]:g}) +- ({std_validation_accuracy[0]:g})")
     mean_testing_accuracy = mean(testing_accuracy_list)
     std_testing_accuracy = std(testing_accuracy_list)
     mean_loss = mean(loss_list)
     std_loss = std(loss_list)
-    print('Mean testing accuracy result: (%g) +- (%g), Loss result: (%g) +- (%g)'
-          % (mean_testing_accuracy, std_testing_accuracy, mean_loss, std_loss))
+    print(
+        f"Mean testing accuracy result: ({mean_testing_accuracy[0]:g}) +- ({std_testing_accuracy[0]:g}), Loss result: ({mean_loss[0]:g}) +- ({std_loss[0]:g})")
 
     episode_run_index = episode_run_index + 1
 
@@ -167,13 +167,12 @@ def main(_):
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_classification(parser)
     flags, unparsed = parser.parse_known_args()
-
-    print('Input information:', flags)
+    print("Args:", json.dumps(vars(flags), indent=3))
 
     nn_model = get_model_from_name(flags.model_name)
 
     if flags.max_evals == 1:
-        print('Running in single execution training mode')
+        print("Running in single execution training mode")
 
         algorithm_params = nn_model.get_default_params(flags.batch_size)
         if flags.algorithm_param_path is not None:
@@ -183,7 +182,7 @@ def main(_):
         # code for dumping the parameters as json
         # json.dump(algorithm_params, open('algorithm_param_output_cnnv4.json', 'w'), indent=3)
     else:
-        print('Running in hyper parameter optimization mode')
+        print("Running in hyper parameter optimization mode")
         model_space_fun = nn_model.get_hyper_param_space
 
         global episode_run_index
@@ -193,7 +192,7 @@ def main(_):
                 with open(trial_fileaddress, "rb") as read_file:
                     trials = pickle.load(read_file)
                 episode_run_index = len(trials.trials)
-                best = convert_trial_to_dictvalues(trials.best_trial['misc']['vals'])
+                best = convert_trial_to_dictvalues(trials.best_trial["misc"]["vals"])
             except IOError:
                 print("No trials file found. Starting trials from scratch")
                 episode_run_index = 0
@@ -211,7 +210,7 @@ def main(_):
                 max_evals=episode_run_index + 1)
             pickle.dump(trials, open(trial_fileaddress, "wb"))
 
-        json.dump(trials.results, open('trial_results.json', 'w'), indent=3)
+        json.dump(trials.results, open("trial_results.json", "w"), indent=3)
         print(space_eval(model_space_fun(), best))
 
 

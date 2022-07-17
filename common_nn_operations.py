@@ -7,6 +7,8 @@ from tensorflow.contrib.metrics import cohen_kappa
 from tensorflow.contrib.slim.python.slim.learning import create_train_op
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops.metrics_impl import metric_variable
+from tensorflow_core.contrib.learn.python.learn.summary_writer_cache import SummaryWriterCache
+from tensorflow_core.python.training.session_run_hook import SessionRunHook
 from tifffile import imread
 from tqdm import tqdm
 
@@ -166,15 +168,14 @@ def simple_nn_iterator(data_set, batch_size):
 
 
 def optimize_nn(deep_nn_template, images, labels, device_id, name_prefix, algorithm_params, loss_func):
-    model_input_params = ModelInputParams(x=images, y=labels, device_id=device_id, is_training=True)
-    tensor_outputs = deep_nn_template(model_input_params, algorithm_params=algorithm_params)
+    tensor_outputs = deep_nn_template(
+        model_input_params=ModelInputParams(x=images, y=labels, device_id=device_id, is_training=True),
+        algorithm_params=algorithm_params)
 
     with tf.name_scope(name_prefix + '_loss'):
-        cross_entropy_l = loss_func(tensor_outputs, labels)
-        cross_entropy = tf.reduce_mean(cross_entropy_l)
+        cross_entropy = tf.reduce_mean(loss_func(tensor_outputs, labels))
     with tf.name_scope(name_prefix + '_optimizer'):
         global_step = tf.train.get_or_create_global_step()
-
         learning_rate = tf.train.exponential_decay(algorithm_params["learning_rate"],
                                                    global_step,
                                                    algorithm_params["learning_rate_decay_step"],
@@ -261,8 +262,10 @@ def calculate_accuracy(sess, nn_params, class_range):
 
     while True:
         try:
+            # Collect data partially
             sess.run(nn_params.metrics.combined_metric_update_op)
         except tf.errors.OutOfRangeError:
+            # Calculate metrics when data collection is completed
             confusion_matrix = sess.run(nn_params.metrics.confusion)
             overall_accuracy = sess.run(nn_params.metrics.accuracy)
             kappa = sess.run(nn_params.metrics.kappa)
@@ -291,7 +294,7 @@ def perform_prediction(sess, nn_params, prediction_result_arr):
 def create_graph(training_data_set, testing_data_set, validation_data_set, class_range,
                  batch_size, device_id, num_epochs, algorithm_params, model,
                  augmentation_info, create_separate_validation_branch):
-    deep_nn_template = tf.make_template('nn_core', model.create_tensor_graph, class_count=class_range.stop)
+    deep_nn_template = tf.make_template("nn_core", model.create_tensor_graph, class_count=class_range.stop)
     ####################################################################################
     training_input_iter = training_nn_iterator(training_data_set, augmentation_info, batch_size, num_epochs, device_id)
     images, labels = training_input_iter.get_next()
@@ -299,7 +302,7 @@ def create_graph(training_data_set, testing_data_set, validation_data_set, class
     training_y_conv, cross_entropy, learning_rate, train_step = optimize_nn(deep_nn_template,
                                                                             images, labels,
                                                                             device_id=device_id,
-                                                                            name_prefix='training',
+                                                                            name_prefix="training",
                                                                             algorithm_params=algorithm_params,
                                                                             loss_func=model.get_loss_func)
 
@@ -311,7 +314,7 @@ def create_graph(training_data_set, testing_data_set, validation_data_set, class
     model_input_params = ModelInputParams(x=testing_images, y=None, device_id=device_id, is_training=False)
     testing_tensor_outputs = deep_nn_template(model_input_params, algorithm_params=algorithm_params)
     test_metric_ops_holder = create_metrics(testing_labels, testing_tensor_outputs.y_conv, class_range,
-                                            'testing')
+                                            "testing")
     testing_nn_params = NNParams(input_iterator=testing_input_iter, data_with_labels=None,
                                  metrics=test_metric_ops_holder, predict_tensor=None)
     ####################################################################################
@@ -325,7 +328,7 @@ def create_graph(training_data_set, testing_data_set, validation_data_set, class
         validation_tensor_outputs = deep_nn_template(validation_model_input_params, algorithm_params=algorithm_params)
         validation_metric_ops_holder = create_metrics(validation_labels, validation_tensor_outputs.y_conv,
                                                       class_range,
-                                                      'validation')
+                                                      "validation")
         validation_nn_params = NNParams(input_iterator=validation_input_iter, data_with_labels=None,
                                         metrics=validation_metric_ops_holder, predict_tensor=None)
     ####################################################################################
@@ -350,7 +353,7 @@ def add_augmentation_graph(main_cycle_dataset, augmentation_info, rotation_metho
 
 
 def perform_rotation_augmentation(images, labels, augmentation_info):
-    with tf.name_scope('rotation_augmentation'):
+    with tf.name_scope("rotation_augmentation"):
         transforms = [images]
         label_transforms = [labels]
 
@@ -366,7 +369,7 @@ def perform_rotation_augmentation(images, labels, augmentation_info):
 
 def perform_shadow_augmentation(images, labels, augmentation_info):
     shadow_op = augmentation_info.shadow_struct.shadow_op
-    with tf.name_scope('shadow_augmentation'):
+    with tf.name_scope("shadow_augmentation"):
         transforms = [images]
         label_transforms = [labels]
 
@@ -380,7 +383,7 @@ def perform_shadow_augmentation(images, labels, augmentation_info):
 
 
 def perform_reflection_augmentation(images, labels, augmentation_info):
-    with tf.name_scope('reflection_augmentation'):
+    with tf.name_scope("reflection_augmentation"):
         transforms = [images]
         label_transforms = [labels]
 
@@ -397,11 +400,11 @@ def perform_reflection_augmentation(images, labels, augmentation_info):
 
 
 def perform_rotation_augmentation_random(images, labels, augmentation_info):
-    with tf.name_scope('rotation_augmentation'):
-        with tf.device('/cpu:0'):
+    with tf.name_scope("rotation_augmentation"):
+        with tf.device("/cpu:0"):
             # shp = tf.shape(images)
             # batch_size = shp[0]
-            angles = tf.random_uniform([1], 0, 3, dtype='int32')
+            angles = tf.random_uniform([1], 0, 3, dtype="int32")
             images = tf.image.rot90(images, angles[0])
             # images = tf.contrib.image.rotate(images, tf.to_float(angles) * 0.5 * pi)
 
@@ -421,8 +424,8 @@ def perform_shadow_augmentation_random(images, labels, augmentation_info):
 
 
 def perform_reflection_augmentation_random(images, labels, augmentation_info):
-    with tf.name_scope('reflection_augmentation'):
-        with tf.device('/cpu:0'):
+    with tf.name_scope("reflection_augmentation"):
+        with tf.device("/cpu:0"):
             images = tf.image.random_flip_left_right(images)
             images = tf.image.random_flip_up_down(images)
 
@@ -589,3 +592,17 @@ def set_all_gpu_config():
         except RuntimeError as e:
             # Memory growth must be set before GPUs have been initialized
             print(e)
+
+
+class TextSummaryAtStartHook(SessionRunHook):
+
+    def __init__(self, log_dir, name, value):
+        super().__init__()
+        self._log_dir = log_dir
+        value = "<pre>" + value + "</pre>"
+        self._summary_text_tensor = tf.summary.text(name, tf.constant(value=value, name=name + "_tensor"),
+                                                    collections=["custom"])
+
+    def after_create_session(self, session, coord):
+        current_iteration = session.run(tf.train.get_global_step())
+        SummaryWriterCache.get(self._log_dir).add_summary(session.run(self._summary_text_tensor), current_iteration)

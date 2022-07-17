@@ -10,7 +10,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.training.basic_session_run_hooks import StopAtStepHook, NanTensorHook
 from tensorflow.python.training.monitored_session import Scaffold
 
-from common_nn_operations import calculate_accuracy, TrainingResult, set_all_gpu_config
+from common_nn_operations import calculate_accuracy, TrainingResult, set_all_gpu_config, TextSummaryAtStartHook
 
 
 class InitializerHook(tf.train.SessionRunHook):
@@ -103,13 +103,14 @@ class TestHook(tf.train.SessionRunHook):
         print('Training step=%d, Testing accuracy=%g, loss=%.5f' % (iteration, self.testing_accuracy, self.loss))
 
 
-def run_monitored_session(cross_entropy, log_dir, required_steps, class_range,
+def run_monitored_session(cross_entropy, log_dir, class_range,
                           save_checkpoint_steps, validation_steps,
-                          train_step,
+                          train_step, required_steps,
                           augmentation_info, device,
                           training_nn_params, training_tensor,
                           testing_nn_params, testing_tensor,
-                          validation_nn_params, validation_tensor):
+                          validation_nn_params, validation_tensor,
+                          flags_as_json_str, alg_params_as_json_str):
     read_op_value = None
     augmentation_restorer = None
     if augmentation_info.perform_shadow_augmentation:
@@ -126,7 +127,7 @@ def run_monitored_session(cross_entropy, log_dir, required_steps, class_range,
         master = ''
     else:
         config = None
-        tpu_worker = 'grpc://' + os.environ['COLAB_TPU_ADDR']
+        tpu_worker = "grpc://" + os.environ["COLAB_TPU_ADDR"]
         # master = TPUClusterResolver(tpu=tpu_worker).get_master()
         master = tpu_worker
         print("TPU master")
@@ -140,12 +141,16 @@ def run_monitored_session(cross_entropy, log_dir, required_steps, class_range,
     initializer_hook = InitializerHook(training_nn_params, training_tensor, augmentation_info, augmentation_restorer)
     stop_on_step_hook = StopAtStepHook(last_step=required_steps - 1)
     nan_tensor_hook = NanTensorHook(loss_tensor=cross_entropy, fail_on_nan_loss=False)
+    flags_log_hook = TextSummaryAtStartHook(log_dir=log_dir, name="flags", value=flags_as_json_str)
+    algparams_log_hook = TextSummaryAtStartHook(log_dir=log_dir, name="algorithm_params", value=alg_params_as_json_str)
 
     hooks = [initializer_hook,
              validation_hook,
              test_hook,
              stop_on_step_hook,
-             nan_tensor_hook]
+             nan_tensor_hook,
+             flags_log_hook,
+             algparams_log_hook]
 
     if is_gpu_or_cpu:
         # Only restore nn core variables along with the optimizer and global step variables
