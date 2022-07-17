@@ -39,13 +39,11 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
 
     batch_size = algorithm_params["batch_size"]
     epoch = flags.epoch
-    if epoch is None:
-        required_steps = flags.step
-    else:
-        required_steps = int(((training_data_with_labels.data.shape[0] * epoch) / batch_size))
+    required_steps = flags.step if epoch is None else int(
+        ((training_data_with_labels.data.shape[0] * epoch) / batch_size))
 
     global episode_run_index
-    print('Starting episode#%d with steps#%d : %s' % (episode_run_index, required_steps, algorithm_params))
+    print("Starting episode#%d with steps#%d : %s" % (episode_run_index, required_steps, algorithm_params))
 
     validation_accuracy_list = []
     testing_accuracy_list = []
@@ -64,7 +62,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
             # Set random seed as the same value to get consistent results
             tf.set_random_seed(1234)
 
-            print('Starting Run #%d' % run_index)
+            print(f"Starting Run #{run_index:d}")
 
             testing_tensor, training_tensor, validation_tensor = data_importer.convert_data_to_tensor(
                 test_data_with_labels,
@@ -111,7 +109,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
 
             episode_start_time = time.time()
 
-            log_dir = os.path.join(base_log_path, 'episode_' + str(episode_run_index) + '/run_' + str(run_index))
+            log_dir = os.path.join(base_log_path, "episode_" + str(episode_run_index) + "/run_" + str(run_index))
             training_result = run_monitored_session(cross_entropy, log_dir, class_range,
                                                     flags.save_checkpoint_steps, flags.validation_steps,
                                                     train_step, required_steps,
@@ -128,11 +126,13 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
             loss_list.append(training_result.loss)
             if flags.perform_validation:
                 print(
-                    f"Run #{run_index:d}, Validation accuracy={training_result.validation_accuracy:g}, Testing accuracy={training_result.test_accuracy:g}, loss={training_result.loss:.2f}")
+                    f"Run #{run_index:d}, Validation accuracy={training_result.validation_accuracy:g}, "
+                    f"Testing accuracy={training_result.test_accuracy:g}, loss={training_result.loss:.2f}")
                 validation_accuracy_list.append(training_result.validation_accuracy)
             else:
                 print(
-                    f"Run #{run_index:d}, Testing accuracy={training_result.test_accuracy:g}, loss={training_result.loss:.2f}")
+                    f"Run #{run_index:d}, Testing accuracy={training_result.test_accuracy:g}, "
+                    f"loss={training_result.loss:.2f}")
 
     mean_validation_accuracy = None
     if flags.perform_validation:
@@ -145,7 +145,8 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
     mean_loss = mean(loss_list)
     std_loss = std(loss_list)
     print(
-        f"Mean testing accuracy result: ({mean_testing_accuracy[0]:g}) +- ({std_testing_accuracy[0]:g}), Loss result: ({mean_loss[0]:g}) +- ({std_loss[0]:g})")
+        f"Mean testing accuracy result: ({mean_testing_accuracy[0]:g}) +- ({std_testing_accuracy[0]:g}), "
+        f"Loss result: ({mean_loss[0]:g}) +- ({std_loss[0]:g})")
 
     episode_run_index = episode_run_index + 1
 
