@@ -9,7 +9,7 @@ from common_nn_operations import ModelOutputTensors, HistogramTensorPair, scale_
 from nnmodel.NNModel import NNModel
 
 
-class CNNModelv4(NNModel):
+class HYPELCNNModel(NNModel):
 
     def get_hyper_param_space(self):
         return {
@@ -143,9 +143,9 @@ class CNNModelv4(NNModel):
     @staticmethod
     def __create_levels_as_blocks(data_format, level_final_filter_count, netinput, block_level_count, use_residual):
         for index in range(0, block_level_count):
-            next_net = CNNModelv4.__create_a_level(level_final_filter_count // pow(2, index), netinput,
+            next_net = HYPELCNNModel.__create_a_level(level_final_filter_count // pow(2, index), netinput,
                                                    'connector_' + str(index),
-                                                   data_format)
+                                                      data_format)
             if use_residual:
                 next_net = next_net + scale_in_to_out(netinput, next_net, axis_no=3)
 

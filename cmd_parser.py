@@ -5,6 +5,7 @@ from distutils.util import strtobool
 def type_ensure_strtobool(val):
     return bool(strtobool(str(val)))
 
+
 def add_parse_cmds_for_classification(parser):
     add_parse_cmds_for_loader(parser)
     add_parse_cmds_for_loggers(parser)
@@ -12,7 +13,7 @@ def add_parse_cmds_for_classification(parser):
 
     parser.add_argument("--importer_name", nargs="?", const=True, type=str,
                         default="InMemoryImporter",
-                        help="Data set loader name, Values : GRSS2013DataLoader")
+                        help="Importer name, Values : GeneratorImporter, InMemoryImporter, TFRecordImporter")
     parser.add_argument("--perform_validation", nargs="?", const=True, type=type_ensure_strtobool,
                         default=False,
                         help="If true, performs validation after training phase.")
@@ -56,8 +57,8 @@ def add_parse_cmds_for_classification(parser):
                         default=None,
                         help="Algorithm parameter (json) data file path")
     parser.add_argument("--model_name", nargs="?", const=True, type=str,
-                        default="CNNModelv2",
-                        help="Model name to use in training")
+                        default="HYPELCNNModel",
+                        help="Model to use in training, values: CAPModel, CONCNNModel, DUALCNNModel, HYPELCNNModel")
     parser.add_argument("--all_data_shuffle_ratio", nargs="?", type=float,
                         default=None,
                         help="If given as a valid ratio, validation and training data is shuffled and redistributed")

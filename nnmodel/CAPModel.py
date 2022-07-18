@@ -7,7 +7,7 @@ from nnmodel.NNModel import NNModel
 from common_nn_operations import ModelOutputTensors
 
 
-class CAPNModelv1(NNModel):
+class CAPModel(NNModel):
     def get_hyper_param_space(self):
         return {
             'iter_routing': hp.choice('iter_routing', [3, 4, 5]),

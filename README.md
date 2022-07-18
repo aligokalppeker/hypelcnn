@@ -46,11 +46,11 @@ Works with Python 3.7 and library requirements are placed in "requirements.txt".
 
 - nnmodel package => Classification model abstraction and implementation
     - NNModel.py : Neural Network definition interface, provides methods for declaring loss function, base parameter
-      values, hyper parameter value range.
-    - CNNModelv4.py : Model declaration source code for CNN Model V4 (Network model HypeLCNN).
-    - DUALCNNModelv1.py : Model declaration source code for CNN Dual Model.
-    - CONCNNModelv1.py : Model declaration source code for Context CNN Model.
-    - CAPNModelv1.py : Capsule Network Model v2.
+      values, hyperparameter value range.
+    - HYPELCNNModel.py : Model declaration source code for HypeLCNN.
+    - DUALCNNModel.py : Model declaration source code for CNN Dual Model.
+    - CONCNNModel.py : Model declaration source code for Context CNN Model.
+    - CAPModel.py : Capsule Network Model v2.
 - modelconfigs => Parameter values for corresponding NN models.
 - importer package => TF import strategies
     - DataImporter.py : DataImporter interface class.
@@ -77,8 +77,8 @@ Works with Python 3.7 and library requirements are placed in "requirements.txt".
     - tfrecord_writer.py : TF record generator from samples.
     - hsi_rgb_converter.py : HSI to RGB conversion script.
     - read_summary_file.py : Reads tensorflow summary file and extract some statistical information.
-- deep_classification_multigpu.py : Terrain classification training execution class.
-- load_checkpoint_calc_accuracy.py : Loads a checkpoint file and data set and performs scene classification.
+- train_for_classification.py : Terrain classification training execution class.
+- infer_for_classification.py : Loads a checkpoint file and data set and performs scene classification.
 - monitored_session_runner.py : Tensorflow(1.x) Monitored session runner implementation.
 - classic_ml_trainer.py : SVM and Random Forest Classifier implementation using scikit-learn.
 - notebook.ipynb : A sample notebook for executing the developed ML models.

@@ -9,8 +9,29 @@ from tensorflow.contrib.learn.python.learn.summary_writer_cache import SummaryWr
 from tensorflow.python.framework import ops
 from tensorflow.python.training.basic_session_run_hooks import StopAtStepHook, NanTensorHook
 from tensorflow.python.training.monitored_session import Scaffold
+from tensorflow_core.contrib.framework.python.ops.variables import get_model_variables
 
 from common_nn_operations import calculate_accuracy, TrainingResult, set_all_gpu_config, TextSummaryAtStartHook
+
+
+def set_run_seed():
+    # Set random seed as the same value to get consistent results
+    tf.set_random_seed(1234)
+
+
+def add_classification_summaries(cross_entropy, learning_rate, log_all_model_variables, testing_nn_params,
+                                 validation_nn_params):
+    tf.summary.scalar("training_cross_entropy", cross_entropy)
+    tf.summary.scalar("training_learning_rate", learning_rate)
+    tf.summary.text("test_confusion", tf.as_string(testing_nn_params.metrics.confusion))
+    tf.summary.scalar("test_overall_accuracy", testing_nn_params.metrics.accuracy)
+    tf.summary.text("validation_confusion", tf.as_string(validation_nn_params.metrics.confusion))
+    tf.summary.scalar("validation_overall_accuracy", validation_nn_params.metrics.accuracy)
+    tf.summary.scalar("validation_average_accuracy", validation_nn_params.metrics.mean_per_class_accuracy)
+    tf.summary.scalar("validation_kappa", validation_nn_params.metrics.kappa)
+    if log_all_model_variables:
+        for variable in get_model_variables():
+            tf.summary.histogram(variable.op.name, variable)
 
 
 class InitializerHook(tf.train.SessionRunHook):

@@ -7,7 +7,7 @@ from nnmodel.NNModel import NNModel
 from common_nn_operations import ModelOutputTensors
 
 
-class DUALCNNModelv1(NNModel):
+class DUALCNNModel(NNModel):
 
     def get_hyper_param_space(self):
         return {
@@ -56,11 +56,11 @@ class DUALCNNModelv1(NNModel):
 
     @staticmethod
     def _create_lidar_tensor_branch(lidar_group):
-        net = DUALCNNModelv1._create_a_level(2, lidar_group, 'lidar_level1')
+        net = DUALCNNModel._create_a_level(2, lidar_group, 'lidar_level1')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='lidar_connector_conv1')
-        net = DUALCNNModelv1._create_a_level(4, net, 'lidar_level2')
+        net = DUALCNNModel._create_a_level(4, net, 'lidar_level2')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='lidar_connector_conv2')
-        net = DUALCNNModelv1._create_a_level(8, net, 'lidar_level3')
+        net = DUALCNNModel._create_a_level(8, net, 'lidar_level3')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='lidar_connector_conv3')
         return net
 
@@ -80,28 +80,28 @@ class DUALCNNModelv1(NNModel):
     def _create_hs_tensor_branch(algorithm_params, hs_group):
         level_filter_count = algorithm_params["filter_count"]
 
-        net = DUALCNNModelv1._create_a_level(level_filter_count // 4, hs_group, 'level1')
+        net = DUALCNNModel._create_a_level(level_filter_count // 4, hs_group, 'level1')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv1')
 
-        net = DUALCNNModelv1._create_a_level(level_filter_count // 2, net, 'level2')
+        net = DUALCNNModel._create_a_level(level_filter_count // 2, net, 'level2')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv2')
 
-        net = DUALCNNModelv1._create_a_level(level_filter_count, net, 'level3')
+        net = DUALCNNModel._create_a_level(level_filter_count, net, 'level3')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv3')
 
-        net = DUALCNNModelv1._create_a_level(level_filter_count // 2, net, 'level4')
+        net = DUALCNNModel._create_a_level(level_filter_count // 2, net, 'level4')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv4')
 
-        net = DUALCNNModelv1._create_a_level(level_filter_count // 4, net, 'level5')
+        net = DUALCNNModel._create_a_level(level_filter_count // 4, net, 'level5')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv5')
 
-        net = DUALCNNModelv1._create_a_level(level_filter_count // 8, net, 'level6')
+        net = DUALCNNModel._create_a_level(level_filter_count // 8, net, 'level6')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv6')
 
-        net = DUALCNNModelv1._create_a_level(level_filter_count // 16, net, 'level7')
+        net = DUALCNNModel._create_a_level(level_filter_count // 16, net, 'level7')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv7')
 
-        net = DUALCNNModelv1._create_a_level(level_filter_count // 32, net, 'level8')
+        net = DUALCNNModel._create_a_level(level_filter_count // 32, net, 'level8')
         net = slim.conv2d(net, net.get_shape()[3], [1, 1], scope='connector_conv8')
 
         return net

@@ -6,7 +6,7 @@ from common_nn_operations import ModelOutputTensors
 from nnmodel.NNModel import NNModel
 
 
-class CONCNNModelv1(NNModel):
+class CONCNNModel(NNModel):
 
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         with tf.device(model_input_params.device_id):
