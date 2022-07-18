@@ -40,7 +40,7 @@ Each data set has its own licensing, and you should include them in your paper/w
 
 # Requirements
 
-Works with Python 3.7 and library requirements are placed in "requirements.txt".
+Works with Python 3.7. Library dependencies are put in "requirements.txt".
 
 # Source Files
 
@@ -83,9 +83,9 @@ Works with Python 3.7 and library requirements are placed in "requirements.txt".
   - classic_ml_trainer.py : SVM and Random Forest Classifier implementation using scikit-learn.
   - modelconfigs => Parameter value configs for corresponding NN models.
 - common package => Common libraries for other packages.
-  - common_nn_operations.py : Common nn files.
+  - common_nn_operations.py : Common nn methods.
   - cmd_parser.py : Common cmd parsers and flags.
-- notebook.ipynb : A sample notebook for executing the developed ML models.
+- notebook.ipynb : Sample notebook for executing the developed ML models.
 
 # In progress
 
