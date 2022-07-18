@@ -51,7 +51,6 @@ Works with Python 3.7 and library requirements are placed in "requirements.txt".
   - DUALCNNModel.py : Model declaration source code for CNN Dual Model.
   - CONCNNModel.py : Model declaration source code for Context CNN Model.
   - CAPModel.py : Capsule Network Model v2.
-- modelconfigs => Parameter values for corresponding NN models.
 - importer package => TF import strategies
   - DataImporter.py : DataImporter interface class.
   - InMemoryImporter.py : Placeholder based in memory data importer(fastest but memory inefficient
@@ -82,7 +81,8 @@ Works with Python 3.7 and library requirements are placed in "requirements.txt".
   - infer_for_classification.py : Loads a checkpoint file and data set and performs scene classification.
   - monitored_session_runner.py : Tensorflow(1.x) Monitored session runner implementation.
   - classic_ml_trainer.py : SVM and Random Forest Classifier implementation using scikit-learn.
-- common => Common libraries for other packages
+  - modelconfigs => Parameter value configs for corresponding NN models.
+- common => Common libraries for other packages.
   - common_nn_operations.py : Common nn files.
   - cmd_parser.py : Common cmd parsers and flags.
 - notebook.ipynb : A sample notebook for executing the developed ML models.

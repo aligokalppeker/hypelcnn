@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/classify/infer_for_classification.py" />
-    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --batch_size=192 --model_name=CONCNNModel --loader_name=GULFPORTALTDataLoader --neighborhood=1 --importer=GeneratorImporter --output_path=$PROJECT_DIR$/log/ --base_log_path=log\episode_0\run_0\model.ckpt-0 --algorithm_param_path=modelconfigs\algorithm_param_output_concnn.json" />
+    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --batch_size=192 --model_name=CONCNNModel --loader_name=GULFPORTALTDataLoader --neighborhood=1 --importer=GeneratorImporter --output_path=$PROJECT_DIR$/log/ --base_log_path=log/episode_0/run_0/model.ckpt-0 --algorithm_param_path=classify/modelconfigs/alg_param_concnn.json" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
