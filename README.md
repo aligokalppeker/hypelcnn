@@ -82,7 +82,7 @@ Works with Python 3.7 and library requirements are placed in "requirements.txt".
   - monitored_session_runner.py : Tensorflow(1.x) Monitored session runner implementation.
   - classic_ml_trainer.py : SVM and Random Forest Classifier implementation using scikit-learn.
   - modelconfigs => Parameter value configs for corresponding NN models.
-- common => Common libraries for other packages.
+- common package => Common libraries for other packages.
   - common_nn_operations.py : Common nn files.
   - cmd_parser.py : Common cmd parsers and flags.
 - notebook.ipynb : A sample notebook for executing the developed ML models.
