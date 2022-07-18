@@ -5,7 +5,7 @@ import numpy
 import tensorflow as tf
 
 from importer.DataImporter import DataImporter
-from common_nn_operations import get_loader_from_name
+from common.common_nn_operations import get_loader_from_name
 
 Target = namedtuple('Target', ['data', 'labels'])
 InMemoryDataTensor = namedtuple('InMemoryDataTensor', ['dataset', 'importer', 'x', 'y_'])

@@ -12,7 +12,7 @@ import tensorflow as tf
 from tensorflow.contrib.data import shuffle_and_repeat
 from tifffile import imwrite
 
-from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers
+from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers
 from loader.GRSS2013DataLoader import GRSS2013DataLoader
 from loader.GRSS2018DataLoader import GRSS2018DataLoader
 from sr_data_models import _srdata_generator_model, _srdata_discriminator_model, extract_common_normalizer
@@ -268,7 +268,7 @@ def add_parse_cmds_for_app(parser):
 
 def main(_):
     parser = argparse.ArgumentParser()
-    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)
     add_parse_cmds_for_app(parser)
     add_parse_cmds_for_trainers(parser)

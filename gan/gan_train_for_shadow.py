@@ -15,9 +15,9 @@ from tensorflow_core.python.training.device_setter import replica_device_setter
 from tensorflow_core.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
-from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
+from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
     type_ensure_strtobool
-from common_nn_operations import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
+from common.common_nn_operations import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
 from gan.wrappers.cut_wrapper import CUTWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANWrapper
 from gan.wrappers.gan_common import InitializerHook, model_base_name
@@ -185,7 +185,7 @@ def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_rati
 
 def main(_):
     parser = argparse.ArgumentParser()
-    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)
     add_parse_cmds_for_trainers(parser)
     add_parse_cmds_for_app(parser)

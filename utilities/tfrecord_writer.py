@@ -3,13 +3,13 @@ import os
 
 import tensorflow as tf
 
-from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, type_ensure_strtobool
-from common_nn_operations import get_importer_from_name
+from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, type_ensure_strtobool
+from common.common_nn_operations import get_importer_from_name
 
 
 def main(_):
     parser = argparse.ArgumentParser()
-    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)
     add_parse_cmds_for_apps(parser)
     flags, unparsed = parser.parse_known_args()

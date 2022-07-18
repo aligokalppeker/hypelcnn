@@ -11,8 +11,8 @@ from tensorflow.contrib import slim
 
 from importer.DataImporter import DataImporter
 from importer.GeneratorImporter import GeneratorDataTensor, GeneratorImporter
-from cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
-from common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams, get_model_from_name
+from common.cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
+from common.common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams, get_model_from_name
 
 
 class ControlledDataImporter(DataImporter):

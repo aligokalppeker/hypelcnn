@@ -11,15 +11,15 @@ from sklearn.svm import SVC
 from tifffile import imsave
 from tqdm import tqdm
 
-from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
+from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
     type_ensure_strtobool
 from importer import InMemoryImporter, GeneratorImporter
-from common_nn_operations import create_colored_image, get_loader_from_name
+from common.common_nn_operations import create_colored_image, get_loader_from_name
 
 
 def main():
     parser = argparse.ArgumentParser()
-    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)
     add_parse_cmds_for_app(parser)
     add_parse_cmds_for_trainers(parser)
@@ -108,7 +108,7 @@ def perform_full_scene_classification(data_path, loader_name, neighborhood, esti
 
     progress_bar.close()
     scene_as_image = numpy.reshape(prediction, scene_shape)
-    output_path = "."
+    output_path = ".."
     imsave(os.path.join(output_path, "result_raw.tif"),
            scene_as_image)
     imsave(os.path.join(output_path, "result_colorized.tif"),

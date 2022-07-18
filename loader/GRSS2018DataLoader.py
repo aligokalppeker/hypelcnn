@@ -3,7 +3,7 @@ from numba import jit
 from tifffile import imread
 
 from loader.DataLoader import DataLoader, SampleSet
-from common_nn_operations import shuffle_test_data_using_ratio, shuffle_training_data_using_ratio, \
+from common.common_nn_operations import shuffle_test_data_using_ratio, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size, DataSet
 
 

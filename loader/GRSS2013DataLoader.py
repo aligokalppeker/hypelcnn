@@ -2,7 +2,7 @@ import numpy
 from tifffile import imread
 
 from loader.DataLoader import DataLoader, SampleSet
-from common_nn_operations import read_targets_from_image, shuffle_test_data_using_ratio, load_shadow_map_common, \
+from common.common_nn_operations import read_targets_from_image, shuffle_test_data_using_ratio, load_shadow_map_common, \
     DataSet, get_data_point_func
 from gan.gan_utilities import create_gan_struct, create_simple_shadow_struct
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper

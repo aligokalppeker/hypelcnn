@@ -11,7 +11,7 @@ from tensorflow.python.training.basic_session_run_hooks import StopAtStepHook, N
 from tensorflow.python.training.monitored_session import Scaffold
 from tensorflow_core.contrib.framework.python.ops.variables import get_model_variables
 
-from common_nn_operations import calculate_accuracy, TrainingResult, set_all_gpu_config, TextSummaryAtStartHook
+from common.common_nn_operations import calculate_accuracy, TrainingResult, set_all_gpu_config, TextSummaryAtStartHook
 
 
 def set_run_seed():

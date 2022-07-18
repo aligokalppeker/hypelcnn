@@ -9,14 +9,19 @@ from tensorflow_core.contrib.framework.python.ops.variables import get_variables
 
 from tifffile import imsave
 
-from cmd_parser import add_parse_cmds_for_classification
-from common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams, \
+from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
+    add_parse_cmds_for_models, add_parse_cmds_for_importers
+from common.common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams, \
     perform_prediction, create_colored_image, get_importer_from_name, get_model_from_name
 
 
 def main(_):
     parser = argparse.ArgumentParser()
-    add_parse_cmds_for_classification(parser)
+    add_parse_cmds_for_loaders(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_trainers(parser)
+    add_parse_cmds_for_models(parser)
+    add_parse_cmds_for_importers(parser)
     flags, unparsed = parser.parse_known_args()
 
     nn_model = get_model_from_name(flags.model_name)

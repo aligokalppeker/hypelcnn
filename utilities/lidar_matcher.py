@@ -3,10 +3,10 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from cv2 import resize, matchTemplate, minMaxLoc, rectangle, TM_CCORR_NORMED, INTER_CUBIC, INTER_AREA
+from cv2 import resize, matchTemplate, minMaxLoc, rectangle, TM_CCORR_NORMED, INTER_AREA
 
-from cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
-from common_nn_operations import get_loader_from_name
+from common.cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
+from common.common_nn_operations import get_loader_from_name
 
 
 def main(_):

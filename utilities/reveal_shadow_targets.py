@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy
 from tifffile import imwrite
 
-from cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
-from common_nn_operations import create_target_image_via_samples, INVALID_TARGET_VALUE, create_colored_image, \
+from common.cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
+from common.common_nn_operations import create_target_image_via_samples, INVALID_TARGET_VALUE, create_colored_image, \
     calculate_shadow_ratio, get_loader_from_name
 
 BUILDING_CLASS = 7

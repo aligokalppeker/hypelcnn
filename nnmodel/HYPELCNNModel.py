@@ -5,7 +5,7 @@ from hyperopt import hp
 from tensorflow import initializers
 from tensorflow.contrib import slim as slim
 
-from common_nn_operations import ModelOutputTensors, HistogramTensorPair, scale_in_to_out
+from common.common_nn_operations import ModelOutputTensors, HistogramTensorPair, scale_in_to_out
 from nnmodel.NNModel import NNModel
 
 

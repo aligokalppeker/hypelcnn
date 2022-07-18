@@ -10,8 +10,8 @@ import tensorflow as tf
 from tifffile import imwrite
 from tqdm import tqdm
 
-from cmd_parser import add_parse_cmds_for_loader, add_parse_cmds_for_loggers, type_ensure_strtobool
-from common_nn_operations import set_all_gpu_config, get_loader_from_name
+from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, type_ensure_strtobool
+from common.common_nn_operations import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper
@@ -29,7 +29,7 @@ def add_parse_cmds_for_app(parser):
 
 def main(_):
     parser = argparse.ArgumentParser()
-    add_parse_cmds_for_loader(parser)
+    add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)
     add_parse_cmds_for_app(parser)
     flags, unparsed = parser.parse_known_args()

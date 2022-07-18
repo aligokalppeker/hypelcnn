@@ -8,10 +8,11 @@ import tensorflow as tf
 from hyperopt import fmin, tpe, Trials, space_eval
 from numpy import std, mean
 
-from cmd_parser import add_parse_cmds_for_classification
-from common_nn_operations import create_graph, TrainingResult, AugmentationInfo, get_model_from_name, \
+from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
+    type_ensure_strtobool, add_parse_cmds_for_models, add_parse_cmds_for_importers
+from common.common_nn_operations import create_graph, TrainingResult, AugmentationInfo, get_model_from_name, \
     get_importer_from_name
-from monitored_session_runner import run_monitored_session, add_classification_summaries, set_run_seed
+from classify.monitored_session_runner import run_monitored_session, add_classification_summaries, set_run_seed
 
 episode_run_index = 0
 
@@ -127,6 +128,48 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
                           loss=mean_loss)
 
 
+def add_parse_cmds_for_app(parser):
+    parser.add_argument("--perform_validation", nargs="?", const=True, type=type_ensure_strtobool,
+                        default=False,
+                        help="If true, performs validation after training phase.")
+    parser.add_argument("--augment_data_with_rotation", nargs="?", const=True, type=type_ensure_strtobool,
+                        default=False,
+                        help="If true, input data is augmented with synthetic rotational(90 degrees) input.")
+    parser.add_argument("--augment_data_with_shadow", nargs="?", const=True, type=str,
+                        default=None,
+                        help="Given a method name, input data is augmented with shadow data(cycle_gan or simple")
+    parser.add_argument("--augment_data_with_reflection", nargs="?", const=True, type=type_ensure_strtobool,
+                        default=False,
+                        help="If true, input data is augmented with synthetic reflection input.")
+    parser.add_argument("--augmentation_random_threshold", nargs="?", type=float,
+                        default=0.5,
+                        help="Augmentation randomization threshold.")
+    parser.add_argument("--offline_augmentation", nargs="?", const=True, type=type_ensure_strtobool,
+                        default=False,
+                        help="If added, input data is augmented offline in a randomized fashion.")
+    parser.add_argument("--device", nargs="?", type=str,
+                        default="gpu",
+                        help="Device for processing: gpu, cpu or tpu")
+    parser.add_argument("--split_count", nargs="?", type=int,
+                        default=1,
+                        help="Split count")
+    parser.add_argument("--save_checkpoint_steps", nargs="?", type=int,
+                        default=2000,
+                        help="Save frequency of the checkpoint")
+    parser.add_argument("--validation_steps", nargs="?", type=int,
+                        default=40000,
+                        help="Validation frequency")
+    parser.add_argument("--max_evals", nargs="?", type=int,
+                        default=2,
+                        help="Maximum evaluation count for hyper parameter optimization")
+    parser.add_argument("--all_data_shuffle_ratio", nargs="?", type=float,
+                        default=None,
+                        help="If given as a valid ratio, validation and training data is shuffled and redistributed")
+    parser.add_argument("--log_model_params", nargs="?", const=True, type=type_ensure_strtobool,
+                        default=False,
+                        help="If added, logs model histogram to the tensorboard file.")
+
+
 def main(_):
     def convert_trial_to_dict(trial):
         dict_value_results = {}
@@ -135,8 +178,14 @@ def main(_):
         return dict_value_results
 
     parser = argparse.ArgumentParser()
-    add_parse_cmds_for_classification(parser)
+    add_parse_cmds_for_loaders(parser)
+    add_parse_cmds_for_loggers(parser)
+    add_parse_cmds_for_trainers(parser)
+    add_parse_cmds_for_models(parser)
+    add_parse_cmds_for_importers(parser)
+    add_parse_cmds_for_app(parser)
     flags, unparsed = parser.parse_known_args()
+
     print("Args:", json.dumps(vars(flags), indent=3))
 
     nn_model = get_model_from_name(flags.model_name)

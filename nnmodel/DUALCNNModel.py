@@ -1,10 +1,9 @@
 import tensorflow as tf
 from hyperopt import hp
-from tensorflow import initializers
 from tensorflow.contrib import slim as slim
 
 from nnmodel.NNModel import NNModel
-from common_nn_operations import ModelOutputTensors
+from common.common_nn_operations import ModelOutputTensors
 
 
 class DUALCNNModel(NNModel):
