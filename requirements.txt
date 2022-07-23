@@ -1,6 +1,6 @@
 hyperopt>=0.1.2
 numba>=0.46.0
-numpy==1.18.5
+numpy==1.22.0
 tensorflow-gpu==1.15.5
 tensorflow-gan==2.0.0
 tifffile>=2020.2.16
