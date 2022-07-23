@@ -14,8 +14,6 @@ from common.common_nn_operations import create_graph, TrainingResult, Augmentati
     get_importer_from_name
 from classify.monitored_session_runner import run_monitored_session, add_classification_summaries, set_run_seed
 
-episode_run_index = 0
-
 
 def perform_an_episode(flags, algorithm_params, model, base_log_path):
     data_importer = get_importer_from_name(flags.importer_name)
@@ -39,8 +37,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
     epoch = flags.epoch
     required_steps = flags.step if epoch is None else (train_data_w_labels.data.shape[0] * epoch) // batch_size
 
-    global episode_run_index
-    print(f"Starting episode#{episode_run_index:d} with steps#{required_steps:d} : {algorithm_params}")
+    print(f"Steps: {required_steps:d}, Params: {algorithm_params}")
 
     validation_accuracy_list = []
     testing_accuracy_list = []
@@ -83,7 +80,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
 
             episode_start_time = time.time()
 
-            log_dir = os.path.join(base_log_path, f"episode_{episode_run_index:d}/run_{run_index:d}")
+            log_dir = os.path.join(base_log_path, f"run_{run_index:d}")
             training_result = run_monitored_session(cross_entropy, log_dir, class_range,
                                                     flags.save_checkpoint_steps, flags.validation_steps,
                                                     train_step, required_steps,
@@ -113,16 +110,14 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
         mean_validation_accuracy = mean(validation_accuracy_list)
         std_validation_accuracy = std(validation_accuracy_list)
         print(
-            f"Validation result: ({mean_validation_accuracy[0]:g}) +- ({std_validation_accuracy[0]:g})")
+            f"Validation result: ({mean_validation_accuracy:g}) +- ({std_validation_accuracy:g})")
     mean_testing_accuracy = mean(testing_accuracy_list)
     std_testing_accuracy = std(testing_accuracy_list)
     mean_loss = mean(loss_list)
     std_loss = std(loss_list)
     print(
-        f"Mean testing accuracy result: ({mean_testing_accuracy[0]:g}) +- ({std_testing_accuracy[0]:g}), "
-        f"Loss result: ({mean_loss[0]:g}) +- ({std_loss[0]:g})")
-
-    episode_run_index = episode_run_index + 1
+        f"Mean testing accuracy result: ({mean_testing_accuracy:g}) +- ({std_testing_accuracy:g}), "
+        f"Loss result: ({mean_loss:g}) +- ({std_loss:g})")
 
     return TrainingResult(validation_accuracy=mean_validation_accuracy, test_accuracy=mean_testing_accuracy,
                           loss=mean_loss)
@@ -190,19 +185,29 @@ def main(_):
 
     nn_model = get_model_from_name(flags.model_name)
 
+    episode_run_index = 0
     if flags.max_evals == 1:
         print("Running in single execution training mode")
         algorithm_params = nn_model.get_default_params(flags.batch_size)
         if flags.algorithm_param_path is not None:
             algorithm_params = json.load(open(flags.algorithm_param_path, "r"))
-        perform_an_episode(flags, algorithm_params, nn_model, flags.base_log_path)
+        perform_an_episode(flags, algorithm_params, nn_model,
+                           os.path.join(flags.base_log_path, f"episode_{episode_run_index:d}"))
     else:
         print("Running in hyper parameter optimization mode")
         model_space_fun = nn_model.get_hyper_param_space
 
-        global episode_run_index
         trial_file_path = os.path.join(flags.base_log_path, "trial.p")
         best = None
+
+        def optimization_func(params):
+            nonlocal episode_run_index
+            print(f"Starting episode#{episode_run_index:d}")
+            log_path = os.path.join(flags.base_log_path, f"episode_{episode_run_index:d}")
+            loss = 1 - perform_an_episode(flags, params, nn_model, log_path).validation_accuracy
+            episode_run_index = episode_run_index + 1
+            return loss
+
         while True:
             try:
                 with open(trial_file_path, "rb") as read_file:
@@ -218,8 +223,7 @@ def main(_):
                 break
 
             best = fmin(
-                fn=lambda params: 1 - (
-                    perform_an_episode(flags, params, nn_model, flags.base_log_path).validation_accuracy),
+                fn=optimization_func,
                 space=model_space_fun(),
                 algo=tpe.suggest,
                 trials=trials,

@@ -16,7 +16,8 @@ class DUALCNNModel(NNModel):
             'learning_rate_decay_factor': 0.96,
             'learning_rate_decay_step': 350,
             'filter_count': hp.choice('filter_count', [100, 200, 400, 800]),
-            'batch_size': hp.choice('batch_size', [32, 48, 64, 96])
+            'batch_size': hp.choice('batch_size', [32, 48, 64, 96]),
+            'optimizer': 'AdamOptimizer'
         }
 
     def get_default_params(self, batch_size):
@@ -27,7 +28,8 @@ class DUALCNNModel(NNModel):
             "learning_rate_decay_step": 350,
             "lrelu_alpha": 0.2,
             "filter_count": 300,
-            "batch_size": batch_size
+            "batch_size": batch_size,
+            "optimizer": "AdamOptimizer"
         }
 
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):

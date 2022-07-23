@@ -57,13 +57,14 @@ class CONCNNModel(NNModel):
 
     def get_hyper_param_space(self):
         return {
-            'filter_count': 1200,
+            'filter_count': 128,
             'drop_out_ratio': hp.uniform('drop_out_ratio', 0.1, 0.5),
             'learning_rate': hp.uniform('learning_rate', 1e-8, 1e-2),
             'lrelu_alpha': hp.uniform('lrelu_alpha', 0.1, 0.2),
             'learning_rate_decay_factor': 0.96,
             'learning_rate_decay_step': 350,
-            'batch_size': hp.choice('batch_size', [16, 32, 48, 64, 96])
+            'batch_size': hp.choice('batch_size', [16, 32, 48, 64, 96]),
+            'optimizer': 'AdamOptimizer'
         }
 
     def get_default_params(self, batch_size):
@@ -74,5 +75,6 @@ class CONCNNModel(NNModel):
             "learning_rate_decay_factor": 0.96,
             "learning_rate_decay_step": 350,
             "lrelu_alpha": 0.2,
-            "batch_size": batch_size
+            "batch_size": batch_size,
+            "optimizer": "AdamOptimizer"
         }

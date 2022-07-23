@@ -27,7 +27,7 @@ def main(_):
     nn_model = get_model_from_name(flags.model_name)
     algorithm_params = nn_model.get_default_params(flags.batch_size)
     if flags.algorithm_param_path is not None:
-        algorithm_params = json.load(open(flags.algorithm_param_path, 'r'))
+        algorithm_params = json.load(open(flags.algorithm_param_path, "r"))
 
     data_importer = get_importer_from_name(flags.importer_name)
 
@@ -44,7 +44,7 @@ def main(_):
         validation_data_with_labels,
         class_range)
 
-    deep_nn_template = tf.make_template('nn_core', nn_model.create_tensor_graph, class_count=class_range.stop)
+    deep_nn_template = tf.make_template("nn_core", nn_model.create_tensor_graph, class_count=class_range.stop)
 
     start_time = time.time()
 
@@ -52,7 +52,7 @@ def main(_):
 
     validation_input_iter = simple_nn_iterator(validation_data_set, flags.batch_size)
     validation_images, validation_labels = validation_input_iter.get_next()
-    model_input_params = ModelInputParams(x=validation_images, y=None, device_id='/gpu:0', is_training=False)
+    model_input_params = ModelInputParams(x=validation_images, y=None, device_id="/gpu:0", is_training=False)
     validation_tensor_outputs = deep_nn_template(model_input_params, algorithm_params=algorithm_params)
     validation_nn_params = NNParams(input_iterator=validation_input_iter, data_with_labels=None,
                                     metrics=None, predict_tensor=validation_tensor_outputs.y_conv)
@@ -86,8 +86,8 @@ def main(_):
         # validation_accuracy = calculate_accuracy(session, validation_nn_params)
         # print('Validation accuracy=%g' % validation_accuracy)
 
-    print('Done evaluation(%.3f sec)' % (time.time() - start_time))
+    print(f"Done evaluation({time.time() - start_time:.3f} sec)")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     tf.app.run(main=main)

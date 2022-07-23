@@ -22,7 +22,8 @@ class CAPModel(NNModel):
             'learning_rate_decay_factor': 0.96,
             'learning_rate_decay_step': 350,
             'batch_size': hp.choice('batch_size', [16, 32, 48, 64, 96]),
-            "enable_decoding": hp.choice('enable_decoding', [True, False])
+            'enable_decoding': hp.choice('enable_decoding', [True, False]),
+            'optimizer': 'AdamOptimizer'
         }
 
     def get_default_params(self, batch_size):
@@ -39,7 +40,8 @@ class CAPModel(NNModel):
             "learning_rate_decay_factor": 0.96,
             "learning_rate_decay_step": 350,
             "batch_size": batch_size,
-            "enable_decoding": False
+            "enable_decoding": False,
+            "optimizer": "AdamOptimizer"
         }
 
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
