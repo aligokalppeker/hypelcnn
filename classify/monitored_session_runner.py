@@ -47,7 +47,7 @@ class InitializerHook(tf.train.SessionRunHook):
             if self.augmentation_info.shadow_struct is not None and self.augmentation_info.shadow_struct.shadow_op_initializer is not None:
                 self.augmentation_info.shadow_struct.shadow_op_initializer(self.restorer, session)
 
-        self.training_tensor.importer.perform_tensor_initialize(session, self.training_tensor, self.training_nn_params)
+        self.training_tensor.importer.init_tensors(session, self.training_tensor, self.training_nn_params)
 
 
 class ValidationHook(tf.train.SessionRunHook):
@@ -72,8 +72,8 @@ class ValidationHook(tf.train.SessionRunHook):
         iteration = session.run(self._global_step_tensor)
         if self.validation_nn_params is not None:
             if (iteration == self.required_steps - 1) or (iteration % self._iteration_count == 1 and iteration != 1):
-                self.validation_tensor.importer.perform_tensor_initialize(session, self.validation_tensor,
-                                                                          self.validation_nn_params)
+                self.validation_tensor.importer.init_tensors(session, self.validation_tensor,
+                                                             self.validation_nn_params)
                 self.validation_accuracy, class_recall, class_precisions, kappa, mean_per_class_accuracy = calculate_accuracy(
                     session, self.validation_nn_params, self.class_range)
 
@@ -118,7 +118,7 @@ class TestHook(tf.train.SessionRunHook):
         self.loss = session.run(self.cross_entropy)
         # Perform test if there is test data
         if self.testing_nn_params.data_with_labels.data.size != 0:
-            self.testing_tensor.importer.perform_tensor_initialize(session, self.testing_tensor, self.testing_nn_params)
+            self.testing_tensor.importer.init_tensors(session, self.testing_tensor, self.testing_nn_params)
             self.testing_accuracy, class_recall, class_precisions, kappa, mean_per_class_accuracy = calculate_accuracy(
                 session, self.testing_nn_params, self.class_range)
         print('Training step=%d, Testing accuracy=%g, loss=%.5f' % (iteration, self.testing_accuracy, self.loss))

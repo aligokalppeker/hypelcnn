@@ -72,7 +72,7 @@ def main(_):
         saver.restore(session, flags.base_log_path)
 
         # Init for imaging the results
-        validation_tensor.importer.perform_tensor_initialize(session, validation_tensor, validation_nn_params)
+        validation_tensor.importer.init_tensors(session, validation_tensor, validation_nn_params)
         perform_prediction(session, validation_nn_params, prediction)
         scene_as_image = numpy.reshape(prediction, scene_shape)
 
@@ -83,7 +83,7 @@ def main(_):
                create_colored_image(scene_as_image, color_list))
 
         # Init for accuracy
-        # validation_tensor.importer.perform_tensor_initialize(session, validation_tensor, validation_nn_params)
+        # validation_tensor.importer.init_tensors(session, validation_tensor, validation_nn_params)
         # validation_accuracy = calculate_accuracy(session, validation_nn_params)
         # print('Validation accuracy=%g' % validation_accuracy)
 

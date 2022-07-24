@@ -93,7 +93,7 @@ class GeneratorImporter(DataImporter):
                GeneratorDataTensor(dataset=training_data_set, importer=self), \
                GeneratorDataTensor(dataset=validation_data_set, importer=self)
 
-    def perform_tensor_initialize(self, session, tensor, nn_params):
+    def init_tensors(self, session, tensor, nn_params):
         session.run(nn_params.input_iterator.initializer)
 
     def requires_separate_validation_branch(self):

@@ -77,7 +77,7 @@ class InMemoryImporter(DataImporter):
                InMemoryDataTensor(dataset=training_data_set, importer=self, x=training_x, y_=training_y_), \
                InMemoryDataTensor(dataset=testing_data_set, importer=self, x=testing_x, y_=testing_y_)
 
-    def perform_tensor_initialize(self, session, tensor, nn_params):
+    def init_tensors(self, session, tensor, nn_params):
         session.run(nn_params.input_iterator.initializer,
                     feed_dict={tensor.x: nn_params.data_with_labels.data,
                                tensor.y_: nn_params.data_with_labels.labels})

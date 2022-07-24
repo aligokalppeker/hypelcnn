@@ -12,7 +12,7 @@ class DataImporter(ABC):
         pass
 
     @abstractmethod
-    def perform_tensor_initialize(self, session, tensor, nn_params):
+    def init_tensors(self, session, tensor, nn_params):
         pass
 
     @abstractmethod

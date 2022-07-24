@@ -62,7 +62,7 @@ class TFRecordImporter(DataImporter):
                TFRecordDataTensor(dataset=training_data_set, importer=self, path_placeholder=training_path_placeholder), \
                TFRecordDataTensor(dataset=testing_data_set, importer=self, path_placeholder=testing_path_placeholder)
 
-    def perform_tensor_initialize(self, session, tensor, nn_params):
+    def init_tensors(self, session, tensor, nn_params):
         session.run(nn_params.input_iterator.initializer,
                     feed_dict={tensor.path_placeholder: [nn_params.data_with_labels.path]})
 
