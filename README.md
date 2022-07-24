@@ -3,24 +3,24 @@
 This repository includes source codes for hyperspectral and LiDAR fusion system for classification and GAN based
 hyperspectral sample generation.
 
-This repository includes a complete suite for hyperspectral and lidar, neural net based classification.
+This repository includes an integrated suite for hyperspectral and lidar, neural net based classification.
 
 Primary features are:
 
-- Support for hyperparameter estimation via hyperopt
-- Plug-in based neural network implementation( via NNModel interface )
+- Plug-in based model implementation( via NNModel interface )
 - Plug-in based data set integration( via DataLoader interface )
 - Data efficient implementations for training( memory efficient/in-memory/record based )
-- Ability to use data set integration in classic machine learning methods
+- Cross use of data set integration in classic machine learning and deep learning methods
+- Integrated hyperparameter optimization.
 - Training, classification and metrics integration for neural networks
-    - Cross fold validation support
-- Sample implementations for capsule network and neural networks
-- CPU/GPU/TPU(work in progress) based training
-- GAN based data augmenter implementation
-    - Cycle GAN
-    - Vanilla GAN
-    - Contrastive Unpaired Translation(CUT) GAN
-    - Training and evaluation codes.
+- CPU/GPU based training
+- Sample implementations for 
+  - CNN networks
+  - Capsule networks
+- GAN based data augmenter implementation with training and evalution codes.
+  - Cycle GAN
+  - Vanilla GAN
+  - Contrastive Unpaired Translation(CUT) GAN
 
 Project is developed using Tensorflow 1.x(Tested on version 1.15). Source codes can be used for best practices of
 applying Tensorflow 1.x for;
@@ -50,7 +50,7 @@ Works with Python 3.7. Library dependencies are put in "requirements.txt".
   - HYPELCNNModel.py : Model declaration source code for HypeLCNN.
   - DUALCNNModel.py : Model declaration source code for CNN Dual Model.
   - CONCNNModel.py : Model declaration source code for Context CNN Model.
-  - CAPModel.py : Capsule Network Model v2.
+  - CAPModel.py : Capsule Network Model.
 - importer package => TF import strategies
   - DataImporter.py : DataImporter interface class.
   - InMemoryImporter.py : Placeholder based in memory data importer(fastest but memory inefficient
