@@ -35,7 +35,7 @@ class GeneratorImporter(DataImporter):
         validation_data_shape = numpy.concatenate(
             ([sample_set.validation_targets.shape[0]], data_set.get_data_shape()))
 
-        print('Loaded dataset(%.3f sec)' % (time.time() - start_time))
+        print(f"Loaded dataset({time.time() - start_time:.3f} sec)")
         return \
             GeneratorDataInfo(
                 data=GeneratorSpecialData(shape=training_data_shape, size=numpy.prod(training_data_shape)),

@@ -17,11 +17,11 @@ class InMemoryImporter(DataImporter):
     def _input_nn(data_type, data_shape, label_type, label_shape, class_range, prefix):
         x = tf.placeholder(dtype=data_type,
                            shape=data_shape,
-                           name=prefix + '_x')
+                           name=f"{prefix}_x")
         y_ = tf.placeholder(dtype=label_type,
                             shape=label_shape,
-                            name=prefix + '_y_')
-        return x, y_, tf.one_hot(y_, class_range.stop, dtype=tf.uint8, name=prefix + '_one_hot')
+                            name=f"{prefix}_y_")
+        return x, y_, tf.one_hot(y_, class_range.stop, dtype=tf.uint8, name=f"{prefix}_one_hot")
 
     @staticmethod
     def _get_data_with_labels(targets, loader, data_set):
@@ -49,7 +49,7 @@ class InMemoryImporter(DataImporter):
         validation_data_with_labels = self._get_data_with_labels(sample_set.validation_targets, loader, data_set)
         test_data_with_labels = self._get_data_with_labels(sample_set.test_targets, loader, data_set)
 
-        print('Loaded dataset(%.3f sec)' % (time.time() - start_time))
+        print(f"Loaded dataset({time.time() - start_time:.3f} sec)")
         return training_data_with_labels, test_data_with_labels, validation_data_with_labels, data_set.shadow_creator_dict, \
                loader.get_class_count(), data_set.get_scene_shape(), loader.get_samples_color_list()
 
@@ -62,7 +62,7 @@ class InMemoryImporter(DataImporter):
                            training_data_with_labels.labels.dtype,
                            (tuple([None]) + training_data_with_labels.labels.shape[1:]),
                            class_range,
-                           'training')
+                           "training")
         training_data_set = tf.data.Dataset.from_tensor_slices((training_x, training_y_one_hot))
         ###################
         # modify first element as none
@@ -70,7 +70,7 @@ class InMemoryImporter(DataImporter):
             self._input_nn(test_data_with_labels.data.dtype, (tuple([None]) + test_data_with_labels.data.shape[1:]),
                            test_data_with_labels.labels.dtype, (tuple([None]) + test_data_with_labels.labels.shape[1:]),
                            class_range,
-                           'testing')
+                           "testing")
         testing_data_set = tf.data.Dataset.from_tensor_slices((testing_x, testing_y_one_hot))
         ##################################
         return InMemoryDataTensor(dataset=testing_data_set, importer=self, x=testing_x, y_=testing_y_), \
