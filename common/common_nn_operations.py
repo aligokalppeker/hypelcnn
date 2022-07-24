@@ -142,7 +142,7 @@ def get_data_point_func(casi, lidar, neighborhood, point):
     return value
 
 
-def training_nn_iterator(data_set, augmentation_info, batch_size, num_epochs, device):
+def training_nn_iterator(data_set, augmentation_info, batch_size, num_epochs, device, prefetch_size):
     main_cycle_data_set = data_set.apply(shuffle_and_repeat(buffer_size=10000, count=num_epochs))
 
     if augmentation_info.offline_or_online is False:
@@ -152,7 +152,7 @@ def training_nn_iterator(data_set, augmentation_info, batch_size, num_epochs, de
                                                      perform_reflection_augmentation_random)
 
     main_cycle_data_set = main_cycle_data_set.batch(batch_size)
-    # main_cycle_data_set = main_cycle_data_set.prefetch(1000)
+    main_cycle_data_set = main_cycle_data_set.prefetch(prefetch_size)
 
     if augmentation_info.offline_or_online is True:
         main_cycle_data_set = add_augmentation_graph(main_cycle_data_set, augmentation_info,
@@ -292,11 +292,12 @@ def perform_prediction(sess, nn_params, prediction_result_arr):
 
 
 def create_graph(training_data_set, testing_data_set, validation_data_set, class_range,
-                 batch_size, device_id, num_epochs, algorithm_params, model,
+                 batch_size, prefetch_size, device_id, num_epochs, algorithm_params, model,
                  augmentation_info, create_separate_validation_branch):
     deep_nn_template = tf.make_template("nn_core", model.create_tensor_graph, class_count=class_range.stop)
     ####################################################################################
-    training_input_iter = training_nn_iterator(training_data_set, augmentation_info, batch_size, num_epochs, device_id)
+    training_input_iter = training_nn_iterator(training_data_set, augmentation_info, batch_size, num_epochs, device_id,
+                                               prefetch_size)
     images, labels = training_input_iter.get_next()
 
     training_y_conv, cross_entropy, learning_rate, train_step = optimize_nn(deep_nn_template,

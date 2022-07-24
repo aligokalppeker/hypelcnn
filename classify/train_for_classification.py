@@ -17,6 +17,7 @@ from classify.monitored_session_runner import run_monitored_session, add_classif
 
 
 def perform_an_episode(flags, algorithm_params, model, base_log_path):
+    prefetch_size = 1000
     data_importer = get_importer_from_name(flags.importer_name)
 
     train_data_w_labels, test_data_w_labels, val_data_w_labels, shadow_dict, class_range, scene_shape, color_list = \
@@ -63,7 +64,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
 
             cross_entropy, learning_rate, testing_nn_params, training_nn_params, validation_nn_params, train_step = create_graph(
                 training_tensor.dataset, testing_tensor.dataset, validation_tensor.dataset, class_range,
-                batch_size, device_id, epoch, augmentation_info=augmentation_info,
+                batch_size, prefetch_size, device_id, epoch, augmentation_info=augmentation_info,
                 algorithm_params=algorithm_params, model=model,
                 create_separate_validation_branch=data_importer.requires_separate_validation_branch)
 
