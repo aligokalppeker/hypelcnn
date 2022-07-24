@@ -1,5 +1,6 @@
 import argparse
 import json
+import ntpath
 import os
 import pickle
 import time
@@ -165,6 +166,38 @@ def add_parse_cmds_for_app(parser):
                         help="If added, logs model histogram to the tensorboard file.")
 
 
+abbreviations = {"model": "mdl",
+                 "dataloader": "ldr",
+                 "alg_param_": "p"
+                 }
+
+
+def get_log_suffix(flags):
+    def replace_abbrs(txt):
+        for word, abbr in abbreviations.items():
+            txt = txt.replace(word, abbr)
+        return txt
+
+    def path_leaf(path):
+        head, tail = ntpath.split(path)
+        return tail or ntpath.basename(head)
+
+    if flags.train_ratio > 1.0:
+        trn_ratio_str = f"{int(flags.train_ratio):d}"
+    else:
+        trn_ratio_str = f"{flags.train_ratio:.2f}".replace(".", "")
+
+    suffix = f"{flags.loader_name.lower():s}_{flags.model_name.lower():s}_trn{trn_ratio_str:s}_" \
+             f"{os.path.splitext(path_leaf(flags.algorithm_param_path))[0].lower()}_" \
+             f"{flags.neighborhood:d}x{flags.neighborhood:d}"
+    if flags.augment_data_with_shadow is not None:
+        suffix = suffix + \
+                 f"_{flags.augment_data_with_shadow}" + \
+                 f"_aug{flags.augmentation_random_threshold:.2f}".replace(".", "")
+
+    return replace_abbrs(suffix)
+
+
 def main(_):
     def convert_trial_to_dict(trial):
         dict_value_results = {}
@@ -191,8 +224,7 @@ def main(_):
         algorithm_params = nn_model.get_default_params(flags.batch_size)
         if flags.algorithm_param_path is not None:
             algorithm_params = json.load(open(flags.algorithm_param_path, "r"))
-        perform_an_episode(flags, algorithm_params, nn_model,
-                           os.path.join(flags.base_log_path, f"episode_{episode_run_index:d}"))
+        perform_an_episode(flags, algorithm_params, nn_model, os.path.join(flags.base_log_path, get_log_suffix(flags)))
     else:
         print("Running in hyper parameter optimization mode")
         model_space_fun = nn_model.get_hyper_param_space

@@ -40,14 +40,12 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         targets_in_clear_area[shadow_map.astype(bool)] = INVALID_TARGET_VALUE
         result_in_clear_area = self._convert_targets_aux(targets_in_clear_area)
 
-        # train_data_ratio = 100
         if train_data_ratio < 1.0:
             train_set, validation_set = shuffle_training_data_using_ratio(result_in_clear_area, train_data_ratio)
         else:
-            train_data_ratio = int(train_data_ratio)
             train_set, validation_set = shuffle_training_data_using_size(self.get_class_count(),
                                                                          result_in_clear_area,
-                                                                         train_data_ratio,
+                                                                         int(train_data_ratio),
                                                                          None)
         # Empty set for 0 ratio for testing
         test_set = numpy.empty([0, train_set.shape[1]])

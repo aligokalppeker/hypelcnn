@@ -40,10 +40,9 @@ class GRSS2018DataLoader(DataLoader):
         if train_data_ratio < 1.0:
             train_set, validation_set = shuffle_training_data_using_ratio(result, train_data_ratio)
         else:
-            train_data_ratio = int(train_data_ratio)
             train_set, validation_set = shuffle_training_data_using_size(self.get_class_count(),
                                                                          result,
-                                                                         train_data_ratio,
+                                                                         int(train_data_ratio),
                                                                          None)
 
         test_set, train_set = shuffle_test_data_using_ratio(train_set, test_data_ratio)
