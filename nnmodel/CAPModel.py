@@ -26,7 +26,7 @@ class CAPModel(NNModel):
             'optimizer': 'AdamOptimizer'
         }
 
-    def get_default_params(self, batch_size):
+    def get_default_params(self):
         return {
             "iter_routing": 3,
             "conv_layer_kernel_size": 3,
@@ -39,7 +39,7 @@ class CAPModel(NNModel):
             "learning_rate": 1e-4,
             "learning_rate_decay_factor": 0.96,
             "learning_rate_decay_step": 350,
-            "batch_size": batch_size,
+            "batch_size": 16,
             "enable_decoding": False,
             "optimizer": "AdamOptimizer"
         }

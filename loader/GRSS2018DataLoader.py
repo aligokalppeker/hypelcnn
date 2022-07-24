@@ -55,7 +55,7 @@ class GRSS2018DataLoader(DataLoader):
     def get_class_count(self):
         return range(0, 20)
 
-    def get_target_color_list(self):
+    def get_samples_color_list(self):
         color_list = numpy.zeros([21, 3], numpy.uint8)
         # No target
         # color_list[0, :] = [0, 0, 0]

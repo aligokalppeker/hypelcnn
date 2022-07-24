@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
-from collections import namedtuple
 
-SampleSet = namedtuple('SampleSet', ['validation_targets', 'training_targets', 'test_targets'])
+
+class SampleSet:
+    def __init__(self, validation_targets, training_targets, test_targets) -> None:
+        super().__init__()
+        self.validation_targets = validation_targets
+        self.training_targets = training_targets
+        self.test_targets = test_targets
 
 
 class DataLoader(ABC):
@@ -30,7 +35,7 @@ class DataLoader(ABC):
         pass
 
     @abstractmethod
-    def get_target_color_list(self):
+    def get_samples_color_list(self):
         pass
 
     @abstractmethod

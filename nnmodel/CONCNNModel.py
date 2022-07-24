@@ -67,7 +67,7 @@ class CONCNNModel(NNModel):
             'optimizer': 'AdamOptimizer'
         }
 
-    def get_default_params(self, batch_size):
+    def get_default_params(self):
         return {
             "filter_count": 1200,
             "drop_out_ratio": 0.3,
@@ -75,6 +75,6 @@ class CONCNNModel(NNModel):
             "learning_rate_decay_factor": 0.96,
             "learning_rate_decay_step": 350,
             "lrelu_alpha": 0.2,
-            "batch_size": batch_size,
+            "batch_size": 16,
             "optimizer": "AdamOptimizer"
         }

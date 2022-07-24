@@ -56,7 +56,7 @@ class GRSS2013DataLoader(DataLoader):
     def get_point_value(self, data_set, point):
         return get_data_point_func(data_set.casi, data_set.lidar, data_set.neighborhood, point)
 
-    def get_target_color_list(self):
+    def get_samples_color_list(self):
         color_list = numpy.zeros([15, 3], numpy.uint8)
         # Grass Healthy
         color_list[0, :] = [0, 180, 0]

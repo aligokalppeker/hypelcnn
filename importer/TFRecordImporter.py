@@ -32,7 +32,7 @@ class TFRecordImporter(DataImporter):
                                 path=model_base_dir + 'test.tfrecord'), \
                TFRecordDataInfo(data=TFRecordSpecialData(validation_data_shape),
                                 path=model_base_dir + 'validation.tfrecord'), None, \
-               loader.get_class_count(), None, loader.get_target_color_list()
+               loader.get_class_count(), None, loader.get_samples_color_list()
 
     @staticmethod
     def extract_fn(data_record, shape, class_count, prefix):

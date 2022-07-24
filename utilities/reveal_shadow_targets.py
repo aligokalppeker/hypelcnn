@@ -42,7 +42,7 @@ def main():
     casi = loader.load_data(0, False).casi
 
     create_shadow_corrected_image(casi_normalized, casi, shadow_map)
-    draw_targets(loader.get_target_color_list(), target_classes_as_image, "Targets")
+    draw_targets(loader.get_samples_color_list(), target_classes_as_image, "Targets")
 
     # retval, labels, stats, centroids = cv2.connectedComponentsWithStats(shadow_map)
     contours, hierarchy = cv2.findContours(shadow_map, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
@@ -76,7 +76,7 @@ def main():
             target_classes_as_image[image] = final_neigh_target
             print("shadow converted to neighboring target %d" % final_neigh_target)
 
-    draw_targets(loader.get_target_color_list(), target_classes_as_image, "Targets after shadow correction")
+    draw_targets(loader.get_samples_color_list(), target_classes_as_image, "Targets after shadow correction")
     # increase target level as one
     target_classes_as_image[target_classes_as_image != INVALID_TARGET_VALUE] = target_classes_as_image[
                                                                                    target_classes_as_image != INVALID_TARGET_VALUE] + 1

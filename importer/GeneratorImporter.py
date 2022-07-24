@@ -53,7 +53,7 @@ class GeneratorImporter(DataImporter):
                 loader=loader,
                 dataset=data_set), \
             data_set.shadow_creator_dict, \
-            loader.get_class_count(), data_set.get_scene_shape(), loader.get_target_color_list()
+            loader.get_class_count(), data_set.get_scene_shape(), loader.get_samples_color_list()
 
     @staticmethod
     def extract_fn(image, label, class_count, prefix):

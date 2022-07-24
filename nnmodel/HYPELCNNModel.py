@@ -30,7 +30,7 @@ class HYPELCNNModel(NNModel):
 
     # 'optimizer': hp.choice('optimizer',['AdamOptimizer', ('MomentumOptimizer', hp.uniform('momentum', 0.50, 0.99))])
 
-    def get_default_params(self, batch_size):
+    def get_default_params(self):
         return {
             "drop_out_ratio": 0.3,
             "learning_rate": 1e-4,
@@ -38,7 +38,7 @@ class HYPELCNNModel(NNModel):
             "learning_rate_decay_step": 350,
             "lrelu_alpha": 0.2,
             "filter_count": 1200,
-            "batch_size": batch_size,
+            "batch_size": 16,
             "optimizer": "AdamOptimizer",
             "bn_decay": 0.95,
             "l2regularizer_scale": 0.00001,

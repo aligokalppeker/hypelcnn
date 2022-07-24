@@ -112,7 +112,7 @@ def perform_full_scene_classification(data_path, loader_name, neighborhood, esti
     imsave(os.path.join(output_path, "result_raw.tif"),
            scene_as_image)
     imsave(os.path.join(output_path, "result_colorized.tif"),
-           create_colored_image(scene_as_image, loader.get_target_color_list()))
+           create_colored_image(scene_as_image, loader.get_samples_color_list()))
 
 
 def flatten_data(data):

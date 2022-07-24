@@ -20,7 +20,7 @@ def main():
 
     imsave(os.path.join(flags.output_path, "result_colorized.tif"),
            create_colored_image(create_target_image_via_samples(sample_set, scene_shape),
-                                loader.get_target_color_list()))
+                                loader.get_samples_color_list()))
 
 
 

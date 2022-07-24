@@ -7,7 +7,7 @@ class NNModel(ABC):
         pass
 
     @abstractmethod
-    def get_default_params(self, batch_size):
+    def get_default_params(self):
         pass
 
     @abstractmethod

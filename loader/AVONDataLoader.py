@@ -34,7 +34,7 @@ class AVONDataLoader(DataLoader):
     def get_class_count(self):
         raise NotImplementedError
 
-    def get_target_color_list(self):
+    def get_samples_color_list(self):
         raise NotImplementedError
 
     def get_model_base_dir(self):
