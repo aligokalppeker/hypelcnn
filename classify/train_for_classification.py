@@ -91,6 +91,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
                                                     training_nn_params, training_tensor,
                                                     testing_nn_params, testing_tensor,
                                                     validation_nn_params, validation_tensor,
+                                                    data_importer,
                                                     json.dumps(vars(flags), indent=3),
                                                     json.dumps(algorithm_params, indent=3))
 

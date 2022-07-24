@@ -72,7 +72,7 @@ def main(_):
         saver.restore(session, flags.base_log_path)
 
         # Init for imaging the results
-        validation_tensor.importer.init_tensors(session, validation_tensor, validation_nn_params)
+        data_importer.init_tensors(session, validation_tensor, validation_nn_params)
         perform_prediction(session, validation_nn_params, prediction)
         scene_as_image = numpy.reshape(prediction, scene_shape)
 
@@ -81,11 +81,6 @@ def main(_):
 
         imsave(os.path.join(flags.output_path, "result_colorized.tif"),
                create_colored_image(scene_as_image, color_list))
-
-        # Init for accuracy
-        # validation_tensor.importer.init_tensors(session, validation_tensor, validation_nn_params)
-        # validation_accuracy = calculate_accuracy(session, validation_nn_params)
-        # print('Validation accuracy=%g' % validation_accuracy)
 
     print(f"Done evaluation({time.time() - start_time:.3f} sec)")
 

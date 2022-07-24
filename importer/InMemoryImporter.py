@@ -8,7 +8,7 @@ from importer.DataImporter import DataImporter
 from common.common_nn_ops import get_loader_from_name
 
 Target = namedtuple('Target', ['data', 'labels'])
-InMemoryDataTensor = namedtuple('InMemoryDataTensor', ['dataset', 'importer', 'x', 'y_'])
+InMemoryDataTensor = namedtuple('InMemoryDataTensor', ['dataset', 'x', 'y_'])
 
 
 class InMemoryImporter(DataImporter):
@@ -73,9 +73,9 @@ class InMemoryImporter(DataImporter):
                            "testing")
         testing_data_set = tf.data.Dataset.from_tensor_slices((testing_x, testing_y_one_hot))
         ##################################
-        return InMemoryDataTensor(dataset=testing_data_set, importer=self, x=testing_x, y_=testing_y_), \
-               InMemoryDataTensor(dataset=training_data_set, importer=self, x=training_x, y_=training_y_), \
-               InMemoryDataTensor(dataset=testing_data_set, importer=self, x=testing_x, y_=testing_y_)
+        return InMemoryDataTensor(dataset=testing_data_set, x=testing_x, y_=testing_y_), \
+               InMemoryDataTensor(dataset=training_data_set, x=training_x, y_=training_y_), \
+               InMemoryDataTensor(dataset=testing_data_set, x=testing_x, y_=testing_y_)
 
     def init_tensors(self, session, tensor, nn_params):
         session.run(nn_params.input_iterator.initializer,

@@ -7,7 +7,7 @@ from importer.DataImporter import DataImporter
 from common.common_nn_ops import get_loader_from_name
 
 TFRecordDataInfo = namedtuple('TFRecordDataInfo', ['data', 'path'])
-TFRecordDataTensor = namedtuple('InMemoryDataTensor', ['dataset', 'importer', 'path_placeholder'])
+TFRecordDataTensor = namedtuple('InMemoryDataTensor', ['dataset', 'path_placeholder'])
 TFRecordSpecialData = namedtuple('TFRecordSpecialData', ['shape'])
 
 
@@ -17,6 +17,9 @@ class TFRecordImporter(DataImporter):
         loader = get_loader_from_name(loader_name, path)
 
         model_base_dir = loader.get_model_base_dir()
+        training_data_shape = None
+        testing_data_shape = None
+        validation_data_shape = None
         for record in tf.python_io.tf_record_iterator(model_base_dir + "metadata.tfrecord"):
             example = tf.train.Example()
             example.ParseFromString(record)  # calling protocol buffer API
@@ -26,11 +29,11 @@ class TFRecordImporter(DataImporter):
             validation_data_shape = np.array(example.features.feature["validation_data_shape"].int64_list.value)
 
         return TFRecordDataInfo(data=TFRecordSpecialData(training_data_shape),
-                                path=model_base_dir + 'training.tfrecord'), \
+                                path=model_base_dir + "training.tfrecord"), \
                TFRecordDataInfo(data=TFRecordSpecialData(testing_data_shape),
-                                path=model_base_dir + 'test.tfrecord'), \
+                                path=model_base_dir + "test.tfrecord"), \
                TFRecordDataInfo(data=TFRecordSpecialData(validation_data_shape),
-                                path=model_base_dir + 'validation.tfrecord'), None, \
+                                path=model_base_dir + "validation.tfrecord"), None, \
                loader.get_class_count(), None, loader.get_samples_color_list()
 
     @staticmethod
@@ -57,9 +60,9 @@ class TFRecordImporter(DataImporter):
         testing_data_set = tf.data.TFRecordDataset(testing_path_placeholder).map(
             lambda inp: self.extract_fn(inp, test_data_with_labels.data.shape[1:4], class_count, "testing"))
 
-        return TFRecordDataTensor(dataset=testing_data_set, importer=self, path_placeholder=testing_path_placeholder), \
-               TFRecordDataTensor(dataset=training_data_set, importer=self, path_placeholder=training_path_placeholder), \
-               TFRecordDataTensor(dataset=testing_data_set, importer=self, path_placeholder=testing_path_placeholder)
+        return TFRecordDataTensor(dataset=testing_data_set, path_placeholder=testing_path_placeholder), \
+               TFRecordDataTensor(dataset=training_data_set, path_placeholder=training_path_placeholder), \
+               TFRecordDataTensor(dataset=testing_data_set, path_placeholder=testing_path_placeholder)
 
     def init_tensors(self, session, tensor, nn_params):
         session.run(nn_params.input_iterator.initializer,

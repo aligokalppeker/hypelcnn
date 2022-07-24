@@ -7,7 +7,7 @@ import tensorflow as tf
 from common.common_nn_ops import get_loader_from_name
 from importer.DataImporter import DataImporter
 
-GeneratorDataTensor = namedtuple('GeneratorDataTensor', ['dataset', 'importer'])
+GeneratorDataTensor = namedtuple('GeneratorDataTensor', ['dataset'])
 
 GeneratorDataInfo = namedtuple('GeneratorDataInfo', ['data', 'targets', 'loader', 'dataset'])
 GeneratorSpecialData = namedtuple('GeneratorSpecialData', ['shape', 'size'])
@@ -57,8 +57,8 @@ class GeneratorImporter(DataImporter):
 
     @staticmethod
     def extract_fn(image, label, class_count, prefix):
-        with tf.device('/cpu:0'):
-            label_one_hot = tf.one_hot(label, class_count, dtype=tf.uint8, name=prefix + '_one_hot')
+        with tf.device("/cpu:0"):
+            label_one_hot = tf.one_hot(label, class_count, dtype=tf.uint8, name=f"{prefix}_one_hot")
         return image, label_one_hot
 
     def convert_data_to_tensor(self, test_data_with_labels, training_data_with_labels, validation_data_with_labels,
@@ -71,7 +71,7 @@ class GeneratorImporter(DataImporter):
              tf.TensorShape([])))
         class_count = class_range.stop
         training_data_set = training_data_set.map(
-            lambda image, label: self.extract_fn(image, label, class_count, 'training'), num_parallel_calls=8)
+            lambda image, label: self.extract_fn(image, label, class_count, "training"), num_parallel_calls=8)
 
         testing_data_set = tf.data.Dataset.from_generator(
             lambda: self._iterator_function(test_data_with_labels.targets, test_data_with_labels.loader,
@@ -79,7 +79,7 @@ class GeneratorImporter(DataImporter):
             (tf.TensorShape(test_data_with_labels.dataset.get_data_shape()),
              tf.TensorShape([])))
         testing_data_set = testing_data_set.map(
-            lambda image, label: self.extract_fn(image, label, class_count, 'testing'), num_parallel_calls=8)
+            lambda image, label: self.extract_fn(image, label, class_count, "testing"), num_parallel_calls=8)
 
         validation_data_set = tf.data.Dataset.from_generator(
             lambda: self._iterator_function(validation_data_with_labels.targets, validation_data_with_labels.loader,
@@ -87,11 +87,11 @@ class GeneratorImporter(DataImporter):
             (tf.TensorShape(validation_data_with_labels.dataset.get_data_shape()),
              tf.TensorShape([])))
         validation_data_set = validation_data_set.map(
-            lambda image, label: self.extract_fn(image, label, class_count, 'validation'), num_parallel_calls=8)
+            lambda image, label: self.extract_fn(image, label, class_count, "validation"), num_parallel_calls=8)
 
-        return GeneratorDataTensor(dataset=testing_data_set, importer=self), \
-               GeneratorDataTensor(dataset=training_data_set, importer=self), \
-               GeneratorDataTensor(dataset=validation_data_set, importer=self)
+        return GeneratorDataTensor(dataset=testing_data_set), \
+               GeneratorDataTensor(dataset=training_data_set), \
+               GeneratorDataTensor(dataset=validation_data_set)
 
     def init_tensors(self, session, tensor, nn_params):
         session.run(nn_params.input_iterator.initializer)
