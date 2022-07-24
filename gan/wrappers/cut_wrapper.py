@@ -195,7 +195,7 @@ def cut_loss(
                 actual_kwargs[k] = v
         return actual_kwargs
 
-    possible_kwargs = {'reduction': reduction, 'add_summaries': add_summaries}
+    possible_kwargs = {"reduction": reduction, "add_summaries": add_summaries}
     gen_dis_loss = gen_discriminator_loss_fn(
         model, **_optional_kwargs(generator_loss_fn, possible_kwargs))
 
@@ -372,7 +372,7 @@ def contrastive_gen_data_x_loss_impl(
         add_summaries=False):
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
-    with tf.compat.v1.name_scope(scope, "constrastive_gen_loss", (discriminator_gen_outputs, weights)) as scope:
+    with tf.compat.v1.name_scope(scope, "contrastive_gen_loss", (discriminator_gen_outputs, weights)) as scope:
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(tf.nn.softmax(feat_discriminator_real_data_x),
                                                           feat_discriminator_gen_data)
         loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope,
@@ -401,7 +401,7 @@ def contrastive_identity_loss_impl(
         add_summaries=False):
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
-    with tf.compat.v1.name_scope(scope, "constrastive_identity_loss", (discriminator_gen_outputs, weights)) as scope:
+    with tf.compat.v1.name_scope(scope, "contrastive_identity_loss", (discriminator_gen_outputs, weights)) as scope:
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(tf.nn.softmax(feat_discriminator_real_data_y),
                                                           feat_discriminator_generated_data_y)
         loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope,
@@ -419,8 +419,7 @@ class CUTWrapper:
     def __init__(self, nce_loss_weight, identity_loss_weight, use_identity_loss, swap_inputs) -> None:
         super().__init__()
         self._nce_loss_weight = nce_loss_weight
-        self._identity_loss_weight = identity_loss_weight
-        self._use_identity_loss = use_identity_loss
+        self._identity_loss_weight = 0.0 if not use_identity_loss else identity_loss_weight
         self._swap_inputs = swap_inputs
 
     def define_model(self, images_x, images_y):

@@ -187,7 +187,8 @@ def get_log_suffix(flags):
 
     patch_size = (flags.neighborhood * 2) + 1
     suffix = f"{flags.loader_name.lower():s}_{flags.gan_type.lower():s}_" \
-             f"{patch_size:d}x{patch_size:d}"
+             f"{patch_size:d}x{patch_size:d}_" \
+             f"regsup{flags.regularization_support_rate:.2f}".replace(".", "")
     if flags.use_identity_loss is True:
         suffix = suffix + \
                  f"_idnty{flags.use_identity_loss:.2f}".replace(".", "")
