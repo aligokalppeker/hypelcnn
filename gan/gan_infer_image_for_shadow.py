@@ -15,7 +15,7 @@ from common.common_nn_ops import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper
-from utilities.hsi_rgb_converter import get_rgb_from_hsi
+from common.hsi_rgb_converter import get_rgb_from_hsi
 
 
 def add_parse_cmds_for_app(parser):

@@ -11,7 +11,7 @@ from tensorflow.contrib import slim
 
 from importer.DataImporter import DataImporter
 from importer.GeneratorImporter import GeneratorDataTensor, GeneratorImporter
-from common.cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
+from common.cmd_parser import add_parse_cmds_for_loggers, add_parse_cmds_for_loaders
 from common.common_nn_ops import simple_nn_iterator, ModelInputParams, NNParams, get_model_from_name
 
 
@@ -96,7 +96,7 @@ def calculate_tensor_size(tensor):
 def main(_):
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loggers(parser)
-    add_parse_cmds_for_classification(parser)
+    add_parse_cmds_for_loaders(parser)
     flags, unparsed = parser.parse_known_args()
 
     nn_model = get_model_from_name(flags.model_name)()

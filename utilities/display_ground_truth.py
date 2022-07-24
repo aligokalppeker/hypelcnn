@@ -3,14 +3,14 @@ import os
 
 from tifffile import imsave
 
-from common.cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
+from common.cmd_parser import add_parse_cmds_for_loggers, add_parse_cmds_for_loaders
 from common.common_nn_ops import create_colored_image, create_target_image_via_samples, get_loader_from_name
 
 
 def main():
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loggers(parser)
-    add_parse_cmds_for_classification(parser)
+    add_parse_cmds_for_loaders(parser)
     flags, unparsed = parser.parse_known_args()
 
     loader = get_loader_from_name(flags.loader_name, flags.path)
@@ -21,8 +21,6 @@ def main():
     imsave(os.path.join(flags.output_path, "result_colorized.tif"),
            create_colored_image(create_target_image_via_samples(sample_set, scene_shape),
                                 loader.get_samples_color_list()))
-
-
 
 
 if __name__ == '__main__':

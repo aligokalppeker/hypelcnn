@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy
 from tifffile import imwrite
 
-from common.cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
+from common.cmd_parser import add_parse_cmds_for_loggers, add_parse_cmds_for_loaders
 from common.common_nn_ops import create_target_image_via_samples, INVALID_TARGET_VALUE, create_colored_image, \
     calculate_shadow_ratio, get_loader_from_name
 
@@ -25,7 +25,7 @@ def create_shadow_corrected_image(casi_normalized, casi, shadow_map):
 def main():
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loggers(parser)
-    add_parse_cmds_for_classification(parser)
+    add_parse_cmds_for_loaders(parser)
     flags, unparsed = parser.parse_known_args()
 
     loader = get_loader_from_name(flags.loader_name, flags.path)
