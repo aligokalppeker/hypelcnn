@@ -18,6 +18,7 @@ from tensorflow_gan.python.train import get_sequential_train_hooks
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
     type_ensure_strtobool
 from common.common_nn_ops import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
+from common.common_ops import replace_abbrs
 from gan.wrappers.cut_wrapper import CUTWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANWrapper
 from gan.wrappers.gan_common import InitializerHook, model_base_name
@@ -70,7 +71,7 @@ def add_parse_cmds_for_app(parser):
 def gan_train(train_ops,
               logdir,
               get_hooks_fn=get_sequential_train_hooks(),
-              master='',
+              master="",
               is_chief=True,
               scaffold=None,
               hooks=None,
@@ -113,10 +114,7 @@ def gan_train(train_ops,
       Output of the call to `training.train`.
     """
     new_hooks = get_hooks_fn(train_ops)
-    if hooks is not None:
-        hooks = list(hooks) + list(new_hooks)
-    else:
-        hooks = new_hooks
+    hooks = new_hooks if hooks is None else list(hooks) + list(new_hooks)
 
     with tf.compat.v1.train.MonitoredTrainingSession(
             master=master,
@@ -147,7 +145,7 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
             loader,
             shadow_map)
     else:
-        raise ValueError("Wrong sampling parameter value (%s)." % pairing_method)
+        raise ValueError(f"Wrong sampling parameter value ({pairing_method}).")
 
     normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
     shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
@@ -183,6 +181,20 @@ def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_rati
     return normal_images_rand, shadow_images_rand
 
 
+def get_log_suffix(flags):
+    abbreviations = {"dataloader": "ldr"
+                     }
+
+    patch_size = (flags.neighborhood * 2) + 1
+    suffix = f"{flags.loader_name.lower():s}_{flags.gan_type.lower():s}_" \
+             f"{patch_size:d}x{patch_size:d}"
+    if flags.use_identity_loss is True:
+        suffix = suffix + \
+                 f"_idnty{flags.use_identity_loss:.2f}".replace(".", "")
+
+    return replace_abbrs(suffix, abbreviations)
+
+
 def main(_):
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loaders(parser)
@@ -191,7 +203,7 @@ def main(_):
     add_parse_cmds_for_app(parser)
     flags, unparsed = parser.parse_known_args()
 
-    log_dir = flags.base_log_path
+    log_dir = f"{flags.base_log_path}_{get_log_suffix(flags)}"
     if not gfile.Exists(log_dir):
         gfile.MakeDirs(log_dir)
 
@@ -204,7 +216,7 @@ def main(_):
 
         shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
 
-        with tf.name_scope('inputs'):
+        with tf.name_scope("inputs"):
             initializer_hook = load_op(flags.batch_size, flags.step, loader, data_set,
                                        shadow_map, shadow_ratio,
                                        flags.regularization_support_rate,
@@ -242,17 +254,14 @@ def main(_):
 
             the_gan_loss = wrapper.define_loss(the_gan_model)
 
-        # Define CycleGAN train ops.
+        # Define GAN train ops.
         train_ops = wrapper.define_train_ops(the_gan_model, the_gan_loss, max_number_of_steps=flags.step,
                                              generator_lr=flags.generator_lr, discriminator_lr=flags.discriminator_lr,
                                              gen_discriminator_lr=flags.gen_discriminator_lr)
 
         # Training
         status_message = tf.string_join(
-            [
-                "Starting train step: ",
-                tf.as_string(get_or_create_global_step())
-            ],
+            ["Starting train step: ", tf.as_string(get_or_create_global_step())],
             name="status_message")
 
         set_all_gpu_config()

@@ -1,6 +1,5 @@
 import argparse
 import json
-import ntpath
 import os
 import pickle
 import time
@@ -169,21 +168,19 @@ def add_parse_cmds_for_app(parser):
                         help="If added, logs model histogram to the tensorboard file.")
 
 
-abbreviations = {"model": "mdl",
-                 "dataloader": "ldr",
-                 "alg_param_": "p"
-                 }
-
-
 def get_log_suffix(flags):
+    abbreviations = {"model": "mdl",
+                     "dataloader": "ldr",
+                     "alg_param_": "p"
+                     }
     if flags.train_ratio > 1.0:
         trn_ratio_str = f"{int(flags.train_ratio):d}"
     else:
         trn_ratio_str = f"{flags.train_ratio:.2f}".replace(".", "")
-
+    patch_size = (flags.neighborhood * 2) + 1
     suffix = f"{flags.loader_name.lower():s}_{flags.model_name.lower():s}_trn{trn_ratio_str:s}_" \
              f"{os.path.splitext(path_leaf(flags.algorithm_param_path))[0].lower()}_" \
-             f"{flags.neighborhood:d}x{flags.neighborhood:d}"
+             f"{patch_size:d}x{patch_size:d}"
     if flags.augment_data_with_shadow is not None:
         suffix = suffix + \
                  f"_{flags.augment_data_with_shadow}" + \
