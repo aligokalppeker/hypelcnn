@@ -3,7 +3,7 @@ from numba import jit
 from tifffile import imread
 
 from loader.DataLoader import DataLoader
-from common.common_nn_operations import DataSet, load_shadow_map_common
+from common.common_nn_ops import DataSet, load_shadow_map_common
 
 BLANK_OFFSET = 55
 

@@ -11,7 +11,7 @@ from tifffile import imwrite
 from tqdm import tqdm
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, type_ensure_strtobool
-from common.common_nn_operations import set_all_gpu_config, get_loader_from_name
+from common.common_nn_ops import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper

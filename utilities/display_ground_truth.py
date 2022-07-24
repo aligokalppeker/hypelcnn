@@ -4,7 +4,7 @@ import os
 from tifffile import imsave
 
 from common.cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
-from common.common_nn_operations import create_colored_image, create_target_image_via_samples, get_loader_from_name
+from common.common_nn_ops import create_colored_image, create_target_image_via_samples, get_loader_from_name
 
 
 def main():

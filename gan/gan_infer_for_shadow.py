@@ -9,7 +9,7 @@ import tensorflow as tf
 from tensorflow_core.python.training.session_run_hook import SessionRunContext
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers
-from common.common_nn_operations import set_all_gpu_config, get_loader_from_name
+from common.common_nn_ops import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper

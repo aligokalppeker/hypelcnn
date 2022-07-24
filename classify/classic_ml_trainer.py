@@ -14,7 +14,7 @@ from tqdm import tqdm
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
     type_ensure_strtobool
 from importer import InMemoryImporter, GeneratorImporter
-from common.common_nn_operations import create_colored_image, get_loader_from_name
+from common.common_nn_ops import create_colored_image, get_loader_from_name
 
 
 def main():

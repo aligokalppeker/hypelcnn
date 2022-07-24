@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from importer.DataImporter import DataImporter
-from common.common_nn_operations import get_loader_from_name
+from common.common_nn_ops import get_loader_from_name
 
 TFRecordDataInfo = namedtuple('TFRecordDataInfo', ['data', 'path'])
 TFRecordDataTensor = namedtuple('InMemoryDataTensor', ['dataset', 'importer', 'path_placeholder'])

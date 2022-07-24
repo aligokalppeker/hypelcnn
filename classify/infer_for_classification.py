@@ -11,7 +11,7 @@ from tifffile import imsave
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
     add_parse_cmds_for_models, add_parse_cmds_for_importers
-from common.common_nn_operations import simple_nn_iterator, ModelInputParams, NNParams, \
+from common.common_nn_ops import simple_nn_iterator, ModelInputParams, NNParams, \
     perform_prediction, create_colored_image, get_importer_from_name, get_model_from_name
 
 

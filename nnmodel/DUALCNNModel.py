@@ -3,7 +3,7 @@ from hyperopt import hp
 from tensorflow.contrib import slim as slim
 
 from nnmodel.NNModel import NNModel
-from common.common_nn_operations import ModelOutputTensors
+from common.common_nn_ops import ModelOutputTensors
 
 
 class DUALCNNModel(NNModel):

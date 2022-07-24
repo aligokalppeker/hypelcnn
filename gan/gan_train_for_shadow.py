@@ -17,7 +17,7 @@ from tensorflow_gan.python.train import get_sequential_train_hooks
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
     type_ensure_strtobool
-from common.common_nn_operations import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
+from common.common_nn_ops import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
 from gan.wrappers.cut_wrapper import CUTWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANWrapper
 from gan.wrappers.gan_common import InitializerHook, model_base_name

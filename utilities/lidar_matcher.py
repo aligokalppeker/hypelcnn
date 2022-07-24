@@ -6,7 +6,7 @@ import tensorflow as tf
 from cv2 import resize, matchTemplate, minMaxLoc, rectangle, TM_CCORR_NORMED, INTER_AREA
 
 from common.cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
-from common.common_nn_operations import get_loader_from_name
+from common.common_nn_ops import get_loader_from_name
 
 
 def main(_):

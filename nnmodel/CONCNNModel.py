@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from hyperopt import hp
 
-from common.common_nn_operations import ModelOutputTensors
+from common.common_nn_ops import ModelOutputTensors
 from nnmodel.NNModel import NNModel
 
 

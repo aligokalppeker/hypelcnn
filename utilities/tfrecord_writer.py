@@ -4,7 +4,7 @@ import os
 import tensorflow as tf
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, type_ensure_strtobool
-from common.common_nn_operations import get_importer_from_name
+from common.common_nn_ops import get_importer_from_name
 
 
 def main(_):

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from tifffile import imwrite
 
 from common.cmd_parser import add_parse_cmds_for_classification, add_parse_cmds_for_loggers
-from common.common_nn_operations import get_loader_from_name
+from common.common_nn_ops import get_loader_from_name
 
 
 def main():

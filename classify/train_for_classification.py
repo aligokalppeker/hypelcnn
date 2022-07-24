@@ -11,9 +11,10 @@ from numpy import std, mean
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
     type_ensure_strtobool, add_parse_cmds_for_models, add_parse_cmds_for_importers
-from common.common_nn_operations import create_graph, TrainingResult, AugmentationInfo, get_model_from_name, \
+from common.common_nn_ops import create_graph, TrainingResult, AugmentationInfo, get_model_from_name, \
     get_importer_from_name
 from classify.monitored_session_runner import run_monitored_session, add_classification_summaries, set_run_seed
+from common.common_ops import path_leaf, replace_abbrs
 
 
 def perform_an_episode(flags, algorithm_params, model, base_log_path):
@@ -174,15 +175,6 @@ abbreviations = {"model": "mdl",
 
 
 def get_log_suffix(flags):
-    def replace_abbrs(txt):
-        for word, abbr in abbreviations.items():
-            txt = txt.replace(word, abbr)
-        return txt
-
-    def path_leaf(path):
-        head, tail = ntpath.split(path)
-        return tail or ntpath.basename(head)
-
     if flags.train_ratio > 1.0:
         trn_ratio_str = f"{int(flags.train_ratio):d}"
     else:
@@ -196,7 +188,7 @@ def get_log_suffix(flags):
                  f"_{flags.augment_data_with_shadow}" + \
                  f"_aug{flags.augmentation_random_threshold:.2f}".replace(".", "")
 
-    return replace_abbrs(suffix)
+    return replace_abbrs(suffix, abbreviations)
 
 
 def main(_):

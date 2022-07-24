@@ -4,7 +4,7 @@ from collections import namedtuple
 import numpy
 import tensorflow as tf
 
-from common.common_nn_operations import get_loader_from_name
+from common.common_nn_ops import get_loader_from_name
 from importer.DataImporter import DataImporter
 
 GeneratorDataTensor = namedtuple('GeneratorDataTensor', ['dataset', 'importer'])

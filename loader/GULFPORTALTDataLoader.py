@@ -1,7 +1,7 @@
 import numpy
 from tifffile import imread
 
-from common.common_nn_operations import INVALID_TARGET_VALUE, shuffle_training_data_using_ratio, \
+from common.common_nn_ops import INVALID_TARGET_VALUE, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size, load_shadow_map_common
 from gan.gan_utilities import create_gan_struct, create_simple_shadow_struct
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper

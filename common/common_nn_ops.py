@@ -12,6 +12,8 @@ from tensorflow_core.python.training.session_run_hook import SessionRunHook
 from tifffile import imread
 from tqdm import tqdm
 
+from common.common_ops import get_class, is_integer_num
+
 INVALID_TARGET_VALUE = 255
 
 
@@ -205,7 +207,7 @@ def optimize_nn(deep_nn_template, images, labels, device_id, name_prefix, algori
     return tensor_outputs.y_conv, cross_entropy, learning_rate, train_step
 
 
-def create_metrics(labels, y_conv, class_range, name_prefix):
+def create_metric_tensors(labels, y_conv, class_range, name_prefix):
     num_classes = class_range.stop
     with tf.name_scope(name_prefix + "_metrics"):
         prediction = tf.argmax(y_conv, 1)
@@ -314,7 +316,7 @@ def create_graph(training_data_set, testing_data_set, validation_data_set, class
     testing_images, testing_labels = testing_input_iter.get_next()
     model_input_params = ModelInputParams(x=testing_images, y=None, device_id=device_id, is_training=False)
     testing_tensor_outputs = deep_nn_template(model_input_params, algorithm_params=algorithm_params)
-    test_metric_ops_holder = create_metrics(testing_labels, testing_tensor_outputs.y_conv, class_range,
+    test_metric_ops_holder = create_metric_tensors(testing_labels, testing_tensor_outputs.y_conv, class_range,
                                             "testing")
     testing_nn_params = NNParams(input_iterator=testing_input_iter, data_with_labels=None,
                                  metrics=test_metric_ops_holder, predict_tensor=None)
@@ -327,8 +329,8 @@ def create_graph(training_data_set, testing_data_set, validation_data_set, class
         validation_model_input_params = ModelInputParams(x=validation_images, y=None, device_id=device_id,
                                                          is_training=False)
         validation_tensor_outputs = deep_nn_template(validation_model_input_params, algorithm_params=algorithm_params)
-        validation_metric_ops_holder = create_metrics(validation_labels, validation_tensor_outputs.y_conv,
-                                                      class_range,
+        validation_metric_ops_holder = create_metric_tensors(validation_labels, validation_tensor_outputs.y_conv,
+                                                             class_range,
                                                       "validation")
         validation_nn_params = NNParams(input_iterator=validation_input_iter, data_with_labels=None,
                                         metrics=validation_metric_ops_holder, predict_tensor=None)
@@ -433,13 +435,6 @@ def perform_reflection_augmentation_random(images, labels, augmentation_info):
     return images, labels
 
 
-def get_class(kls):
-    parts = kls.split('.')
-    module = ".".join(parts[:-1])
-    m = __import__(module)
-    for comp in parts[1:]:
-        m = getattr(m, comp)
-    return m
 
 
 def get_model_from_name(model_name):
@@ -543,14 +538,6 @@ def shuffle_test_data_using_ratio(train_set, test_data_ratio):
             test_set = train_set[test_index]
             train_set = train_set[train_index]
     return test_set, train_set
-
-
-def is_integer_num(n):
-    if isinstance(n, int):
-        return True
-    if isinstance(n, float):
-        return n.is_integer()
-    return False
 
 
 def scale_in_to_out(input_data, output_data, axis_no):
