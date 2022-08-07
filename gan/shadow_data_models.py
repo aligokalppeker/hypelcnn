@@ -124,14 +124,18 @@ def _shadowdata_feature_discriminator_model(generated_data, is_training=True):
                         # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
                         activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.1))):
         band_size = generated_data.get_shape()[3].value
+        patch_count = 6
+        patch_size = generated_data.get_shape()[3].value // patch_count
 
-        net = generated_data
-        net = slim.flatten(net)
+        net = slim.flatten(generated_data)
 
-        net = slim.fully_connected(net, band_size)
-        net = slim.fully_connected(net, band_size // 2)
-        net = slim.fully_connected(net, band_size // 3)
-        net = slim.fully_connected(net, band_size // 4)
-        net = slim.fully_connected(net, band_size // 5)
-        net = slim.fully_connected(net, band_size // 6)
-    return net
+        output_tensors = []
+        for patch_loc_start in range(0, band_size, patch_size):
+            current_net = net[:, patch_loc_start:patch_loc_start + patch_size]
+            current_net = slim.fully_connected(current_net, patch_size)
+            current_net = slim.fully_connected(current_net, patch_size // 4)
+            current_net = slim.fully_connected(current_net, patch_size // 2)
+            current_net = slim.fully_connected(current_net, 2)
+            output_tensors.append(tf.expand_dims(tf.math.l2_normalize(current_net), axis=1))
+
+    return tf.concat(output_tensors, axis=1)

@@ -4,6 +4,7 @@ import collections
 import inspect
 
 import tensorflow as tf
+from tensorflow_core.python.layers.core import flatten
 from tensorflow_core.python.training.adam import AdamOptimizer
 from tensorflow_gan.python.contrib_utils import get_trainable_variables, create_train_op
 from tensorflow_gan.python.losses import tuple_losses
@@ -315,18 +316,18 @@ def cut_model(
     # Create cut models
     # generated data from x
     with tf.compat.v1.variable_scope(gen_scope, reuse=True):
-        feature_embeddings_generated_data = generator_fn(generated_data, create_only_encoder=True)
+        feature_embeddings_gen_data = generator_fn(generated_data, create_only_encoder=True)
     with tf.compat.v1.variable_scope(feat_discriminator_scope,
                                      reuse=tf.compat.v1.AUTO_REUSE) as generated_data_feat_dis_scope:
-        feat_discriminator_generated_data = feat_discriminator_fn(feature_embeddings_generated_data)
+        feat_discriminator_gen_data = feat_discriminator_fn(feature_embeddings_gen_data)
 
-    # real data from x
+    # feature embeddings from real data x
     with tf.compat.v1.variable_scope(gen_scope, reuse=True):
         feature_embeddings_real_data_x = generator_fn(generator_inputs, create_only_encoder=True)
     with tf.compat.v1.variable_scope(feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE):
         feat_discriminator_real_data_x = feat_discriminator_fn(feature_embeddings_real_data_x)
 
-    # real data from y
+    # feature embeddings from real data y
     with tf.compat.v1.variable_scope(gen_scope, reuse=True):
         feature_embeddings_real_data_y = generator_fn(real_data, create_only_encoder=True)
     with tf.compat.v1.variable_scope(feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE):
@@ -334,7 +335,10 @@ def cut_model(
 
     # real_data fed into generator(identity data)
     with tf.compat.v1.variable_scope(gen_scope, reuse=True):
-        feature_embeddings_generated_data_y = generator_fn(real_data, create_only_encoder=True)
+        generated_data_from_real_data = generator_fn(real_data)
+
+    with tf.compat.v1.variable_scope(gen_scope, reuse=True):
+        feature_embeddings_generated_data_y = generator_fn(generated_data_from_real_data, create_only_encoder=True)
     with tf.compat.v1.variable_scope(feat_discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE):
         feat_discriminator_generated_data_y = feat_discriminator_fn(feature_embeddings_generated_data_y)
 
@@ -353,7 +357,7 @@ def cut_model(
         generator_inputs, generated_data, generator_variables, gen_scope, generator_fn,
         real_data,
         discriminator_real_outputs, discriminator_gen_outputs, discriminator_variables, dis_scope, discriminator_fn,
-        feat_discriminator_generated_data, feat_disc_gen_inputs_variables, generated_data_feat_dis_scope,
+        feat_discriminator_gen_data, feat_disc_gen_inputs_variables, generated_data_feat_dis_scope,
         feat_discriminator_fn,
         feat_discriminator_real_data_x,
         feat_discriminator_real_data_y,
@@ -361,6 +365,18 @@ def cut_model(
 
 
 # Contrastive loss for x data and generated x data.
+def calc_cross_feats(generated_data, real_data, tau):
+    # generated_data = tf.Print(generated_data, [generated_data], message="generated_data", summarize=100)
+    # real_data = tf.Print(real_data, [real_data], message="real_data", summarize=100)
+    cross_feature_logit = tf.matmul(generated_data, tf.transpose(real_data, [0, 2, 1])) / tau
+    labels = tf.eye(cross_feature_logit.shape[1].value, cross_feature_logit.shape[2].value, batch_shape=[1])
+    labels = tf.placeholder_with_default(labels, [None, labels.shape[1].value, labels.shape[2].value])
+    # cross_feature_logit = tf.Print(cross_feature_logit, [cross_feature_logit], message="cross_feature_mat",
+    #                                summarize=100)
+    # labels = tf.Print(labels, [labels], message="labels", summarize=100)
+    return flatten(labels), flatten(cross_feature_logit)
+
+
 def contrastive_gen_data_x_loss_impl(
         feat_discriminator_gen_data,
         feat_discriminator_real_data_x,
@@ -373,10 +389,9 @@ def contrastive_gen_data_x_loss_impl(
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
     with tf.compat.v1.name_scope(scope, "contrastive_gen_loss", (discriminator_gen_outputs, weights)) as scope:
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(tf.nn.softmax(feat_discriminator_real_data_x),
-                                                          feat_discriminator_gen_data)
-        loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope,
-                                                         loss_collection, reduction)
+        labels, logit = calc_cross_feats(feat_discriminator_gen_data, feat_discriminator_real_data_x, tau=0.07)
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels, logit)
+        loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope, loss_collection, reduction)
         # softmax_entropy = tf.boolean_mask(softmax_entropy, tf.is_finite(softmax_entropy))
         # patch_nce_loss = tf.reduce_mean(softmax_entropy)
         # patch_nce_loss = tf.where(tf.logical_not(tf.is_finite(patch_nce_loss)), tf.zeros_like(patch_nce_loss),
@@ -402,10 +417,9 @@ def contrastive_identity_loss_impl(
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
     with tf.compat.v1.name_scope(scope, "contrastive_identity_loss", (discriminator_gen_outputs, weights)) as scope:
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(tf.nn.softmax(feat_discriminator_real_data_y),
-                                                          feat_discriminator_generated_data_y)
-        loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope,
-                                                         loss_collection, reduction)
+        labels, logit = calc_cross_feats(feat_discriminator_generated_data_y, feat_discriminator_real_data_y, tau=0.07)
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels, logit)
+        loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope, loss_collection, reduction)
     if add_summaries:
         tf.compat.v1.summary.scalar("nce_loss_identity", loss)
     return loss
