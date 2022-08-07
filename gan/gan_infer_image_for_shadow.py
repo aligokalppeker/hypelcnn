@@ -92,20 +92,21 @@ def main(_):
 
         progress_bar.close()
 
-        if convert_only_the_convenient_pixels:
-            convert_region_suffix = ""
-        else:
-            convert_region_suffix = "all"
+        convert_region_suffix = "" if convert_only_the_convenient_pixels else "all"
 
-        imwrite(os.path.join(flags.output_path, f"shadow_image_{make_them_shadow}_{convert_region_suffix}.tif"),
-                hsi_image, planarconfig="contig")
+        hsi_image_save_path = os.path.join(flags.output_path,
+                                           f"shadow_image_{make_them_shadow}_{convert_region_suffix}.tif")
+        print(f"Saving output to {hsi_image_save_path}")
+        imwrite(hsi_image_save_path, hsi_image, planarconfig="contig")
 
         hsi_image = hsi_image.astype(float)
         hsi_image -= data_set.casi_min
         hsi_image /= data_set.casi_max
         hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 255).astype(numpy.uint8)
-        imwrite(os.path.join(flags.output_path, f"shadow_image_rgb_{make_them_shadow}_{convert_region_suffix}.tif"),
-                hsi_as_rgb)
+        hsi_image_rgb_save_path = os.path.join(flags.output_path,
+                                               f"shadow_image_rgb_{make_them_shadow}_{convert_region_suffix}.tif")
+        print(f"Saving output RGB to {hsi_image_rgb_save_path}")
+        imwrite(hsi_image_rgb_save_path, hsi_as_rgb)
 
 
 def get_wrapper_dict():

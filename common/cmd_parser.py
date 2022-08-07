@@ -20,11 +20,11 @@ def add_parse_cmds_for_trainers(parser):
 
 def add_parse_cmds_for_loggers(parser):
     parser.add_argument("--base_log_path", nargs="?", const=True, type=str,
-                        default=os.path.dirname(__file__),
-                        help="Base path for saving logs")
+                        default=os.getcwd(),
+                        help="Base path for saving logs, default: working directory")
     parser.add_argument('--output_path', nargs='?', const=True, type=str,
-                        default=os.path.dirname(__file__),
-                        help='Path for saving output images')
+                        default=os.getcwd(),
+                        help="Path for saving output logs and images, default: working directory")
 
 
 def add_parse_cmds_for_loaders(parser):
