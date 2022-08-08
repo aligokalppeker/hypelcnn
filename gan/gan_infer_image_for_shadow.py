@@ -92,10 +92,11 @@ def main(_):
 
         progress_bar.close()
 
-        convert_region_suffix = "" if convert_only_the_convenient_pixels else "all"
+        convert_region_suffix = "" if convert_only_the_convenient_pixels else "_all"
+        chkpnt_num_str = flags.base_log_path.rsplit("-", 1)[-1]
 
         hsi_image_save_path = os.path.join(flags.output_path,
-                                           f"shadow_image_{make_them_shadow}_{convert_region_suffix}.tif")
+                                           f"shadow_image_{make_them_shadow}_{chkpnt_num_str}{convert_region_suffix}.tif")
         print(f"Saving output to {hsi_image_save_path}")
         imwrite(hsi_image_save_path, hsi_image, planarconfig="contig")
 
@@ -104,7 +105,7 @@ def main(_):
         hsi_image /= data_set.casi_max
         hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 255).astype(numpy.uint8)
         hsi_image_rgb_save_path = os.path.join(flags.output_path,
-                                               f"shadow_image_rgb_{make_them_shadow}_{convert_region_suffix}.tif")
+                                               f"shadow_image_rgb_{make_them_shadow}_{chkpnt_num_str}_{convert_region_suffix}.tif")
         print(f"Saving output RGB to {hsi_image_rgb_save_path}")
         imwrite(hsi_image_rgb_save_path, hsi_as_rgb)
 
