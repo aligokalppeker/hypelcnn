@@ -6,8 +6,8 @@ from tensorflow_gan import gan_loss
 from tensorflow_core.contrib import slim
 
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
-from gan.wrappers.gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, model_generator_name, \
-    adj_shadow_ratio, define_standard_train_ops, create_inference_for_matrix_input
+from gan.wrappers.gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
+    model_generator_name, adj_shadow_ratio, define_standard_train_ops, create_inference_for_matrix_input
 
 
 class GANWrapper:

@@ -26,8 +26,7 @@ input_x_tensor_name = "x"
 input_y_tensor_name = "y"
 
 
-def adj_shadow_ratio(shadow_ratio, is_shadow):
-    return 1. / shadow_ratio if is_shadow else shadow_ratio
+def adj_shadow_ratio(shadow_ratio, is_shadow): return 1. / shadow_ratio if is_shadow else shadow_ratio
 
 
 class InitializerHook(tf.train.SessionRunHook):
@@ -53,8 +52,8 @@ class BestRatioHolder:
         self.max_size = max_size
 
     def add_point(self, iteration, kl_val):
-        iteration = int(iteration)  # For seralization purposes int64 => int
-        kl_val = float(kl_val)  # For seralization purposes float64 => float
+        iteration = int(iteration)  # For serialization purposes int64 => int
+        kl_val = float(kl_val)  # For serialization purposes float64 => float
         insert_idx = 0
         for (curr_iter, curr_kl) in self.data_holder:
             if kl_val > curr_kl:
@@ -270,7 +269,7 @@ def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invali
         output_tensor_in_row = []
         for second_dim in range(shp[second_dim_idx]):
             input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 1), 1)
-            generated_tensor = _shadowdata_generator_model(input_cell, False)
+            generated_tensor = _shadowdata_generator_model(input_cell, is_training=False)
             if clip_invalid_values:
                 input_mean = reduce_mean(input_cell)
                 generated_mean = reduce_mean(generated_tensor)
@@ -304,7 +303,7 @@ def create_stats_tensor(generate_y_tensor, images_x_input_tensor, shadow_ratio):
 
 def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor, shadow_ratio,
                                  log_dir, current_iteration, plt_name, bands):
-    def divergence_for_ratios(mean):
+    def divergence_for_ratios(mean_val):
         def kl_divergence(p, q):
             return numpy.sum(numpy.where(p != 0, p * numpy.log(p / q), 0))
 
@@ -312,7 +311,7 @@ def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, 
             m = 0.5 * (p + q)
             return 0.5 * kl_divergence(p, m) + 0.5 * kl_divergence(q, m)
 
-        return abs(js_divergence(numpy.abs(mean - 1), numpy.zeros_like(mean)))
+        return abs(js_divergence(numpy.abs(mean_val - 1), numpy.zeros_like(mean_val)))
 
     generated_y_data = sess.run(generate_y_tensor, feed_dict={images_x_input_tensor: data_sample_list})
     ratio = generated_y_data / data_sample_list
@@ -381,12 +380,10 @@ def print_overall_info(mean, std):
     for band_index in range(0, band_size):
         prefix = ""
         postfix = ""
-        end = "  "
         if band_index == 0:
             prefix = "[ "
         elif band_index == band_size - 1:
             postfix = " ]"
 
-        if band_index % 5 == 1:
-            end = '\n'
-        print("%s%2.4f\u00B1%2.2f%s" % (prefix, mean[band_index], std[band_index], postfix), end=end)
+        print(f"{prefix}{mean[band_index]:2.4f}\u00B1{std[band_index]:2.2f}{postfix}",
+              end="\n" if band_index % 5 == 1 else " ")

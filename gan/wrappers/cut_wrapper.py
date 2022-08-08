@@ -2,6 +2,7 @@ from __future__ import division, absolute_import, print_function
 
 import collections
 import inspect
+from functools import partial
 
 import tensorflow as tf
 from tensorflow_core.python.layers.core import flatten
@@ -457,7 +458,8 @@ class CUTWrapper:
         gan_model = cut_model(
             generator_fn=_shadowdata_generator_model,
             discriminator_fn=_shadowdata_discriminator_model,
-            feat_discriminator_fn=_shadowdata_feature_discriminator_model,
+            feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model, embedded_feature_size=2,
+                                          patch_count=6, is_training=True),
             generator_inputs=generator_inputs,
             real_data=real_data)
 

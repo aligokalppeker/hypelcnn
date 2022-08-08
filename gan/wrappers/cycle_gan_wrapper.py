@@ -9,7 +9,8 @@ from tensorflow_gan.python.train import _validate_aux_loss_weight
 from tensorflow_core.contrib import slim
 
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
-from gan.wrappers.gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
+from gan.wrappers.gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, \
+    model_base_name, \
     model_generator_name, define_standard_train_ops, create_inference_for_matrix_input
 
 model_forward_generator_name = "ModelX2Y"
@@ -227,7 +228,7 @@ def cyclegan_loss_with_identity(
     # Sanity checks.
     if not isinstance(model, CycleGANModelWithIdentity):
         raise ValueError(
-            "`model` must be a `CycleGANModelWithIdentity`. Instead, was %s." % type(model))
+            f"`model` must be a `CycleGANModelWithIdentity`. Instead, was {type(model)}.")
 
     identity_loss_x, identity_loss_y = identity_loss(model, kwargs)
 
@@ -247,8 +248,7 @@ def cyclegan_loss_with_identity(
             generator_loss_fn=generator_loss_fn,
             discriminator_loss_fn=discriminator_loss_fn,
             **kwargs)
-        return partial_loss._replace(generator_loss=partial_loss.generator_loss +
-                                                    aux_loss)
+        return partial_loss._replace(generator_loss=partial_loss.generator_loss + aux_loss)
 
     with tf.compat.v1.name_scope("cyclegan_loss_x2y"):
         loss_x2y = _partial_loss(model.model_x2y)

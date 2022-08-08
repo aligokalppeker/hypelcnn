@@ -114,7 +114,7 @@ def _shadowdata_discriminator_model(generated_data, generator_input, is_training
     return tf.expand_dims(tf.expand_dims(slim.flatten(net2), axis=1), axis=1)
 
 
-def _shadowdata_feature_discriminator_model(generated_data, is_training=True):
+def _shadowdata_feature_discriminator_model(generated_data, patch_count, embedded_feature_size, is_training):
     with slim.arg_scope([slim.fully_connected, slim.separable_conv2d, slim.convolution1d],
                         weights_initializer=initializers.variance_scaling(scale=2.0),
                         weights_regularizer=slim.l2_regularizer(0.001),
@@ -124,7 +124,6 @@ def _shadowdata_feature_discriminator_model(generated_data, is_training=True):
                         # normalizer_params={'center': True, 'scale': True, 'epsilon': 0.001},
                         activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.1))):
         band_size = generated_data.get_shape()[3].value
-        patch_count = 6
         patch_size = generated_data.get_shape()[3].value // patch_count
 
         net = slim.flatten(generated_data)
@@ -135,7 +134,7 @@ def _shadowdata_feature_discriminator_model(generated_data, is_training=True):
             current_net = slim.fully_connected(current_net, patch_size)
             current_net = slim.fully_connected(current_net, patch_size // 4)
             current_net = slim.fully_connected(current_net, patch_size // 2)
-            current_net = slim.fully_connected(current_net, 2)
+            current_net = slim.fully_connected(current_net, embedded_feature_size)
             output_tensors.append(tf.expand_dims(tf.math.l2_normalize(current_net), axis=1))
 
     return tf.concat(output_tensors, axis=1)
