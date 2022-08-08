@@ -267,13 +267,13 @@ def main(_):
 
         set_all_gpu_config()
 
-        training_scaffold = Scaffold(saver=tf.train.Saver(max_to_keep=20))
+        checkpoint_count = flags.step // validation_iteration_count
 
         train_hooks_fn = wrapper.get_train_hooks_fn()
         gan_train(
             train_ops,
             log_dir,
-            scaffold=training_scaffold,
+            scaffold=Scaffold(saver=tf.train.Saver(max_to_keep=checkpoint_count)),
             save_checkpoint_steps=validation_iteration_count,
             get_hooks_fn=train_hooks_fn,
             hooks=[
