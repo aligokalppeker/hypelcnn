@@ -1,15 +1,10 @@
 import gc
-import os
 
 import tensorflow as tf
-from tensorflow import constant
-from tensorflow.contrib import slim
-from tensorflow.contrib import tpu
-from tensorflow.contrib.learn.python.learn.summary_writer_cache import SummaryWriterCache
-from tensorflow.python.framework import ops
-from tensorflow.python.training.basic_session_run_hooks import StopAtStepHook, NanTensorHook
-from tensorflow.python.training.monitored_session import Scaffold
+from tensorflow_core.contrib import slim
 from tensorflow_core.contrib.framework.python.ops.variables import get_model_variables
+from tensorflow_core.contrib.learn.python.learn.summary_writer_cache import SummaryWriterCache
+from tensorflow_core.python.training.basic_session_run_hooks import StopAtStepHook, NanTensorHook
 
 from common.common_nn_ops import calculate_accuracy, TrainingResult, set_all_gpu_config, TextSummaryAtStartHook
 
@@ -87,8 +82,7 @@ class ValidationHook(tf.train.SessionRunHook):
                 # print('Class based recall=', array2string(class_recall, precision=2), mean(class_recall))
 
                 # Log all the results to tf summary
-                summary_op = ops.get_collection(ops.GraphKeys.SUMMARY_OP)
-                self._writer.add_summary(session.run(summary_op[0]), iteration)
+                self._writer.add_summary(session.run(tf.get_collection("summary_op")[0]), iteration)
                 # Collect unnecessary data
                 gc.collect()
 
@@ -142,21 +136,12 @@ def run_monitored_session(cross_entropy, log_dir, class_range,
         if augmentation_info.shadow_struct is not None and augmentation_info.shadow_struct.shadow_op_initializer is not None:
             augmentation_restorer = augmentation_info.shadow_struct.shadow_op_creater()
             # Ready ops are overriden, as default ready ops awaits all variables to be initialized
-            # but actually some of the variables(such as cycle-gan graphs) are not initialized but restored
-            read_op_value = constant([])
+            # but actually some variables(such as cycle-gan graphs) are not initialized but restored
+            read_op_value = tf.constant([])
 
-    is_gpu_or_cpu = (device == "gpu" or device == "cpu")
-    if is_gpu_or_cpu:
-        config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
-        set_all_gpu_config()
-        master = ''
-    else:
-        config = None
-        tpu_worker = "grpc://" + os.environ["COLAB_TPU_ADDR"]
-        # master = TPUClusterResolver(tpu=tpu_worker).get_master()
-        master = tpu_worker
-        print("TPU master")
-        print(master)
+    config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    set_all_gpu_config()
+    master = ""
 
     validation_hook = ValidationHook(validation_nn_params, validation_tensor, class_range, required_steps,
                                      validation_steps,
@@ -177,46 +162,29 @@ def run_monitored_session(cross_entropy, log_dir, class_range,
              flags_log_hook,
              algparams_log_hook]
 
-    if is_gpu_or_cpu:
-        # Only restore nn core variables along with the optimizer and global step variables
-        nn_core_restorer = tf.train.Saver(
-            max_to_keep=20,
-            var_list=slim.get_variables_to_restore(include=["nn_core"]) +
-                     slim.get_variables_to_restore(include=["global_step"]) +
-                     slim.get_variables_to_restore(include=["training_optimizer"]), name="nn_core_restorer")
-        training_scaffold = Scaffold(saver=nn_core_restorer,
-                                     ready_for_local_init_op=read_op_value,
-                                     ready_op=read_op_value)
+    # Only restore nn core variables along with the optimizer and global step variables
+    # from tensorflow.contrib import slim
+    nn_core_restorer = tf.train.Saver(
+        max_to_keep=20,
+        var_list=slim.get_variables_to_restore(include=["nn_core"]) +
+                 slim.get_variables_to_restore(include=["global_step"]) +
+                 slim.get_variables_to_restore(include=["training_optimizer"]), name="nn_core_restorer")
+    training_scaffold = tf.train.Scaffold(saver=nn_core_restorer,
+                                          ready_for_local_init_op=read_op_value,
+                                          ready_op=read_op_value)
 
-        session = tf.train.MonitoredTrainingSession(master=master,
-                                                    checkpoint_dir=log_dir,
-                                                    summary_dir=log_dir,
-                                                    config=config, is_chief=True,
-                                                    save_summaries_steps=test_iteration_count,
-                                                    save_checkpoint_steps=save_checkpoint_steps,
-                                                    scaffold=training_scaffold,
-                                                    hooks=hooks)
-        # session = LocalCLIDebugWrapperSession(session)
-        with session as monitored_sess:
-            while not monitored_sess.should_stop():
-                monitored_sess.run([train_step])
-    else:
-        session = tf.Session(target=master, config=config)
-        session.run(tpu.initialize_system())
-        session.run(tf.group(tf.global_variables_initializer(),
-                             tf.local_variables_initializer()))
-        initializer_hook.after_create_session(session, None)
-        step_tensor = tf.train.get_global_step()
-        while session.run(step_tensor) < required_steps:
-            try:
-                session.run(train_step)
-                test_hook.after_run_with_session(session)
-            except tf.errors.OutOfRangeError:
-                break
-
-        validation_hook.end(session)
-        session.run(tpu.shutdown_system())
-        session.close()
+    session = tf.train.MonitoredTrainingSession(master=master,
+                                                checkpoint_dir=log_dir,
+                                                summary_dir=log_dir,
+                                                config=config, is_chief=True,
+                                                save_summaries_steps=test_iteration_count,
+                                                save_checkpoint_steps=save_checkpoint_steps,
+                                                scaffold=training_scaffold,
+                                                hooks=hooks)
+    # session = LocalCLIDebugWrapperSession(session)
+    with session as monitored_sess:
+        while not monitored_sess.should_stop():
+            monitored_sess.run([train_step])
 
     result = TrainingResult(validation_accuracy=validation_hook.validation_accuracy,
                             test_accuracy=test_hook.testing_accuracy, loss=test_hook.loss)

@@ -1,12 +1,8 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import argparse
 import json
 
 import tensorflow as tf
-from tensorflow.python.training.monitored_session import Scaffold, USE_DEFAULT
+from tensorflow.python.training.monitored_session import USE_DEFAULT
 from tensorflow_core.python import data
 from tensorflow_core.python.data.experimental import shuffle_and_repeat
 from tensorflow_core.python.platform import gfile
@@ -90,7 +86,7 @@ def gan_train(train_ops,
       get_hooks_fn: A function that takes a GANTrainOps tuple and returns a list
         of hooks.
       master: The URL of the master.
-      is_chief: Specifies whether or not the training is being run by the primary
+      is_chief: Specifies whether the training is being run by the primary
         replica during replica training.
       scaffold: An tf.train.Scaffold instance.
       hooks: List of `tf.train.SessionRunHook` callbacks which are run inside the
@@ -273,7 +269,7 @@ def main(_):
         gan_train(
             train_ops,
             log_dir,
-            scaffold=Scaffold(saver=tf.train.Saver(max_to_keep=checkpoint_count)),
+            scaffold=tf.train.Scaffold(saver=tf.train.Saver(max_to_keep=checkpoint_count)),
             save_checkpoint_steps=validation_iteration_count,
             get_hooks_fn=train_hooks_fn,
             hooks=[

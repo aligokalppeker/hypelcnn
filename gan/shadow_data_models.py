@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow import initializers
 from tensorflow_core import transpose
 from tensorflow_core.contrib import slim
 
@@ -22,7 +21,7 @@ def _shadowdata_generator_model_simple(netinput, is_training=True):
 
 def _shadowdata_discriminator_model_simple(generated_data, generator_input, is_training=True):
     with slim.arg_scope([slim.fully_connected, slim.separable_conv2d, slim.convolution1d],
-                        weights_initializer=initializers.variance_scaling(scale=2.0),
+                        weights_initializer=tf.initializers.variance_scaling(scale=2.0),
                         activation_fn=(lambda inp: slim.nn.leaky_relu(inp, alpha=0.01))):
         band_size = generated_data.get_shape()[3].value
 
@@ -42,7 +41,7 @@ def _shadowdata_generator_model(netinput, create_only_encoder=False, is_training
     with slim.arg_scope(
             [slim.conv2d, slim.conv2d_transpose, slim.convolution1d],
             # weights_initializer=initializers.variance_scaling(scale=2.0),
-            weights_initializer=initializers.zeros(),
+            weights_initializer=tf.initializers.zeros(),
             # weights_regularizer=slim.l1_l2_regularizer(),
             # normalizer_fn=slim.batch_norm,
             # normalizer_params={'is_training': is_training, 'decay': 0.95},
@@ -91,7 +90,7 @@ def _shadowdata_generator_model(netinput, create_only_encoder=False, is_training
 
 def _shadowdata_discriminator_model(generated_data, generator_input, is_training=True):
     with slim.arg_scope([slim.fully_connected, slim.separable_conv2d, slim.convolution1d],
-                        weights_initializer=initializers.variance_scaling(scale=2.0),
+                        weights_initializer=tf.initializers.variance_scaling(scale=2.0),
                         weights_regularizer=slim.l2_regularizer(0.001),
                         # normalizer_fn=slim.batch_norm,
                         # normalizer_params={'is_training': is_training, 'decay': 0.999},
@@ -116,7 +115,7 @@ def _shadowdata_discriminator_model(generated_data, generator_input, is_training
 
 def _shadowdata_feature_discriminator_model(generated_data, patch_count, embedded_feature_size, is_training):
     with slim.arg_scope([slim.fully_connected, slim.separable_conv2d, slim.convolution1d],
-                        weights_initializer=initializers.variance_scaling(scale=2.0),
+                        weights_initializer=tf.initializers.variance_scaling(scale=2.0),
                         weights_regularizer=slim.l2_regularizer(0.001),
                         # normalizer_fn=slim.batch_norm,
                         # normalizer_params={'is_training': is_training, 'decay': 0.999},

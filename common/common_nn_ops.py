@@ -2,12 +2,12 @@ import numpy
 import tensorflow as tf
 from numba import jit
 from sklearn.model_selection import StratifiedShuffleSplit
-from tensorflow.contrib.data import shuffle_and_repeat, prefetch_to_device
-from tensorflow.contrib.metrics import cohen_kappa
 from tensorflow.contrib.slim.python.slim.learning import create_train_op
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops.metrics_impl import metric_variable
 from tensorflow_core.contrib.learn.python.learn.summary_writer_cache import SummaryWriterCache
+from tensorflow_core.contrib.metrics.python.ops.metric_ops import cohen_kappa
+from tensorflow_core.python.data.experimental import shuffle_and_repeat, prefetch_to_device
 from tensorflow_core.python.training.session_run_hook import SessionRunHook
 from tifffile import imread
 from tqdm import tqdm
@@ -218,8 +218,7 @@ def create_metric_tensors(labels, y_conv, class_range, name_prefix):
             label, prediction, name='accuracy')
         mean_per_class_accuracy, mean_per_class_accuracy_update = tf.metrics.mean_per_class_accuracy(
             label, prediction, num_classes, name='mean_per_class_accuracy')
-        kappa, kappa_update = cohen_kappa(
-            label, prediction, num_classes, name='kappa')
+        kappa, kappa_update = cohen_kappa(label, prediction, num_classes, name='kappa')
         # Compute a per-batch confusion
         batch_confusion = tf.confusion_matrix(label, prediction,
                                               num_classes=num_classes,
