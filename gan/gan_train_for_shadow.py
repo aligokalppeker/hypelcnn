@@ -77,7 +77,7 @@ def gan_train(train_ops,
               save_checkpoint_steps=USE_DEFAULT,
               max_wait_secs=7200,
               config=None):
-    """A wrapper around `contrib.training.train` that uses GAN hooks.
+    """A wrapper around `training.train` that uses GAN hooks.
 
     Args:
       save_checkpoint_steps: Checkpoint steps to
