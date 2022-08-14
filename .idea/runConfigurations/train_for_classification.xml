@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/classify/train_for_classification.py" />
-    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --step=160000 --split_count=1 --max_evals=1 --model_name=CONCNNModel --test_ratio=0 --train_ratio=125 --loader_name=GULFPORTALTDataLoader --neighborhood=1 --importer=GeneratorImporter --perform_validation --save_checkpoint_steps=10000 --algorithm_param_path=nnmodel/modelconfigs/alg_param_concnn.json --validation_steps=10000 --log_model_params --augmentation_random_threshold=0.5 --augment_data_with_shadow=simple --base_log_path=log" />
+    <option name="PARAMETERS" value="--path=$PROJECT_DIR$/data --step=160000 --split_count=1 --max_evals=1 --model_name=HYPELCNNModel --test_ratio=0 --train_ratio=125 --loader_name=GULFPORTALTDataLoader --neighborhood=1 --importer=GeneratorImporter --perform_validation --save_checkpoint_steps=10000 --algorithm_param_path=nnmodel/modelconfigs/alg_param_hypelcnn.json --validation_steps=1000 --log_model_params --augmentation_random_threshold=0.5 --augment_data_with_shadow=simple --base_log_path=log" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
