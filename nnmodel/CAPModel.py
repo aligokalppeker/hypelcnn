@@ -1,7 +1,8 @@
 import numpy
 import tensorflow as tf
 from hyperopt import hp
-from tensorflow.contrib import slim as slim
+from tensorflow_core.python.ops.nn_ops import leaky_relu
+from tf_slim import conv2d, fully_connected, arg_scope, batch_norm
 
 from nnmodel.NNModel import NNModel
 from common.common_nn_ops import ModelOutputTensors
@@ -59,27 +60,27 @@ class CAPModel(NNModel):
         batch_size = -1
         enable_decoding = algorithm_params["enable_decoding"]
 
-        lrelu_func = lambda inp: slim.nn.leaky_relu(inp, alpha=algorithm_params["lrelu_alpha"])
+        lrelu_func = lambda inp: leaky_relu(inp, alpha=algorithm_params["lrelu_alpha"])
         with tf.device(model_input_params.device_id):
-            with slim.arg_scope([slim.conv2d], trainable=model_input_params.is_training
-                                # weights_initializer=initializers.variance_scaling(scale=2.0),
-                                # activation_fn=lrelu_func
-                                # weights_regularizer=slim.l2_regularizer(0.00001),
-                                # normalizer_fn=slim.batch_norm,
-                                ):
+            with arg_scope([conv2d], trainable=model_input_params.is_training
+                           # weights_initializer=initializers.variance_scaling(scale=2.0),
+                           # activation_fn=lrelu_func
+                           # weights_regularizer=slim.l2_regularizer(0.00001),
+                           # normalizer_fn=slim.batch_norm,
+                           ):
                 with tf.variable_scope('Conv1_layer') as scope:
-                    image_output = slim.conv2d(model_input_params.x,
-                                               num_outputs=feature_count,
-                                               kernel_size=conv_layer_kernel_size,
-                                               padding='VALID',
-                                               scope=scope, normalizer_fn=slim.batch_norm)
+                    image_output = conv2d(model_input_params.x,
+                                          num_outputs=feature_count,
+                                          kernel_size=conv_layer_kernel_size,
+                                          padding='VALID',
+                                          scope=scope, normalizer_fn=batch_norm)
 
                 with tf.variable_scope('PrimaryCaps_layer') as scope:
-                    image_output = slim.conv2d(image_output,
-                                               num_outputs=primary_capsule_count * primary_capsule_output_space,
-                                               kernel_size=primary_caps_kernel_size, stride=1,
-                                               padding='VALID',
-                                               scope=scope, normalizer_fn=slim.batch_norm)
+                    image_output = conv2d(image_output,
+                                          num_outputs=primary_capsule_count * primary_capsule_output_space,
+                                          kernel_size=primary_caps_kernel_size, stride=1,
+                                          padding='VALID',
+                                          scope=scope, normalizer_fn=batch_norm)
                     data_size = (image_output.get_shape()[1] *
                                  image_output.get_shape()[2] *
                                  image_output.get_shape()[3]).value // primary_capsule_output_space
@@ -89,11 +90,11 @@ class CAPModel(NNModel):
                     u_hats = []
                     image_output_groups = tf.split(axis=1, num_or_size_splits=data_size, value=image_output)
                     for i in range(data_size):
-                        u_hat = slim.conv2d(image_output_groups[i],
-                                            num_outputs=digit_capsule_count * digit_capsule_output_space,
-                                            kernel_size=[1, 1],
-                                            padding='VALID',
-                                            scope='DigitCaps_layer_w_' + str(i), activation_fn=None)
+                        u_hat = conv2d(image_output_groups[i],
+                                       num_outputs=digit_capsule_count * digit_capsule_output_space,
+                                       kernel_size=[1, 1],
+                                       padding='VALID',
+                                       scope='DigitCaps_layer_w_' + str(i), activation_fn=None)
                         u_hat = tf.reshape(u_hat,
                                            [batch_size, 1, digit_capsule_count, digit_capsule_output_space])
                         u_hats.append(u_hat)
@@ -149,15 +150,15 @@ class CAPModel(NNModel):
                             size = (model_input_params.x.get_shape()[1] *
                                     model_input_params.x.get_shape()[2] *
                                     model_input_params.x.get_shape()[3]).value
-                            image_output = slim.fully_connected(masked_v, 512, scope='fc1',
-                                                                activation_fn=lrelu_func,
-                                                                trainable=model_input_params.is_training)
-                            image_output = slim.fully_connected(image_output, 1024, scope='fc2',
-                                                                activation_fn=lrelu_func,
-                                                                trainable=model_input_params.is_training)
-                            decoder_image_output = slim.fully_connected(image_output, size, scope='fc3',
-                                                                        activation_fn=tf.sigmoid,
-                                                                        trainable=model_input_params.is_training)
+                            image_output = fully_connected(masked_v, 512, scope='fc1',
+                                                           activation_fn=lrelu_func,
+                                                           trainable=model_input_params.is_training)
+                            image_output = fully_connected(image_output, 1024, scope='fc2',
+                                                           activation_fn=lrelu_func,
+                                                           trainable=model_input_params.is_training)
+                            decoder_image_output = fully_connected(image_output, size, scope='fc3',
+                                                                   activation_fn=tf.sigmoid,
+                                                                   trainable=model_input_params.is_training)
 
         return ModelOutputTensors(y_conv=y_conv, image_output=decoder_image_output, image_original=model_input_params.x,
                                   histogram_tensors=[])

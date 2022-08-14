@@ -9,7 +9,7 @@ import numpy
 import tensorflow as tf
 import tensorflow_gan as tfgan
 from matplotlib import pyplot as plt
-from tensorflow_core.contrib.learn.python.learn.summary_writer_cache import SummaryWriterCache
+from tensorflow.python.training import summary_io
 from tensorflow_core.python import reduce_mean, reduce_std, reduce_sum
 from tensorflow_core.python.summary.summary import scalar
 from tensorflow_core.python.training.adam import AdamOptimizer
@@ -171,7 +171,7 @@ class ValidationHook(BaseValidationHook):
 
     def after_create_session(self, session, coord):
         self._global_step_tensor = tf.train.get_global_step()
-        self._writer = SummaryWriterCache.get(self._log_dir)
+        self._writer = summary_io.SummaryWriterCache.get(self._log_dir)
 
     def after_run(self, run_context, run_values):
         current_iteration = run_context.session.run(

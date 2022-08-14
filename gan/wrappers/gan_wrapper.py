@@ -3,7 +3,7 @@ from __future__ import division, absolute_import, print_function
 import tensorflow as tf
 import tensorflow_gan as tfgan
 from tensorflow_gan import gan_loss
-from tensorflow_core.contrib import slim
+from tf_slim import get_variables_to_restore
 
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan.wrappers.gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
@@ -111,7 +111,7 @@ class GANInferenceWrapper:
     def create_generator_restorer(self):
         # Restore all the variables that were saved in the checkpoint.
         gan_restorer = tf.train.Saver(
-            slim.get_variables_to_restore(include=[model_base_name]),
+            get_variables_to_restore(include=[model_base_name]),
             name='GeneratorRestoreHandler'
         )
         return gan_restorer

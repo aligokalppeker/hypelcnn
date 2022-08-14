@@ -1,10 +1,9 @@
 import gc
 
 import tensorflow as tf
-from tensorflow_core.contrib import slim
-from tensorflow_core.contrib.framework.python.ops.variables import get_model_variables
-from tensorflow_core.contrib.learn.python.learn.summary_writer_cache import SummaryWriterCache
+from tensorflow.python.training import summary_io
 from tensorflow_core.python.training.basic_session_run_hooks import StopAtStepHook, NanTensorHook
+from tf_slim import get_variables_to_restore, get_model_variables
 
 from common.common_nn_ops import calculate_accuracy, TrainingResult, set_all_gpu_config, TextSummaryAtStartHook
 
@@ -63,7 +62,7 @@ class ValidationHook(tf.train.SessionRunHook):
 
     def after_create_session(self, session, coord):
         self._global_step_tensor = tf.train.get_global_step()
-        self._writer = SummaryWriterCache.get(self.summary_dir)
+        self._writer = summary_io.SummaryWriterCache.get(self.summary_dir)
 
     def after_run(self, run_context, run_values):
         session = run_context.session
@@ -163,12 +162,11 @@ def run_monitored_session(cross_entropy, log_dir, class_range,
              algparams_log_hook]
 
     # Only restore nn core variables along with the optimizer and global step variables
-    # from tensorflow.contrib import slim
     nn_core_restorer = tf.train.Saver(
         max_to_keep=20,
-        var_list=slim.get_variables_to_restore(include=["nn_core"]) +
-                 slim.get_variables_to_restore(include=["global_step"]) +
-                 slim.get_variables_to_restore(include=["training_optimizer"]), name="nn_core_restorer")
+        var_list=get_variables_to_restore(include=["nn_core"]) +
+                 get_variables_to_restore(include=["global_step"]) +
+                 get_variables_to_restore(include=["training_optimizer"]), name="nn_core_restorer")
     training_scaffold = tf.train.Scaffold(saver=nn_core_restorer,
                                           ready_for_local_init_op=read_op_value,
                                           ready_op=read_op_value)

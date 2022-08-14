@@ -5,7 +5,7 @@ import time
 
 import numpy
 import tensorflow as tf
-from tensorflow_core.contrib.framework.python.ops.variables import get_variables_to_restore
+from tf_slim import get_variables_to_restore
 
 from tifffile import imsave
 

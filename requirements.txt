@@ -12,3 +12,4 @@ matplotlib>=3.3.0
 imageio~=2.9.0
 colour-science>=0.3.7
 opencv-python>=4.0.0
+tf-slim==1.1.0

@@ -6,7 +6,7 @@ from tensorflow_gan import gan_loss
 from tensorflow_gan.python import namedtuples
 from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.train import _validate_aux_loss_weight
-from tensorflow_core.contrib import slim
+from tf_slim import get_variables_to_restore
 
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan.wrappers.gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, \
@@ -143,8 +143,8 @@ class CycleGANInferenceWrapper:
     def create_generator_restorer(self):
         # Restore all the variables that were saved in the checkpoint.
         cyclegan_restorer = tf.train.Saver(
-            slim.get_variables_to_restore(include=[model_base_name + "/" + model_forward_generator_name]) +
-            slim.get_variables_to_restore(include=[model_base_name + "/" + model_backward_generator_name]),
+            get_variables_to_restore(include=[model_base_name + "/" + model_forward_generator_name]) +
+            get_variables_to_restore(include=[model_base_name + "/" + model_backward_generator_name]),
             name='GeneratorRestoreHandler'
         )
         return cyclegan_restorer

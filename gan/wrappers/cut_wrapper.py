@@ -7,10 +7,11 @@ from functools import partial
 import tensorflow as tf
 from tensorflow_core.python.layers.core import flatten
 from tensorflow_core.python.training.adam import AdamOptimizer
-from tensorflow_gan.python.contrib_utils import get_trainable_variables, create_train_op
 from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.losses.tuple_losses import args_to_gan_model
 from tensorflow_gan.python.train import _convert_tensor_or_l_or_d, RunTrainOpsHook, gan_loss
+from tf_slim import get_trainable_variables
+from tf_slim.learning import create_train_op
 
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model, \
     _shadowdata_feature_discriminator_model

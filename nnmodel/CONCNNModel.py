@@ -1,6 +1,6 @@
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
 from hyperopt import hp
+from tf_slim import conv2d, dropout, flatten, fully_connected, arg_scope
 
 from common.common_nn_ops import ModelOutputTensors
 from nnmodel.NNModel import NNModel
@@ -10,45 +10,45 @@ class CONCNNModel(NNModel):
 
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         with tf.device(model_input_params.device_id):
-            with slim.arg_scope([slim.conv2d, slim.fully_connected]):
+            with arg_scope([conv2d, fully_connected]):
                 level0_filter_count = algorithm_params["filter_count"]
-                data_format = None  # 'NHWC'
+                data_format = None
                 if data_format == 'NCHW':
                     net0 = tf.transpose(model_input_params.x, [0, 3, 1, 2])  # Convert input to NCHW
-                else:
+                else:  # "NHWC"
                     net0 = model_input_params.x
 
-                net0_1x1 = slim.conv2d(net0, level0_filter_count, [1, 1], scope='conv0_1x1', data_format=data_format)
-                net0_3x3 = slim.conv2d(net0, level0_filter_count, [3, 3], scope='conv0_3x3', data_format=data_format)
-                net0_5x5 = slim.conv2d(net0, level0_filter_count, [5, 5], scope='conv0_5x5', data_format=data_format)
+                net0_1x1 = conv2d(net0, level0_filter_count, [1, 1], scope="conv0_1x1", data_format=data_format)
+                net0_3x3 = conv2d(net0, level0_filter_count, [3, 3], scope="conv0_3x3", data_format=data_format)
+                net0_5x5 = conv2d(net0, level0_filter_count, [5, 5], scope="conv0_5x5", data_format=data_format)
                 net0_out = tf.concat(axis=3, values=[net0_1x1, net0_3x3, net0_5x5])
                 net0_out = tf.nn.local_response_normalization(net0_out)
 
                 level1_filter_count = level0_filter_count * 3
-                net11 = slim.conv2d(net0_out, level1_filter_count, [1, 1], scope='conv11', data_format=data_format)
+                net11 = conv2d(net0_out, level1_filter_count, [1, 1], scope="conv11", data_format=data_format)
                 net11 = tf.nn.local_response_normalization(net11)
-                net12 = slim.conv2d(net11, level1_filter_count, [1, 1], scope='conv12', data_format=data_format)
-                net13 = slim.conv2d(net12, level1_filter_count, [1, 1], scope='conv13', data_format=data_format)
+                net12 = conv2d(net11, level1_filter_count, [1, 1], scope="conv12", data_format=data_format)
+                net13 = conv2d(net12, level1_filter_count, [1, 1], scope="conv13", data_format=data_format)
                 net13 = net13 + net11
 
                 level2_filter_count = level1_filter_count
-                net21 = slim.conv2d(net13, level2_filter_count, [1, 1], scope='conv21', data_format=data_format)
-                net22 = slim.conv2d(net21, level2_filter_count, [1, 1], scope='conv22', data_format=data_format)
+                net21 = conv2d(net13, level2_filter_count, [1, 1], scope="conv21", data_format=data_format)
+                net22 = conv2d(net21, level2_filter_count, [1, 1], scope="conv22", data_format=data_format)
                 net22 = net22 + net13
 
                 level3_filter_count = level2_filter_count
-                net31 = slim.conv2d(net22, level3_filter_count, [1, 1], scope='conv31', data_format=data_format)
-                net31 = slim.dropout(net31, algorithm_params["drop_out_ratio"],
-                                     is_training=model_input_params.is_training)
+                net31 = conv2d(net22, level3_filter_count, [1, 1], scope="conv31", data_format=data_format)
+                net31 = dropout(net31, algorithm_params["drop_out_ratio"],
+                                is_training=model_input_params.is_training)
 
-                net32 = slim.conv2d(net31, level3_filter_count, [1, 1], scope='conv32', data_format=data_format)
-                net32 = slim.dropout(net32, algorithm_params["drop_out_ratio"],
-                                     is_training=model_input_params.is_training)
+                net32 = conv2d(net31, level3_filter_count, [1, 1], scope="conv32", data_format=data_format)
+                net32 = dropout(net32, algorithm_params["drop_out_ratio"],
+                                is_training=model_input_params.is_training)
 
-                net33 = slim.conv2d(net32, level3_filter_count, [1, 1], scope='conv33', data_format=data_format)
+                net33 = conv2d(net32, level3_filter_count, [1, 1], scope="conv33", data_format=data_format)
 
-                net_33 = slim.flatten(net33)
-                net_fc = slim.fully_connected(net_33, class_count, activation_fn=None, scope='fc')
+                net_33 = flatten(net33)
+                net_fc = fully_connected(net_33, class_count, activation_fn=None, scope="fc")
         return ModelOutputTensors(y_conv=net_fc, image_output=None, image_original=None, histogram_tensors=[])
 
     def get_loss_func(self, tensor_output, label):

@@ -2,13 +2,13 @@ import numpy
 import tensorflow as tf
 from numba import jit
 from sklearn.model_selection import StratifiedShuffleSplit
-from tensorflow.contrib.slim.python.slim.learning import create_train_op
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops.metrics_impl import metric_variable
-from tensorflow_core.contrib.learn.python.learn.summary_writer_cache import SummaryWriterCache
+from tensorflow.python.training import summary_io
 from tensorflow_core.contrib.metrics.python.ops.metric_ops import cohen_kappa
 from tensorflow_core.python.data.experimental import shuffle_and_repeat, prefetch_to_device
 from tensorflow_core.python.training.session_run_hook import SessionRunHook
+from tf_slim.learning import create_train_op
 from tifffile import imread
 from tqdm import tqdm
 
@@ -192,10 +192,6 @@ def optimize_nn(deep_nn_template, images, labels, device_id, name_prefix, algori
             if algorithm_params["optimizer"] == "AdamOptimizer":
                 optimizer = tf.train.AdamOptimizer(learning_rate, name="nn_core/Adam")
 
-        # None means TPU
-        if device_id is None:
-            optimizer = tf.contrib.tpu.CrossShardOptimizer(optimizer)
-
         train_step = create_train_op(cross_entropy, optimizer, global_step=global_step)
 
         # This part is required for batch normalization to work
@@ -316,7 +312,7 @@ def create_graph(training_data_set, testing_data_set, validation_data_set, class
     model_input_params = ModelInputParams(x=testing_images, y=None, device_id=device_id, is_training=False)
     testing_tensor_outputs = deep_nn_template(model_input_params, algorithm_params=algorithm_params)
     test_metric_ops_holder = create_metric_tensors(testing_labels, testing_tensor_outputs.y_conv, class_range,
-                                            "testing")
+                                                   "testing")
     testing_nn_params = NNParams(input_iterator=testing_input_iter, data_with_labels=None,
                                  metrics=test_metric_ops_holder, predict_tensor=None)
     ####################################################################################
@@ -330,7 +326,7 @@ def create_graph(training_data_set, testing_data_set, validation_data_set, class
         validation_tensor_outputs = deep_nn_template(validation_model_input_params, algorithm_params=algorithm_params)
         validation_metric_ops_holder = create_metric_tensors(validation_labels, validation_tensor_outputs.y_conv,
                                                              class_range,
-                                                      "validation")
+                                                             "validation")
         validation_nn_params = NNParams(input_iterator=validation_input_iter, data_with_labels=None,
                                         metrics=validation_metric_ops_holder, predict_tensor=None)
     ####################################################################################
@@ -408,7 +404,6 @@ def perform_rotation_augmentation_random(images, labels, augmentation_info):
             # batch_size = shp[0]
             angles = tf.random_uniform([1], 0, 3, dtype="int32")
             images = tf.image.rot90(images, angles[0])
-            # images = tf.contrib.image.rotate(images, tf.to_float(angles) * 0.5 * pi)
 
     return images, labels
 
@@ -432,8 +427,6 @@ def perform_reflection_augmentation_random(images, labels, augmentation_info):
             images = tf.image.random_flip_up_down(images)
 
     return images, labels
-
-
 
 
 def get_model_from_name(model_name):
@@ -592,4 +585,4 @@ class TextSummaryAtStartHook(SessionRunHook):
 
     def after_create_session(self, session, coord):
         current_iteration = session.run(tf.train.get_global_step())
-        SummaryWriterCache.get(self._log_dir).add_summary(session.run(self._summary_text_tensor), current_iteration)
+        summary_io.SummaryWriterCache.get(self._log_dir).add_summary(session.run(self._summary_text_tensor), current_iteration)

@@ -9,7 +9,7 @@ from math import floor, ceil
 import cv2
 import numpy
 import tensorflow as tf
-from tensorflow.contrib.data import shuffle_and_repeat
+from tensorflow_core.python.data.experimental import shuffle_and_repeat
 from tifffile import imwrite
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers
