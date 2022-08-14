@@ -50,8 +50,6 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
         device_id = "/gpu:0"
     elif flags.device == "cpu":
         device_id = "/cpu:0"
-    elif flags.device == "tpu":
-        device_id = None
 
     for run_index in range(0, flags.split_count):
         with tf.Graph().as_default():
@@ -147,7 +145,7 @@ def add_parse_cmds_for_app(parser):
                         help="If added, input data is augmented offline in a randomized fashion.")
     parser.add_argument("--device", nargs="?", type=str,
                         default="gpu",
-                        help="Device for processing: gpu, cpu or tpu")
+                        help="Device for processing: gpu, cpu")
     parser.add_argument("--split_count", nargs="?", type=int,
                         default=1,
                         help="Split count")
