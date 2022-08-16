@@ -370,9 +370,9 @@ def cut_model(
 def calc_cross_feats(generated_data, real_data, tau):
     # generated_data = tf.Print(generated_data, [generated_data], message="generated_data", summarize=100)
     # real_data = tf.Print(real_data, [real_data], message="real_data", summarize=100)
-    cross_feature_logit = tf.matmul(generated_data, tf.transpose(real_data, [0, 2, 1])) / tau
+    cross_feature_logit = tf.matmul(generated_data, tf.transpose(a=real_data, perm=[0, 2, 1])) / tau
     labels = tf.eye(cross_feature_logit.shape[1].value, cross_feature_logit.shape[2].value, batch_shape=[1])
-    labels = tf.placeholder_with_default(labels, [None, labels.shape[1].value, labels.shape[2].value])
+    labels = tf.compat.v1.placeholder_with_default(labels, [None, labels.shape[1].value, labels.shape[2].value])
     # cross_feature_logit = tf.Print(cross_feature_logit, [cross_feature_logit], message="cross_feature_mat",
     #                                summarize=100)
     # labels = tf.Print(labels, [labels], message="labels", summarize=100)
@@ -391,8 +391,8 @@ def contrastive_gen_data_x_loss_impl(
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
     with tf.compat.v1.name_scope(scope, "contrastive_gen_loss", (discriminator_gen_outputs, weights)) as scope:
-        labels, logit = calc_cross_feats(feat_discriminator_gen_data, feat_discriminator_real_data_x, tau=0.07)
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels, logit)
+        labels, logits = calc_cross_feats(feat_discriminator_gen_data, feat_discriminator_real_data_x, tau=0.07)
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
         loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope, loss_collection, reduction)
         # softmax_entropy = tf.boolean_mask(softmax_entropy, tf.is_finite(softmax_entropy))
         # patch_nce_loss = tf.reduce_mean(softmax_entropy)
@@ -419,8 +419,8 @@ def contrastive_identity_loss_impl(
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
     with tf.compat.v1.name_scope(scope, "contrastive_identity_loss", (discriminator_gen_outputs, weights)) as scope:
-        labels, logit = calc_cross_feats(feat_discriminator_generated_data_y, feat_discriminator_real_data_y, tau=0.07)
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels, logit)
+        labels, logits = calc_cross_feats(feat_discriminator_generated_data_y, feat_discriminator_real_data_y, tau=0.07)
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
         loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope, loss_collection, reduction)
     if add_summaries:
         tf.compat.v1.summary.scalar("nce_loss_identity", loss)
@@ -662,9 +662,9 @@ class CUTWrapper:
             check_for_unused_update_ops=False,
             aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
 
-        tf.summary.scalar("generator_lr", gen_lr)
-        tf.summary.scalar("discriminator_lr", dis_lr)
-        tf.summary.scalar("generator_discriminator_lr", gen_dis_lr)
+        tf.compat.v1.summary.scalar("generator_lr", gen_lr)
+        tf.compat.v1.summary.scalar("discriminator_lr", dis_lr)
+        tf.compat.v1.summary.scalar("generator_discriminator_lr", gen_dis_lr)
 
         return train_ops
 
@@ -676,8 +676,8 @@ class CUTWrapper:
         element_size = data_set.get_data_shape()
         element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
 
-        x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
-        y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
+        x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
+        y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
         model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
         shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
                                                   sample_count=validation_sample_count,

@@ -19,7 +19,7 @@ from sr_data_models import construct_inference_graph, model_forward_generator_na
 
 
 def make_inference_graph(model_name, size):
-    input_tensor = tf.placeholder(dtype=tf.float32, shape=[None, size, size, 144], name='x')
+    input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, size, size, 144], name='x')
     generated = construct_inference_graph(input_tensor, model_name)
     return input_tensor, generated
 
@@ -75,7 +75,7 @@ def main(_):
     scale_down_indices = numpy.rint(numpy.linspace(0, grss2013_band_count, grss2018_band_count)).astype(int)
     progress_bar = tqdm(total=scene_first_dim_size * scene_second_dim_size)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         create_generator_restorer().restore(sess, flags.base_log_path)
 
         for first_dim_idx in range(first_dim_start_index, first_dim_start_index + scene_first_dim_size):
@@ -162,4 +162,4 @@ def convert_to_grss2018(generated_y, grss_2013_test_data, dataset_global_maximum
 
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.compat.v1.app.run()

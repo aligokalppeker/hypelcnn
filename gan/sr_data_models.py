@@ -33,7 +33,7 @@ def extract_common_normalizer(hsi_grss2013, hsi_grss2018):
 def _srdata_generator_model(netinput, is_training=True):
     with arg_scope(
             [conv2d, conv2d_transpose],
-            weights_initializer=tf.initializers.variance_scaling(scale=2.0),
+            weights_initializer=tf.compat.v1.initializers.variance_scaling(scale=2.0),
             # weights_regularizer=l2_regularizer(0.00001),
             # normalizer_fn=batch_norm,
             # normalizer_params={'is_training': is_training, 'decay': 0.95},
@@ -96,7 +96,7 @@ def gen_net_method1(netinput):
 
 def _srdata_discriminator_model(generated_data, generator_input, is_training=True):
     with arg_scope([fully_connected],
-                   weights_initializer=tf.initializers.variance_scaling(scale=2.0),
+                   weights_initializer=tf.compat.v1.initializers.variance_scaling(scale=2.0),
                    weights_regularizer=l2_regularizer(0.001),
                    # normalizer_fn=batch_norm,
                    # normalizer_params={'is_training': is_training, 'decay': 0.95},
@@ -131,15 +131,15 @@ def _srdata_discriminator_model(generated_data, generator_input, is_training=Tru
 
 
 def construct_inference_graph(input_tensor, model_name):
-    with tf.variable_scope(model_name):
-        with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope(model_name):
+        with tf.compat.v1.variable_scope('Generator', reuse=tf.compat.v1.AUTO_REUSE):
             generated_tensor = _srdata_generator_model(input_tensor, False)
     return generated_tensor
 
 
 def create_generator_restorer():
     # Restore all the variables that were saved in the checkpoint.
-    cyclegan_restorer = tf.train.Saver(
+    cyclegan_restorer = tf.compat.v1.train.Saver(
         get_variables_to_restore(include=[model_forward_generator_name]) +
         get_variables_to_restore(include=[model_backward_generator_name]), name='GeneratorRestoreHandler'
     )

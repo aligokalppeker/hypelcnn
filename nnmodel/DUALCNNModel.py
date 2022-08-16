@@ -108,13 +108,13 @@ class DUALCNNModel(NNModel):
         return net
 
     def get_loss_func(self, tensor_output, label):
-        return tf.nn.softmax_cross_entropy_with_logits_v2(labels=label,
-                                                          logits=tensor_output.y_conv)
+        return tf.nn.softmax_cross_entropy_with_logits(labels=label,
+                                                       logits=tensor_output.y_conv)
 
     @staticmethod
     def _create_a_level(level_filter_count, input_data, level_name):
         patch_size = input_data.get_shape()[1].value
-        with tf.name_scope(level_name + '_scope'):
+        with tf.compat.v1.name_scope(level_name + '_scope'):
             elements = []
             for patch_index in range(1, patch_size + 1):
                 if patch_index % 2 == 1:

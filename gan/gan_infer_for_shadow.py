@@ -33,7 +33,7 @@ def main(_):
                                                                             validation_sample_count=flags.number_of_samples)
 
     set_all_gpu_config()
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         gan_inference_wrapper_dict[flags.gan_type].create_generator_restorer().restore(sess, flags.base_log_path)
         hook.after_create_session(sess, None)
         run_context = SessionRunContext(original_args=None, session=sess)
@@ -59,4 +59,4 @@ def get_wrapper_dict():
 
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.compat.v1.app.run()

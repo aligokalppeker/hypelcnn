@@ -60,7 +60,7 @@ def main(_):
                                                                                                   clip_invalid_values=False)
 
     set_all_gpu_config()
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         if make_them_shadow != "none":
             gan_inference_wrapper_dict[flags.gan_type].create_generator_restorer().restore(sess, flags.base_log_path)
 
@@ -116,4 +116,4 @@ def get_wrapper_dict():
 
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.compat.v1.app.run()

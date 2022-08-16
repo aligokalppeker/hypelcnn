@@ -14,7 +14,7 @@ class CONCNNModel(NNModel):
                 level0_filter_count = algorithm_params["filter_count"]
                 data_format = None
                 if data_format == 'NCHW':
-                    net0 = tf.transpose(model_input_params.x, [0, 3, 1, 2])  # Convert input to NCHW
+                    net0 = tf.transpose(a=model_input_params.x, perm=[0, 3, 1, 2])  # Convert input to NCHW
                 else:  # "NHWC"
                     net0 = model_input_params.x
 
@@ -52,8 +52,8 @@ class CONCNNModel(NNModel):
         return ModelOutputTensors(y_conv=net_fc, image_output=None, image_original=None, histogram_tensors=[])
 
     def get_loss_func(self, tensor_output, label):
-        return tf.nn.softmax_cross_entropy_with_logits_v2(labels=label,
-                                                          logits=tensor_output.y_conv)
+        return tf.nn.softmax_cross_entropy_with_logits(labels=label,
+                                                       logits=tensor_output.y_conv)
 
     def get_hyper_param_space(self):
         return {

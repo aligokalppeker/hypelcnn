@@ -42,11 +42,11 @@ def add_parse_cmds_for_apps(parser):
 
 def write_to_tfrecord(train_filename, data, labels, compressed):
     if compressed:
-        writer = tf.python_io.TFRecordWriter(train_filename,
-                                             options=tf.python_io.TFRecordOptions(
-                                                 tf.python_io.TFRecordCompressionType.GZIP))
+        writer = tf.io.TFRecordWriter(train_filename,
+                                             options=tf.io.TFRecordOptions(
+                                                 tf.compat.v1.python_io.TFRecordCompressionType.GZIP))
     else:
-        writer = tf.python_io.TFRecordWriter(train_filename)
+        writer = tf.io.TFRecordWriter(train_filename)
 
     data_len = len(data)
     for i in range(data_len):
@@ -67,7 +67,7 @@ def write_to_tfrecord(train_filename, data, labels, compressed):
 
 
 def write_metadata_record(metadata_filename, training_data, testing_data, validation_data):
-    writer = tf.python_io.TFRecordWriter(metadata_filename)
+    writer = tf.io.TFRecordWriter(metadata_filename)
     # Create a feature
     feature = {'training_data_shape': tf.train.Feature(int64_list=tf.train.Int64List(value=training_data.shape)),
                'testing_data_shape': tf.train.Feature(int64_list=tf.train.Int64List(value=testing_data.shape)),
@@ -80,4 +80,4 @@ def write_metadata_record(metadata_filename, training_data, testing_data, valida
 
 
 if __name__ == '__main__':
-    tf.app.run(main=main)
+    tf.compat.v1.app.run(main=main)

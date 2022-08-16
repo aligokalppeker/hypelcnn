@@ -63,7 +63,7 @@ class HYPELCNNModel(NNModel):
                 level_filter_count = algorithm_params["filter_count"]
 
                 if data_format == 'NCHW':
-                    net0 = tf.transpose(model_input_params.x, [0, 3, 1, 2])  # Convert input to NCHW
+                    net0 = tf.transpose(a=model_input_params.x, perm=[0, 3, 1, 2])  # Convert input to NCHW
                 else:
                     net0 = model_input_params.x
 
@@ -116,15 +116,15 @@ class HYPELCNNModel(NNModel):
                                                      HistogramTensorPair(net5, "classification")])
 
     def get_loss_func(self, tensor_output, label):
-        original_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=label, logits=tensor_output.y_conv)
+        original_loss = tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=tensor_output.y_conv)
         if tensor_output.image_output is None:
             total_loss = original_loss
         else:
             original_reshaped = tf.reshape(tensor_output.image_original,
                                            [-1, tensor_output.image_output.get_shape()[1]])
-            reconstruction_err = tf.reduce_mean(tf.square(tensor_output.image_output - original_reshaped))
+            reconstruction_err = tf.reduce_mean(input_tensor=tf.square(tensor_output.image_output - original_reshaped))
             total_loss = original_loss + reconstruction_err
-            tf.losses.add_loss(total_loss)
+            tf.compat.v1.losses.add_loss(total_loss)
 
         return total_loss
 
@@ -183,7 +183,7 @@ class HYPELCNNModel(NNModel):
     @staticmethod
     def __create_a_level(level_filter_count, input_data, level_name, data_format):
         patch_size = input_data.get_shape()[1].value
-        with tf.name_scope(level_name + '_scope'):
+        with tf.compat.v1.name_scope(level_name + '_scope'):
             elements = []
             for patch_x_index in range(1, patch_size + 1):
                 for patch_y_index in range(1, patch_size + 1):

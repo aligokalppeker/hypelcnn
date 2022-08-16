@@ -20,7 +20,7 @@ from sr_data_models import _srdata_generator_model, _srdata_discriminator_model,
 import tensorflow_gan as tfgan
 
 
-class InitializerHook(tf.train.SessionRunHook):
+class InitializerHook(tf.estimator.SessionRunHook):
 
     def __init__(self, input_itr):
         self.input_itr = input_itr
@@ -107,7 +107,7 @@ def load_op(batch_size, iteration_count, path):
         (tensor_output_shape, tensor_output_shape))
     data_set = data_set.apply(shuffle_and_repeat(buffer_size=10000, count=epoch))
     data_set = data_set.batch(batch_size)
-    data_set_itr = data_set.make_initializable_iterator()
+    data_set_itr = tf.compat.v1.data.make_initializable_iterator(data_set)
 
     return InitializerHook(data_set_itr)
 
@@ -185,17 +185,17 @@ def _get_lr(base_lr, step):
       global training step is less than flags.max_number_of_steps / 2, afterwards
       it linearly decays to zero.
     """
-    global_step = tf.train.get_or_create_global_step()
+    global_step = tf.compat.v1.train.get_or_create_global_step()
     lr_constant_steps = step // 2
 
     def _lr_decay():
-        return tf.train.polynomial_decay(
+        return tf.compat.v1.train.polynomial_decay(
             learning_rate=base_lr,
             global_step=(global_step - lr_constant_steps),
             decay_steps=(step - lr_constant_steps),
             end_learning_rate=0.0)
 
-    return tf.cond(global_step < lr_constant_steps, lambda: base_lr, _lr_decay)
+    return tf.cond(pred=global_step < lr_constant_steps, true_fn=lambda: base_lr, false_fn=_lr_decay)
 
 
 def _get_optimizer(gen_lr, dis_lr):
@@ -212,8 +212,8 @@ def _get_optimizer(gen_lr, dis_lr):
     """
     # beta1 follows
     # https://github.com/junyanz/CycleGAN/blob/master/options.lua
-    gen_opt = tf.train.AdamOptimizer(gen_lr, beta1=0.5, use_locking=True)
-    dis_opt = tf.train.AdamOptimizer(dis_lr, beta1=0.5, use_locking=True)
+    gen_opt = tf.compat.v1.train.AdamOptimizer(gen_lr, beta1=0.5, use_locking=True)
+    dis_opt = tf.compat.v1.train.AdamOptimizer(dis_lr, beta1=0.5, use_locking=True)
     return gen_opt, dis_opt
 
 
@@ -242,8 +242,8 @@ def _define_train_ops(cyclegan_model, cyclegan_loss, step, gen_lr, dis_lr):
         check_for_unused_update_ops=False,
         aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
 
-    tf.summary.scalar('generator_lr', gen_lr)
-    tf.summary.scalar('discriminator_lr', dis_lr)
+    tf.compat.v1.summary.scalar('generator_lr', gen_lr)
+    tf.compat.v1.summary.scalar('discriminator_lr', dis_lr)
     return train_ops
 
 
@@ -274,11 +274,11 @@ def main(_):
     add_parse_cmds_for_trainers(parser)
     flags, unparsed = parser.parse_known_args()
 
-    if not tf.gfile.Exists(flags.base_log_path):
-        tf.gfile.MakeDirs(flags.base_log_path)
+    if not tf.io.gfile.exists(flags.base_log_path):
+        tf.io.gfile.makedirs(flags.base_log_path)
 
-    with tf.device(tf.train.replica_device_setter(flags.ps_tasks)):
-        with tf.name_scope('inputs'):
+    with tf.device(tf.compat.v1.train.replica_device_setter(flags.ps_tasks)):
+        with tf.compat.v1.name_scope('inputs'):
             initializer_hook = load_op(flags.batch_size, flags.step, flags.path)
             training_input_iter = initializer_hook.input_itr
             images_x, images_y = training_input_iter.get_next()
@@ -301,10 +301,10 @@ def main(_):
 
         # Training
         train_steps = tfgan.GANTrainSteps(1, 1)
-        status_message = tf.string_join(
+        status_message = tf.strings.join(
             [
                 'Starting train step: ',
-                tf.as_string(tf.train.get_or_create_global_step())
+                tf.as_string(tf.compat.v1.train.get_or_create_global_step())
             ],
             name='status_message')
         if not flags.step:
@@ -316,12 +316,12 @@ def main(_):
             get_hooks_fn=tfgan.get_sequential_train_hooks(train_steps),
             hooks=[
                 initializer_hook,
-                tf.train.StopAtStepHook(num_steps=flags.step),
-                tf.train.LoggingTensorHook([status_message], every_n_iter=10)
+                tf.estimator.StopAtStepHook(num_steps=flags.step),
+                tf.estimator.LoggingTensorHook([status_message], every_n_iter=10)
             ],
             master=flags.master,
             is_chief=flags.task == 0)
 
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.compat.v1.app.run()

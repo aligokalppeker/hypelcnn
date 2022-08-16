@@ -23,7 +23,7 @@ def _shadowdata_generator_model_simple(netinput, is_training=True):
 
 def _shadowdata_discriminator_model_simple(generated_data, generator_input, is_training=True):
     with arg_scope([fully_connected, separable_conv2d, convolution1d],
-                   weights_initializer=tf.initializers.variance_scaling(scale=2.0),
+                   weights_initializer=tf.compat.v1.initializers.variance_scaling(scale=2.0),
                    activation_fn=(lambda inp: leaky_relu(inp, alpha=0.01))):
         band_size = generated_data.get_shape()[3].value
 
@@ -43,7 +43,7 @@ def _shadowdata_generator_model(netinput, create_only_encoder=False, is_training
     with arg_scope(
             [conv2d, conv2d_transpose, convolution1d],
             # weights_initializer=initializers.variance_scaling(scale=2.0),
-            weights_initializer=tf.initializers.zeros(),
+            weights_initializer=tf.compat.v1.initializers.zeros(),
             # weights_regularizer=l1_l2_regularizer(),
             # normalizer_fn=batch_norm,
             # normalizer_params={'is_training': is_training, 'decay': 0.95},
@@ -92,7 +92,7 @@ def _shadowdata_generator_model(netinput, create_only_encoder=False, is_training
 
 def _shadowdata_discriminator_model(generated_data, generator_input, is_training=True):
     with arg_scope([fully_connected, separable_conv2d, convolution1d],
-                   weights_initializer=tf.initializers.variance_scaling(scale=2.0),
+                   weights_initializer=tf.compat.v1.initializers.variance_scaling(scale=2.0),
                    weights_regularizer=l2_regularizer(0.001),
                    # normalizer_fn=batch_norm,
                    # normalizer_params={'is_training': is_training, 'decay': 0.999},
@@ -117,7 +117,7 @@ def _shadowdata_discriminator_model(generated_data, generator_input, is_training
 
 def _shadowdata_feature_discriminator_model(generated_data, patch_count, embedded_feature_size, is_training):
     with arg_scope([fully_connected, separable_conv2d, convolution1d],
-                   weights_initializer=tf.initializers.variance_scaling(scale=2.0),
+                   weights_initializer=tf.compat.v1.initializers.variance_scaling(scale=2.0),
                    weights_regularizer=l2_regularizer(0.001),
                    # normalizer_fn=batch_norm,
                    # normalizer_params={'is_training': is_training, 'decay': 0.999},

@@ -20,7 +20,7 @@ class TFRecordImporter(DataImporter):
         training_data_shape = None
         testing_data_shape = None
         validation_data_shape = None
-        for record in tf.python_io.tf_record_iterator(model_base_dir + "metadata.tfrecord"):
+        for record in tf.compat.v1.python_io.tf_record_iterator(model_base_dir + "metadata.tfrecord"):
             example = tf.train.Example()
             example.ParseFromString(record)  # calling protocol buffer API
 
@@ -40,10 +40,10 @@ class TFRecordImporter(DataImporter):
     def extract_fn(data_record, shape, class_count, prefix):
         features = {
             # Extract features using the keys set during creation
-            "label": tf.FixedLenFeature([], tf.int64),
-            "image": tf.FixedLenFeature(shape=[np.prod(shape)], dtype=tf.float32),
+            "label": tf.io.FixedLenFeature([], tf.int64),
+            "image": tf.io.FixedLenFeature(shape=[np.prod(shape)], dtype=tf.float32),
         }
-        sample = tf.parse_single_example(data_record, features)
+        sample = tf.io.parse_single_example(serialized=data_record, features=features)
         image = tf.reshape(sample["image"], shape)
         label_one_hot = tf.one_hot(sample["label"], class_count, dtype=tf.uint8, name=f"{prefix}_one_hot")
 
@@ -51,12 +51,12 @@ class TFRecordImporter(DataImporter):
 
     def convert_data_to_tensor(self, test_data_with_labels, training_data_with_labels, validation_data_with_labels,
                                class_range):
-        training_path_placeholder = tf.placeholder(tf.string, 1, "training_path_placeholder")
+        training_path_placeholder = tf.compat.v1.placeholder(tf.string, 1, "training_path_placeholder")
         class_count = class_range.stop
         training_data_set = tf.data.TFRecordDataset(training_path_placeholder).map(
             lambda inp: self.extract_fn(inp, training_data_with_labels.data.shape[1:4], class_count, "training"))
 
-        testing_path_placeholder = tf.placeholder(tf.string, 1, "testing_path_placeholder")
+        testing_path_placeholder = tf.compat.v1.placeholder(tf.string, 1, "testing_path_placeholder")
         testing_data_set = tf.data.TFRecordDataset(testing_path_placeholder).map(
             lambda inp: self.extract_fn(inp, test_data_with_labels.data.shape[1:4], class_count, "testing"))
 

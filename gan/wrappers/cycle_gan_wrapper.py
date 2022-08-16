@@ -113,8 +113,8 @@ class CycleGANWrapper:
         element_size = data_set.get_data_shape()
         element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
 
-        x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
-        y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
+        x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
+        y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
         cyclegan_model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
         return create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                            validation_iteration_count, validation_sample_count,
@@ -126,9 +126,9 @@ class CycleGANWrapper:
 class CycleGANInferenceWrapper:
     def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
         model_name = model_forward_generator_name if is_shadow_graph else model_backward_generator_name
-        with tf.variable_scope(model_base_name):
-            with tf.variable_scope(model_name):
-                with tf.variable_scope(model_generator_name, reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope(model_base_name):
+            with tf.compat.v1.variable_scope(model_name):
+                with tf.compat.v1.variable_scope(model_generator_name, reuse=tf.compat.v1.AUTO_REUSE):
                     result = create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values)
 
         return result
@@ -136,13 +136,13 @@ class CycleGANInferenceWrapper:
     def make_inference_graph(self, data_set, is_shadow_graph, clip_invalid_values):
         element_size = data_set.get_data_shape()
         element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
-        input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
+        input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
         generated = self.construct_inference_graph(input_tensor, is_shadow_graph, clip_invalid_values)
         return input_tensor, generated
 
     def create_generator_restorer(self):
         # Restore all the variables that were saved in the checkpoint.
-        cyclegan_restorer = tf.train.Saver(
+        cyclegan_restorer = tf.compat.v1.train.Saver(
             get_variables_to_restore(include=[model_base_name + "/" + model_forward_generator_name]) +
             get_variables_to_restore(include=[model_base_name + "/" + model_backward_generator_name]),
             name='GeneratorRestoreHandler'
@@ -154,8 +154,8 @@ class CycleGANInferenceWrapper:
         element_size = data_set.get_data_shape()
         element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
 
-        x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='x')
-        y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name='y')
+        x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name='x')
+        y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name='y')
         return create_base_validation_hook(data_set=data_set,
                                            loader=loader,
                                            log_dir=log_dir,

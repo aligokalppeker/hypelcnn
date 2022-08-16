@@ -2,14 +2,13 @@ import argparse
 
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 from cv2 import resize, matchTemplate, minMaxLoc, rectangle, TM_CCORR_NORMED, INTER_AREA
 
 from common.cmd_parser import add_parse_cmds_for_loggers, add_parse_cmds_for_loaders
 from common.common_nn_ops import get_loader_from_name
 
 
-def main(_):
+def main():
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loggers(parser)
     add_parse_cmds_for_loaders(parser)
@@ -83,4 +82,4 @@ def match_data(grss_2013_band, grss_2018_band, grss_2013_data_set, grss_2018_dat
 
 
 if __name__ == '__main__':
-    tf.app.run(main=main)
+    main()

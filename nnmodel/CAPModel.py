@@ -1,7 +1,7 @@
 import numpy
 import tensorflow as tf
 from hyperopt import hp
-from tensorflow_core.python.ops.nn_ops import leaky_relu
+from tensorflow_core.python.ops.gen_nn_ops import leaky_relu
 from tf_slim import conv2d, fully_connected, arg_scope, batch_norm
 
 from nnmodel.NNModel import NNModel
@@ -68,14 +68,14 @@ class CAPModel(NNModel):
                            # weights_regularizer=slim.l2_regularizer(0.00001),
                            # normalizer_fn=slim.batch_norm,
                            ):
-                with tf.variable_scope('Conv1_layer') as scope:
+                with tf.compat.v1.variable_scope('Conv1_layer') as scope:
                     image_output = conv2d(model_input_params.x,
                                           num_outputs=feature_count,
                                           kernel_size=conv_layer_kernel_size,
                                           padding='VALID',
                                           scope=scope, normalizer_fn=batch_norm)
 
-                with tf.variable_scope('PrimaryCaps_layer') as scope:
+                with tf.compat.v1.variable_scope('PrimaryCaps_layer') as scope:
                     image_output = conv2d(image_output,
                                           num_outputs=primary_capsule_count * primary_capsule_output_space,
                                           kernel_size=primary_caps_kernel_size, stride=1,
@@ -86,7 +86,7 @@ class CAPModel(NNModel):
                                  image_output.get_shape()[3]).value // primary_capsule_output_space
                     image_output = tf.reshape(image_output, [batch_size, data_size, 1, primary_capsule_output_space])
 
-                with tf.variable_scope('DigitCaps_layer'):
+                with tf.compat.v1.variable_scope('DigitCaps_layer'):
                     u_hats = []
                     image_output_groups = tf.split(axis=1, num_or_size_splits=data_size, value=image_output)
                     for i in range(data_size):
@@ -104,7 +104,7 @@ class CAPModel(NNModel):
                     b_ijs = tf.constant(numpy.zeros([data_size, digit_capsule_count], dtype=numpy.float32))
                     v_js = []
                     for r_iter in range(iter_routing):
-                        with tf.variable_scope('iter_' + str(r_iter)):
+                        with tf.compat.v1.variable_scope('iter_' + str(r_iter)):
                             b_ij_groups = tf.split(axis=1, num_or_size_splits=digit_capsule_count, value=b_ijs)
 
                             c_ijs = tf.nn.softmax(b_ijs, axis=1)
@@ -115,18 +115,22 @@ class CAPModel(NNModel):
                             for i in range(digit_capsule_count):
                                 c_ij = tf.reshape(tf.tile(c_ij_groups[i], [1, digit_capsule_output_space]),
                                                   [c_ij_groups[i].get_shape()[0], 1, digit_capsule_output_space, 1])
-                                s_j = tf.nn.depthwise_conv2d(image_output_groups[i], c_ij, strides=[1, 1, 1, 1],
+                                s_j = tf.nn.depthwise_conv2d(input=image_output_groups[i], filter=c_ij,
+                                                             strides=[1, 1, 1, 1],
                                                              padding='VALID')
                                 # Squash function
                                 s_j = tf.reshape(s_j, [batch_size, digit_capsule_output_space])
-                                s_j_norm_square = tf.reduce_mean(tf.square(s_j), axis=1, keepdims=True)
+                                s_j_norm_square = tf.reduce_mean(input_tensor=tf.square(s_j), axis=1, keepdims=True)
                                 v_j = s_j_norm_square * s_j / ((1 + s_j_norm_square) * tf.sqrt(s_j_norm_square + 1e-9))
 
                                 b_ij_groups[i] = b_ij_groups[i] + tf.reduce_sum(
-                                    tf.matmul(tf.reshape(image_output_groups[i],
-                                                         [batch_size, image_output_groups[i].get_shape()[1],
-                                                          digit_capsule_output_space]),
-                                              tf.reshape(v_j, [batch_size, digit_capsule_output_space, 1])), axis=0)
+                                    input_tensor=tf.matmul(tf.reshape(image_output_groups[i],
+                                                                      [batch_size,
+                                                                       image_output_groups[i].get_shape()[1],
+                                                                       digit_capsule_output_space]),
+                                                           tf.reshape(v_j,
+                                                                      [batch_size, digit_capsule_output_space, 1])),
+                                    axis=0)
 
                                 if r_iter == iter_routing - 1:
                                     v_js.append(tf.reshape(v_j, [batch_size, 1, digit_capsule_output_space]))
@@ -135,8 +139,8 @@ class CAPModel(NNModel):
 
                     image_output = tf.concat(v_js, axis=1)
 
-                    with tf.variable_scope('Masking'):
-                        y_conv = tf.norm(image_output, axis=2)
+                    with tf.compat.v1.variable_scope('Masking'):
+                        y_conv = tf.norm(tensor=image_output, axis=2)
 
                     decoder_image_output = None
                     if model_input_params.is_training and enable_decoding:
@@ -146,7 +150,7 @@ class CAPModel(NNModel):
                                              transpose_a=True)
                         masked_v = tf.reshape(masked_v, [batch_size, digit_capsule_output_space])
 
-                        with tf.variable_scope('Decoder'):
+                        with tf.compat.v1.variable_scope('Decoder'):
                             size = (model_input_params.x.get_shape()[1] *
                                     model_input_params.x.get_shape()[2] *
                                     model_input_params.x.get_shape()[3]).value
@@ -175,29 +179,29 @@ class CAPModel(NNModel):
 
         l_c = labels_as_float * max_l + lambda_val * (1 - labels_as_float) * max_r
 
-        margin_loss = tf.reduce_mean(tf.reduce_sum(l_c, axis=1))
+        margin_loss = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=l_c, axis=1))
 
         if x_output is None:
             total_loss = margin_loss
         else:
             origin = tf.reshape(x_original, [-1, x_output.get_shape()[1]])
-            reconstruction_err = tf.reduce_mean(tf.square(x_output - origin))
+            reconstruction_err = tf.reduce_mean(input_tensor=tf.square(x_output - origin))
             total_loss = margin_loss + 0.0005 * reconstruction_err
 
-        tf.losses.add_loss(total_loss)
+        tf.compat.v1.losses.add_loss(total_loss)
 
         return total_loss
 
     def get_loss_func(self, tensor_output, label):
-        original_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=label, logits=tensor_output.y_conv)
+        original_loss = tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=tensor_output.y_conv)
         if tensor_output.image_output is None:
             total_loss = original_loss
         else:
             original_reshaped = tf.reshape(tensor_output.image_original,
                                            [-1, tensor_output.image_output.get_shape()[1]])
-            reconstruction_err = tf.reduce_mean(tf.square(tensor_output.image_output - original_reshaped))
+            reconstruction_err = tf.reduce_mean(input_tensor=tf.square(tensor_output.image_output - original_reshaped))
             total_loss = original_loss + reconstruction_err
-            tf.losses.add_loss(total_loss)
+            tf.compat.v1.losses.add_loss(total_loss)
 
         return total_loss
 

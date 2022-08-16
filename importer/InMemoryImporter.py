@@ -15,12 +15,12 @@ class InMemoryImporter(DataImporter):
 
     @staticmethod
     def _input_nn(data_type, data_shape, label_type, label_shape, class_range, prefix):
-        x = tf.placeholder(dtype=data_type,
-                           shape=data_shape,
-                           name=f"{prefix}_x")
-        y_ = tf.placeholder(dtype=label_type,
-                            shape=label_shape,
-                            name=f"{prefix}_y_")
+        x = tf.compat.v1.placeholder(dtype=data_type,
+                                     shape=data_shape,
+                                     name=f"{prefix}_x")
+        y_ = tf.compat.v1.placeholder(dtype=label_type,
+                                      shape=label_shape,
+                                      name=f"{prefix}_y_")
         return x, y_, tf.one_hot(y_, class_range.stop, dtype=tf.uint8, name=f"{prefix}_one_hot")
 
     @staticmethod

@@ -146,8 +146,10 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
     normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
     shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
 
-    normal_data_holder = tf.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape, name="x")
-    shadow_data_holder = tf.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape, name="y")
+    normal_data_holder = tf.compat.v1.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape,
+                                                  name="x")
+    shadow_data_holder = tf.compat.v1.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape,
+                                                  name="y")
 
     epoch = (iteration_count * batch_size) // normal_data_as_matrix.shape[0]
     data_set = data.Dataset.from_tensor_slices((normal_data_holder, shadow_data_holder)).apply(
@@ -156,7 +158,7 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
         lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_, shadow_ratio, reg_support_rate),
         num_parallel_calls=4)
     data_set = data_set.batch(batch_size)
-    data_set_itr = data_set.make_initializable_iterator()
+    data_set_itr = tf.compat.v1.data.make_initializable_iterator(data_set)
 
     return InitializerHook(data_set_itr,
                            normal_data_holder, shadow_data_holder,
@@ -164,13 +166,13 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
 
 
 def perform_shadow_augmentation_random(normal_images, shadow_images, shadow_ratio, reg_support_rate):
-    with tf.name_scope("shadow_ratio_augmenter"):
+    with tf.compat.v1.name_scope("shadow_ratio_augmenter"):
         with tf.device("/cpu:0"):
-            normal_images_rand = tf.cond(tf.less(tf.random_uniform([1], 0.01, 0.99)[0], reg_support_rate),
+            normal_images_rand = tf.cond(pred=tf.less(tf.random.uniform([1], 0.01, 0.99)[0], reg_support_rate),
                                          false_fn=lambda: normal_images,
                                          true_fn=lambda: (shadow_images * shadow_ratio))
 
-            shadow_images_rand = tf.cond(tf.less(tf.random_uniform([1], 0.01, 0.99)[0], reg_support_rate),
+            shadow_images_rand = tf.cond(pred=tf.less(tf.random.uniform([1], 0.01, 0.99)[0], reg_support_rate),
                                          false_fn=lambda: shadow_images,
                                          true_fn=lambda: (normal_images_rand / shadow_ratio))
 
@@ -213,7 +215,7 @@ def main(_):
 
         shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
 
-        with tf.name_scope("inputs"):
+        with tf.compat.v1.name_scope("inputs"):
             initializer_hook = load_op(flags.batch_size, flags.step, loader, data_set,
                                        shadow_map, shadow_ratio,
                                        flags.regularization_support_rate,
@@ -243,7 +245,7 @@ def main(_):
                                   swap_inputs=True)}
         wrapper = gan_train_wrapper_dict[gan_type]
 
-        with tf.variable_scope(model_base_name, reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
             the_gan_model = wrapper.define_model(images_x, images_y)
             peer_validation_hook = wrapper.create_validation_hook(data_set, loader, log_dir, neighborhood,
                                                                   shadow_map, shadow_ratio, validation_iteration_count,
@@ -257,7 +259,7 @@ def main(_):
                                              gen_discriminator_lr=flags.gen_discriminator_lr)
 
         # Training
-        status_message = tf.string_join(
+        status_message = tf.strings.join(
             ["Starting train step: ", tf.as_string(get_or_create_global_step())],
             name="status_message")
 
@@ -269,7 +271,7 @@ def main(_):
         gan_train(
             train_ops,
             log_dir,
-            scaffold=tf.train.Scaffold(saver=tf.train.Saver(max_to_keep=checkpoint_count)),
+            scaffold=tf.compat.v1.train.Scaffold(saver=tf.compat.v1.train.Saver(max_to_keep=checkpoint_count)),
             save_checkpoint_steps=validation_iteration_count,
             get_hooks_fn=train_hooks_fn,
             hooks=[
@@ -284,4 +286,4 @@ def main(_):
 
 
 if __name__ == "__main__":
-    tf.app.run()
+    tf.compat.v1.app.run()

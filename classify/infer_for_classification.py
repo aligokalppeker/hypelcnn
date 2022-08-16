@@ -45,7 +45,7 @@ def main(_):
         validation_data_with_labels,
         class_range)
 
-    deep_nn_template = tf.make_template("nn_core", nn_model.create_tensor_graph, class_count=class_range.stop)
+    deep_nn_template = tf.compat.v1.make_template("nn_core", nn_model.create_tensor_graph, class_count=class_range.stop)
 
     start_time = time.time()
 
@@ -61,13 +61,13 @@ def main(_):
 
     prediction = numpy.empty([scene_shape[0] * scene_shape[1]], dtype=numpy.uint8)
 
-    saver = tf.train.Saver(var_list=get_variables_to_restore(include=["nn_core"],
-                                                             exclude=["image_gen_net_"]))
-    config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    saver = tf.compat.v1.train.Saver(var_list=get_variables_to_restore(include=["nn_core"],
+                                                                       exclude=["image_gen_net_"]))
+    config = tf.compat.v1.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     config.gpu_options.allow_growth = True
     config.gpu_options.per_process_gpu_memory_fraction = 1.0
 
-    with tf.Session(config=config) as session:
+    with tf.compat.v1.Session(config=config) as session:
         # Restore variables from disk.
         saver.restore(session, flags.base_log_path)
 
@@ -86,4 +86,4 @@ def main(_):
 
 
 if __name__ == "__main__":
-    tf.app.run(main=main)
+    tf.compat.v1.app.run(main=main)

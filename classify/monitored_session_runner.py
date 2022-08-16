@@ -10,25 +10,25 @@ from common.common_nn_ops import calculate_accuracy, TrainingResult, set_all_gpu
 
 def set_run_seed():
     # Set random seed as the same value to get consistent results
-    tf.set_random_seed(1234)
+    tf.compat.v1.set_random_seed(1234)
 
 
 def add_classification_summaries(cross_entropy, learning_rate, log_all_model_variables, testing_nn_params,
                                  validation_nn_params):
-    tf.summary.scalar("training_cross_entropy", cross_entropy)
-    tf.summary.scalar("training_learning_rate", learning_rate)
-    tf.summary.text("test_confusion", tf.as_string(testing_nn_params.metrics.confusion))
-    tf.summary.scalar("test_overall_accuracy", testing_nn_params.metrics.accuracy)
-    tf.summary.text("validation_confusion", tf.as_string(validation_nn_params.metrics.confusion))
-    tf.summary.scalar("validation_overall_accuracy", validation_nn_params.metrics.accuracy)
-    tf.summary.scalar("validation_average_accuracy", validation_nn_params.metrics.mean_per_class_accuracy)
-    tf.summary.scalar("validation_kappa", validation_nn_params.metrics.kappa)
+    tf.compat.v1.summary.scalar("training_cross_entropy", cross_entropy)
+    tf.compat.v1.summary.scalar("training_learning_rate", learning_rate)
+    tf.compat.v1.summary.text("test_confusion", tf.as_string(testing_nn_params.metrics.confusion))
+    tf.compat.v1.summary.scalar("test_overall_accuracy", testing_nn_params.metrics.accuracy)
+    tf.compat.v1.summary.text("validation_confusion", tf.as_string(validation_nn_params.metrics.confusion))
+    tf.compat.v1.summary.scalar("validation_overall_accuracy", validation_nn_params.metrics.accuracy)
+    tf.compat.v1.summary.scalar("validation_average_accuracy", validation_nn_params.metrics.mean_per_class_accuracy)
+    tf.compat.v1.summary.scalar("validation_kappa", validation_nn_params.metrics.kappa)
     if log_all_model_variables:
         for variable in get_model_variables():
-            tf.summary.histogram(variable.op.name, variable)
+            tf.compat.v1.summary.histogram(variable.op.name, variable)
 
 
-class InitHook(tf.train.SessionRunHook):
+class InitHook(tf.estimator.SessionRunHook):
 
     def __init__(self, training_nn_params, training_tensor, augmentation_info, restorer, importer):
         self.importer = importer
@@ -45,7 +45,7 @@ class InitHook(tf.train.SessionRunHook):
         self.importer.init_tensors(session, self.training_tensor, self.training_nn_params)
 
 
-class ValidationHook(tf.train.SessionRunHook):
+class ValidationHook(tf.estimator.SessionRunHook):
 
     def __init__(self, validation_nn_params, validation_tensor, class_range, required_steps, iteration, summary_dir,
                  importer):
@@ -61,7 +61,7 @@ class ValidationHook(tf.train.SessionRunHook):
         self._writer = None
 
     def after_create_session(self, session, coord):
-        self._global_step_tensor = tf.train.get_global_step()
+        self._global_step_tensor = tf.compat.v1.train.get_global_step()
         self._writer = summary_io.SummaryWriterCache.get(self.summary_dir)
 
     def after_run(self, run_context, run_values):
@@ -81,12 +81,12 @@ class ValidationHook(tf.train.SessionRunHook):
                 # print('Class based recall=', array2string(class_recall, precision=2), mean(class_recall))
 
                 # Log all the results to tf summary
-                self._writer.add_summary(session.run(tf.get_collection("summary_op")[0]), iteration)
+                self._writer.add_summary(session.run(tf.compat.v1.get_collection("summary_op")[0]), iteration)
                 # Collect unnecessary data
                 gc.collect()
 
 
-class TestHook(tf.train.SessionRunHook):
+class TestHook(tf.estimator.SessionRunHook):
 
     def __init__(self, testing_nn_params, testing_tenser, cross_entropy, test_iteration_count, class_range, importer):
         self.importer = importer
@@ -100,7 +100,7 @@ class TestHook(tf.train.SessionRunHook):
         self.class_range = class_range
 
     def after_create_session(self, session, coord):
-        self._global_step_tensor = tf.train.get_global_step()
+        self._global_step_tensor = tf.compat.v1.train.get_global_step()
 
     def after_run(self, run_context, run_values):
         session = run_context.session
@@ -138,7 +138,7 @@ def run_monitored_session(cross_entropy, log_dir, class_range,
             # but actually some variables(such as cycle-gan graphs) are not initialized but restored
             read_op_value = tf.constant([])
 
-    config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    config = tf.compat.v1.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     set_all_gpu_config()
     master = ""
 
@@ -162,23 +162,23 @@ def run_monitored_session(cross_entropy, log_dir, class_range,
              algparams_log_hook]
 
     # Only restore nn core variables along with the optimizer and global step variables
-    nn_core_restorer = tf.train.Saver(
+    nn_core_restorer = tf.compat.v1.train.Saver(
         max_to_keep=20,
         var_list=get_variables_to_restore(include=["nn_core"]) +
                  get_variables_to_restore(include=["global_step"]) +
                  get_variables_to_restore(include=["training_optimizer"]), name="nn_core_restorer")
-    training_scaffold = tf.train.Scaffold(saver=nn_core_restorer,
-                                          ready_for_local_init_op=read_op_value,
-                                          ready_op=read_op_value)
+    training_scaffold = tf.compat.v1.train.Scaffold(saver=nn_core_restorer,
+                                                    ready_for_local_init_op=read_op_value,
+                                                    ready_op=read_op_value)
 
-    session = tf.train.MonitoredTrainingSession(master=master,
-                                                checkpoint_dir=log_dir,
-                                                summary_dir=log_dir,
-                                                config=config, is_chief=True,
-                                                save_summaries_steps=test_iteration_count,
-                                                save_checkpoint_steps=save_checkpoint_steps,
-                                                scaffold=training_scaffold,
-                                                hooks=hooks)
+    session = tf.compat.v1.train.MonitoredTrainingSession(master=master,
+                                                          checkpoint_dir=log_dir,
+                                                          summary_dir=log_dir,
+                                                          config=config, is_chief=True,
+                                                          save_summaries_steps=test_iteration_count,
+                                                          save_checkpoint_steps=save_checkpoint_steps,
+                                                          scaffold=training_scaffold,
+                                                          hooks=hooks)
     # session = LocalCLIDebugWrapperSession(session)
     with session as monitored_sess:
         while not monitored_sess.should_stop():

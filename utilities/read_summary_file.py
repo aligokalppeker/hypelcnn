@@ -25,7 +25,7 @@ def main():
     for event_path in event_paths:
         parent_dir = Path(event_path).parent
         try:
-            events = tf.train.summary_iterator(event_path)
+            events = tf.compat.v1.train.summary_iterator(event_path)
             for e in events:
                 # print(e.step)
                 if not filtered_steps or e.step in filtered_steps:

@@ -162,11 +162,11 @@ def training_nn_iterator(data_set, augmentation_info, batch_size, num_epochs, de
                                                      perform_shadow_augmentation,
                                                      perform_reflection_augmentation)
     main_cycle_data_set = main_cycle_data_set.apply(prefetch_to_device(device, 10000))
-    return main_cycle_data_set.make_initializable_iterator()
+    return tf.compat.v1.data.make_initializable_iterator(main_cycle_data_set)
 
 
 def simple_nn_iterator(data_set, batch_size):
-    return data_set.batch(batch_size).prefetch(10000).make_initializable_iterator()
+    return tf.compat.v1.data.make_initializable_iterator(data_set.batch(batch_size).prefetch(10000))
 
 
 def optimize_nn(deep_nn_template, images, labels, device_id, name_prefix, algorithm_params, loss_func):
@@ -174,28 +174,29 @@ def optimize_nn(deep_nn_template, images, labels, device_id, name_prefix, algori
         model_input_params=ModelInputParams(x=images, y=labels, device_id=device_id, is_training=True),
         algorithm_params=algorithm_params)
 
-    with tf.name_scope(name_prefix + '_loss'):
-        cross_entropy = tf.reduce_mean(loss_func(tensor_outputs, labels))
-    with tf.name_scope(name_prefix + '_optimizer'):
-        global_step = tf.train.get_or_create_global_step()
-        learning_rate = tf.train.exponential_decay(algorithm_params["learning_rate"],
-                                                   global_step,
-                                                   algorithm_params["learning_rate_decay_step"],
-                                                   algorithm_params["learning_rate_decay_factor"],
-                                                   staircase=True)
+    with tf.compat.v1.name_scope(name_prefix + '_loss'):
+        cross_entropy = tf.reduce_mean(input_tensor=loss_func(tensor_outputs, labels))
+    with tf.compat.v1.name_scope(name_prefix + '_optimizer'):
+        global_step = tf.compat.v1.train.get_or_create_global_step()
+        learning_rate = tf.compat.v1.train.exponential_decay(algorithm_params["learning_rate"],
+                                                             global_step,
+                                                             algorithm_params["learning_rate_decay_step"],
+                                                             algorithm_params["learning_rate_decay_factor"],
+                                                             staircase=True)
 
         if isinstance(algorithm_params["optimizer"], tuple) or isinstance(algorithm_params["optimizer"], list):
             if algorithm_params["optimizer"][0] == "MomentumOptimizer":
-                optimizer = tf.train.MomentumOptimizer(learning_rate, momentum=algorithm_params["optimizer"][1],
-                                                       name="nn_core/Momentum")
+                optimizer = tf.compat.v1.train.MomentumOptimizer(learning_rate,
+                                                                 momentum=algorithm_params["optimizer"][1],
+                                                                 name="nn_core/Momentum")
         else:
             if algorithm_params["optimizer"] == "AdamOptimizer":
-                optimizer = tf.train.AdamOptimizer(learning_rate, name="nn_core/Adam")
+                optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate, name="nn_core/Adam")
 
         train_step = create_train_op(cross_entropy, optimizer, global_step=global_step)
 
         # This part is required for batch normalization to work
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
         if update_ops:
             updates = tf.group(*update_ops)
             cross_entropy = control_flow_ops.with_dependencies([updates], cross_entropy)
@@ -205,27 +206,28 @@ def optimize_nn(deep_nn_template, images, labels, device_id, name_prefix, algori
 
 def create_metric_tensors(labels, y_conv, class_range, name_prefix):
     num_classes = class_range.stop
-    with tf.name_scope(name_prefix + "_metrics"):
-        prediction = tf.argmax(y_conv, 1)
-        label = tf.argmax(labels, 1)
+    with tf.compat.v1.name_scope(name_prefix + "_metrics"):
+        prediction = tf.argmax(input=y_conv, axis=1)
+        label = tf.argmax(input=labels, axis=1)
 
         # the streaming accuracy (lookup and update tensors)
-        accuracy, accuracy_update = tf.metrics.accuracy(
+        accuracy, accuracy_update = tf.compat.v1.metrics.accuracy(
             label, prediction, name='accuracy')
-        mean_per_class_accuracy, mean_per_class_accuracy_update = tf.metrics.mean_per_class_accuracy(
+        mean_per_class_accuracy, mean_per_class_accuracy_update = tf.compat.v1.metrics.mean_per_class_accuracy(
             label, prediction, num_classes, name='mean_per_class_accuracy')
         kappa, kappa_update = cohen_kappa(label, prediction, num_classes, name='kappa')
         # Compute a per-batch confusion
-        batch_confusion = tf.confusion_matrix(label, prediction,
-                                              num_classes=num_classes,
-                                              name='batch_confusion')
+        batch_confusion = tf.math.confusion_matrix(labels=label, predictions=prediction,
+                                                   num_classes=num_classes,
+                                                   name='batch_confusion')
         # Create an accumulator variable to hold the counts
         confusion_var = metric_variable([num_classes, num_classes], dtype=tf.int32, name='confusion')
         # Create the update op for doing a "+=" accumulation on the batch
         confusion_update = confusion_var.assign(confusion_var + batch_confusion)
 
-        metric_variables = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope=name_prefix + "_metrics")
-        metric_variables_reset_op = tf.variables_initializer(var_list=metric_variables)
+        metric_variables = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.LOCAL_VARIABLES,
+                                                       scope=name_prefix + "_metrics")
+        metric_variables_reset_op = tf.compat.v1.variables_initializer(var_list=metric_variables)
 
         # Combine streaming accuracy and confusion matrix updates in one op
         combined_metric_update_op = tf.group(accuracy_update, mean_per_class_accuracy_update,
@@ -277,7 +279,7 @@ def perform_prediction(sess, nn_params, prediction_result_arr):
     progress_bar = tqdm(total=1)
     while True:
         try:
-            current_prediction = sess.run(tf.argmax(nn_params.predict_tensor, 1))
+            current_prediction = sess.run(tf.argmax(input=nn_params.predict_tensor, axis=1))
             next_prediction_index = current_prediction_index + current_prediction.shape[0]
             prediction_result_arr[current_prediction_index:next_prediction_index] = current_prediction.astype(
                 numpy.uint8)
@@ -291,7 +293,7 @@ def perform_prediction(sess, nn_params, prediction_result_arr):
 def create_graph(training_data_set, testing_data_set, validation_data_set, class_range,
                  batch_size, prefetch_size, device_id, num_epochs, algorithm_params, model,
                  augmentation_info, create_separate_validation_branch):
-    deep_nn_template = tf.make_template("nn_core", model.create_tensor_graph, class_count=class_range.stop)
+    deep_nn_template = tf.compat.v1.make_template("nn_core", model.create_tensor_graph, class_count=class_range.stop)
     ####################################################################################
     training_input_iter = training_nn_iterator(training_data_set, augmentation_info, batch_size, num_epochs, device_id,
                                                prefetch_size)
@@ -351,7 +353,7 @@ def add_augmentation_graph(main_cycle_dataset, augmentation_info, rotation_metho
 
 
 def perform_rotation_augmentation(images, labels, augmentation_info):
-    with tf.name_scope("rotation_augmentation"):
+    with tf.compat.v1.name_scope("rotation_augmentation"):
         transforms = [images]
         label_transforms = [labels]
 
@@ -367,7 +369,7 @@ def perform_rotation_augmentation(images, labels, augmentation_info):
 
 def perform_shadow_augmentation(images, labels, augmentation_info):
     shadow_op = augmentation_info.shadow_struct.shadow_op
-    with tf.name_scope("shadow_augmentation"):
+    with tf.compat.v1.name_scope("shadow_augmentation"):
         transforms = [images]
         label_transforms = [labels]
 
@@ -381,7 +383,7 @@ def perform_shadow_augmentation(images, labels, augmentation_info):
 
 
 def perform_reflection_augmentation(images, labels, augmentation_info):
-    with tf.name_scope("reflection_augmentation"):
+    with tf.compat.v1.name_scope("reflection_augmentation"):
         transforms = [images]
         label_transforms = [labels]
 
@@ -398,11 +400,11 @@ def perform_reflection_augmentation(images, labels, augmentation_info):
 
 
 def perform_rotation_augmentation_random(images, labels, augmentation_info):
-    with tf.name_scope("rotation_augmentation"):
+    with tf.compat.v1.name_scope("rotation_augmentation"):
         with tf.device("/cpu:0"):
             # shp = tf.shape(images)
             # batch_size = shp[0]
-            angles = tf.random_uniform([1], 0, 3, dtype="int32")
+            angles = tf.random.uniform([1], 0, 3, dtype="int32")
             images = tf.image.rot90(images, angles[0])
 
     return images, labels
@@ -411,17 +413,17 @@ def perform_rotation_augmentation_random(images, labels, augmentation_info):
 def perform_shadow_augmentation_random(images, labels, augmentation_info):
     if augmentation_info.shadow_struct is not None:
         shadow_op = augmentation_info.shadow_struct.shadow_op
-        with tf.name_scope('shadow_augmentation'):
+        with tf.compat.v1.name_scope('shadow_augmentation'):
             with tf.device('/cpu:0'):
-                rand_number = tf.random_uniform([1], 0, 1.0)[0]
-                images = tf.cond(tf.less(rand_number, augmentation_info.augmentation_random_threshold),
-                                 lambda: shadow_op(images),
-                                 lambda: images)
+                rand_number = tf.random.uniform([1], 0, 1.0)[0]
+                images = tf.cond(pred=tf.less(rand_number, augmentation_info.augmentation_random_threshold),
+                                 true_fn=lambda: shadow_op(images),
+                                 false_fn=lambda: images)
     return images, labels
 
 
 def perform_reflection_augmentation_random(images, labels, augmentation_info):
-    with tf.name_scope("reflection_augmentation"):
+    with tf.compat.v1.name_scope("reflection_augmentation"):
         with tf.device("/cpu:0"):
             images = tf.image.random_flip_left_right(images)
             images = tf.image.random_flip_up_down(images)
@@ -580,9 +582,10 @@ class TextSummaryAtStartHook(SessionRunHook):
         super().__init__()
         self._log_dir = log_dir
         value = "<pre>" + value + "</pre>"
-        self._summary_text_tensor = tf.summary.text(name, tf.constant(value=value, name=name + "_tensor"),
-                                                    collections=["custom"])
+        self._summary_text_tensor = tf.compat.v1.summary.text(name, tf.constant(value=value, name=name + "_tensor"),
+                                                              collections=["custom"])
 
     def after_create_session(self, session, coord):
-        current_iteration = session.run(tf.train.get_global_step())
-        summary_io.SummaryWriterCache.get(self._log_dir).add_summary(session.run(self._summary_text_tensor), current_iteration)
+        current_iteration = session.run(tf.compat.v1.train.get_global_step())
+        summary_io.SummaryWriterCache.get(self._log_dir).add_summary(session.run(self._summary_text_tensor),
+                                                                     current_iteration)

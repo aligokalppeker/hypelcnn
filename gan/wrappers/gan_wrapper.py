@@ -69,8 +69,8 @@ class GANWrapper:
         element_size = data_set.get_data_shape()
         element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
 
-        x_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
-        y_input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
+        x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
+        y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
         model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
         shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
                                                   sample_count=validation_sample_count,
@@ -90,8 +90,8 @@ class GANInferenceWrapper:
         self.fetch_shadows = fetch_shadows
 
     def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
-        with tf.variable_scope(model_base_name):
-            with tf.variable_scope(model_generator_name, reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope(model_base_name):
+            with tf.compat.v1.variable_scope(model_generator_name, reuse=tf.compat.v1.AUTO_REUSE):
                 result = create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values)
         return result
 
@@ -99,8 +99,8 @@ class GANInferenceWrapper:
     def __create_input_tensor(data_set, is_shadow_graph):
         element_size = data_set.get_data_shape()
         element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
-        input_tensor = tf.placeholder(dtype=tf.float32, shape=element_size,
-                                      name=input_x_tensor_name if is_shadow_graph else input_y_tensor_name)
+        input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size,
+                                                name=input_x_tensor_name if is_shadow_graph else input_y_tensor_name)
         return input_tensor
 
     def make_inference_graph(self, data_set, is_shadow_graph, clip_invalid_values):
@@ -110,7 +110,7 @@ class GANInferenceWrapper:
 
     def create_generator_restorer(self):
         # Restore all the variables that were saved in the checkpoint.
-        gan_restorer = tf.train.Saver(
+        gan_restorer = tf.compat.v1.train.Saver(
             get_variables_to_restore(include=[model_base_name]),
             name='GeneratorRestoreHandler'
         )

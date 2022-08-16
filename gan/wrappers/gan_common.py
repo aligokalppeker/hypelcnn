@@ -29,7 +29,7 @@ input_y_tensor_name = "y"
 def adj_shadow_ratio(shadow_ratio, is_shadow): return 1. / shadow_ratio if is_shadow else shadow_ratio
 
 
-class InitializerHook(tf.train.SessionRunHook):
+class InitializerHook(tf.estimator.SessionRunHook):
 
     def __init__(self, input_itr, normal_placeholder, shadow_placeholder, normal_data, shadow_data):
         self.input_itr = input_itr
@@ -170,7 +170,7 @@ class ValidationHook(BaseValidationHook):
         self._data_sample_list = numpy.squeeze(numpy.asarray(self._data_sample_list), axis=1)
 
     def after_create_session(self, session, coord):
-        self._global_step_tensor = tf.train.get_global_step()
+        self._global_step_tensor = tf.compat.v1.train.get_global_step()
         self._writer = summary_io.SummaryWriterCache.get(self._log_dir)
 
     def after_run(self, run_context, run_values):
@@ -222,7 +222,7 @@ def _get_lr(base_lr, max_number_of_steps):
             decay_steps=(max_number_of_steps - lr_constant_steps),
             end_learning_rate=0.0)
 
-    return tf.cond(global_step < lr_constant_steps, lambda: base_lr, _lr_decay)
+    return tf.cond(pred=global_step < lr_constant_steps, true_fn=lambda: base_lr, false_fn=_lr_decay)
 
 
 def define_standard_train_ops(gan_model, gan_loss, max_number_of_steps,
@@ -255,8 +255,8 @@ def define_standard_train_ops(gan_model, gan_loss, max_number_of_steps,
         check_for_unused_update_ops=False,
         aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
 
-    tf.summary.scalar("generator_lr", gen_lr)
-    tf.summary.scalar("discriminator_lr", dis_lr)
+    tf.compat.v1.summary.scalar("generator_lr", gen_lr)
+    tf.compat.v1.summary.scalar("discriminator_lr", dis_lr)
     return train_ops
 
 
@@ -274,7 +274,8 @@ def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invali
                 input_mean = reduce_mean(input_cell)
                 generated_mean = reduce_mean(generated_tensor)
                 result_tensor = tf.cond(
-                    tf.less(generated_mean, input_mean) if is_shadow_graph else tf.greater(generated_mean, input_mean),
+                    pred=tf.less(generated_mean, input_mean) if is_shadow_graph else tf.greater(generated_mean,
+                                                                                                input_mean),
                     true_fn=lambda: generated_tensor,
                     false_fn=lambda: input_cell)
             else:
@@ -286,14 +287,14 @@ def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invali
 
 def create_stats_tensor(generate_y_tensor, images_x_input_tensor, shadow_ratio):
     def kl_divergence(p, q):
-        return reduce_sum(tf.where(tf.not_equal(p, 0.), p * tf.log(p / q), tf.zeros_like(p)))
+        return reduce_sum(tf.compat.v1.where(tf.not_equal(p, 0.), p * tf.math.log(p / q), tf.zeros_like(p)))
 
     def js_divergence(p, q):
         m = 0.5 * (p + q)
         return 0.5 * kl_divergence(p, m) + 0.5 * kl_divergence(q, m)
 
     ratio_tensor = tf.squeeze(generate_y_tensor / images_x_input_tensor * shadow_ratio, axis=[1, 2])
-    finite_map_tensor = tf.reduce_all(tf.is_finite(ratio_tensor), axis=1)
+    finite_map_tensor = tf.reduce_all(input_tensor=tf.math.is_finite(ratio_tensor), axis=1)
     ratio_tensor_inf_eliminated = ratio_tensor[finite_map_tensor]
     mean = reduce_mean(ratio_tensor_inf_eliminated, axis=0)
     std = reduce_std(ratio_tensor_inf_eliminated, axis=0)
