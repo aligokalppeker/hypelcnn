@@ -2,7 +2,7 @@ import argparse
 
 import numpy
 import tensorflow as tf
-from tensorflow_core.python.training.session_run_hook import SessionRunContext
+from tensorflow.python.training.session_run_hook import SessionRunContext
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers
 from common.common_nn_ops import set_all_gpu_config, get_loader_from_name
@@ -12,6 +12,8 @@ from gan.wrappers.gan_wrapper import GANInferenceWrapper
 
 
 def main(_):
+    tf.compat.v1.disable_v2_behavior()
+
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)

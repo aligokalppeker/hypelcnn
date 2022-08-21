@@ -9,13 +9,15 @@ import numpy
 import tensorflow as tf
 import tensorflow_gan as tfgan
 from matplotlib import pyplot as plt
+from tensorflow import reduce_mean, reduce_sum
+from tensorflow.python.ops.math_ops import reduce_std
 from tensorflow.python.training import summary_io
-from tensorflow_core.python import reduce_mean, reduce_std, reduce_sum
-from tensorflow_core.python.summary.summary import scalar
-from tensorflow_core.python.training.adam import AdamOptimizer
-from tensorflow_core.python.training.learning_rate_decay import polynomial_decay
-from tensorflow_core.python.training.session_run_hook import SessionRunHook
-from tensorflow_core.python.training.training_util import get_or_create_global_step, get_global_step
+
+from tensorflow.python.summary.summary import scalar
+from tensorflow.python.training.adam import AdamOptimizer
+from tensorflow.python.training.learning_rate_decay import polynomial_decay
+from tensorflow.python.training.session_run_hook import SessionRunHook
+from tensorflow.python.training.training_util import get_or_create_global_step, get_global_step
 
 from gan.shadow_data_models import _shadowdata_generator_model
 

@@ -11,6 +11,8 @@ from stat_extractor import extract_statistics_info, print_statistics_info
 
 
 def main():
+    tf.compat.v1.disable_v2_behavior()
+
     event_paths = None
     filtered_steps = []
 

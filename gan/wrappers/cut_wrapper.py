@@ -5,8 +5,8 @@ import inspect
 from functools import partial
 
 import tensorflow as tf
-from tensorflow_core.python.layers.core import flatten
-from tensorflow_core.python.training.adam import AdamOptimizer
+from tensorflow.python.layers.core import flatten
+from tensorflow.python.training.adam import AdamOptimizer
 from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.losses.tuple_losses import args_to_gan_model
 from tensorflow_gan.python.train import _convert_tensor_or_l_or_d, RunTrainOpsHook, gan_loss

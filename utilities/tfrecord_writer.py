@@ -8,6 +8,8 @@ from common.common_nn_ops import get_importer_from_name
 
 
 def main(_):
+    tf.compat.v1.disable_v2_behavior()
+
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)

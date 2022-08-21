@@ -6,7 +6,7 @@
       <excludeFolder url="file://$MODULE_DIR$/successful_logs" />
       <excludeFolder url="file://$MODULE_DIR$/data" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.7 (phd)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (phd_tf2)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">

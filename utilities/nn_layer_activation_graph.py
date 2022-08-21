@@ -66,9 +66,9 @@ class ControlledDataImporter(DataImporter):
             lambda image, label: GeneratorImporter.extract_fn(image, label, class_count, 'validation'),
             num_parallel_calls=8)
 
-        return GeneratorDataTensor(dataset=testing_data_set, importer=self), \
-               GeneratorDataTensor(dataset=training_data_set, importer=self), \
-               GeneratorDataTensor(dataset=validation_data_set, importer=self)
+        return GeneratorDataTensor(dataset=testing_data_set), \
+               GeneratorDataTensor(dataset=training_data_set), \
+               GeneratorDataTensor(dataset=validation_data_set)
 
     def init_tensors(self, session, tensor, nn_params):
         session.run(nn_params.input_iterator.initializer)
@@ -94,6 +94,8 @@ def calculate_tensor_size(tensor):
 
 
 def main(_):
+    tf.compat.v1.disable_v2_behavior()
+
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loggers(parser)
     add_parse_cmds_for_loaders(parser)
@@ -134,7 +136,7 @@ def main(_):
     validation_nn_params.data_with_labels = validation_data_with_labels
 
     saver = tf.compat.v1.train.Saver(var_list=get_variables_to_restore(include=["nn_core"],
-                                                             exclude=["image_gen_net_"]))
+                                                                       exclude=["image_gen_net_"]))
     config = tf.compat.v1.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     config.gpu_options.allow_growth = False
     config.gpu_options.per_process_gpu_memory_fraction = 1.0

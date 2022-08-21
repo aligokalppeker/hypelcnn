@@ -188,6 +188,8 @@ def get_log_suffix(flags):
 
 
 def main(_):
+    tf.compat.v1.disable_v2_behavior()
+
     def convert_trial_to_dict(trial):
         dict_value_results = {}
         for k, v in trial.items():

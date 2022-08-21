@@ -3,12 +3,12 @@ import json
 
 import tensorflow as tf
 from tensorflow.python.training.monitored_session import USE_DEFAULT
-from tensorflow_core.python import data
-from tensorflow_core.python.data.experimental import shuffle_and_repeat
-from tensorflow_core.python.platform import gfile
-from tensorflow_core.python.training.basic_session_run_hooks import StopAtStepHook, LoggingTensorHook
-from tensorflow_core.python.training.device_setter import replica_device_setter
-from tensorflow_core.python.training.training_util import get_or_create_global_step
+from tensorflow.python import data
+from tensorflow.python.data.experimental import shuffle_and_repeat
+from tensorflow.python.platform import gfile
+from tensorflow.python.training.basic_session_run_hooks import StopAtStepHook, LoggingTensorHook
+from tensorflow.python.training.device_setter import replica_device_setter
+from tensorflow.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
@@ -195,6 +195,8 @@ def get_log_suffix(flags):
 
 
 def main(_):
+    tf.compat.v1.disable_v2_behavior()
+
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)

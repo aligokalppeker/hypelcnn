@@ -17,13 +17,16 @@ Primary features are:
 - Sample implementations for 
   - CNN networks
   - Capsule networks
-- GAN based data augmenter implementation with training and evalution codes.
+- GAN based data augmenter implementation with training and evaluation codes.
   - Cycle GAN
   - Vanilla GAN
   - Contrastive Unpaired Translation(CUT) GAN
 
-Project is developed using Tensorflow 1.x(Tested on version 1.15). Source codes can be used for best practices of
-applying Tensorflow 1.x for;
+Project is developed using Tensorflow (Tested on version 2.9.0). For now, it works on TF2 using legacy mode. 
+Eager mode will be implemented in the upcoming days.
+
+For Tensorflow 1.x version, please use branch "tf1_support"(tested on Tensorflow 1.15). 
+Source codes in this branch can be used for best practices of applying Tensorflow 1.x for;
 
 - Training large data sets
 - Merging two different neural networks for data augmentation
@@ -40,7 +43,7 @@ Each data set has its own licensing, and you should include them in your paper/w
 
 # Requirements
 
-Works with Python 3.7. Library dependencies are put in "requirements.txt".
+Works with Python 3.7-3.10. Library dependencies are put in "requirements.txt".
 
 # Source Files
 
@@ -89,5 +92,6 @@ Works with Python 3.7. Library dependencies are put in "requirements.txt".
 
 # In progress
 
-- Source code documentation
-- TF 2.x/Pytorch implementation
+- Source code documentation.
+- TF 2.x Eager Mode transition.
+- Pytorch implementation.

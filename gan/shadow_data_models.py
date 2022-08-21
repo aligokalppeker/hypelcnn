@@ -1,6 +1,6 @@
 import tensorflow as tf
-from tensorflow_core import transpose
-from tensorflow_core.python.ops.gen_nn_ops import leaky_relu
+from tensorflow import transpose
+from tensorflow.python.ops.gen_nn_ops import leaky_relu
 from tf_slim import conv2d, flatten, fully_connected, arg_scope, l2_regularizer, separable_conv2d, \
     convolution1d, conv2d_transpose
 

@@ -3,7 +3,7 @@ import math
 import tensorflow as tf
 from hyperopt import hp
 from tensorflow import initializers
-from tensorflow_core.python.ops.gen_nn_ops import leaky_relu
+from tensorflow.python.ops.gen_nn_ops import leaky_relu
 from tf_slim import conv2d, dropout, flatten, fully_connected, arg_scope, batch_norm, l2_regularizer
 
 from common.common_nn_ops import ModelOutputTensors, HistogramTensorPair, scale_in_to_out

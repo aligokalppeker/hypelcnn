@@ -74,7 +74,7 @@ def main():
         else:
             image = get_contour_image(shadow_map.shape, contour)
             target_classes_as_image[image] = final_neigh_target
-            print("shadow converted to neighboring target %d" % final_neigh_target)
+            print(f"shadow converted to neighboring target {final_neigh_target:d}")
 
     draw_targets(loader.get_samples_color_list(), target_classes_as_image, "Targets after shadow correction")
     # increase target level as one

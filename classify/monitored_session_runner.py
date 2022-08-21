@@ -2,7 +2,7 @@ import gc
 
 import tensorflow as tf
 from tensorflow.python.training import summary_io
-from tensorflow_core.python.training.basic_session_run_hooks import StopAtStepHook, NanTensorHook
+from tensorflow.python.training.basic_session_run_hooks import StopAtStepHook, NanTensorHook
 from tf_slim import get_variables_to_restore, get_model_variables
 
 from common.common_nn_ops import calculate_accuracy, TrainingResult, set_all_gpu_config, TextSummaryAtStartHook

@@ -5,10 +5,10 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops.metrics_impl import metric_variable
 from tensorflow.python.training import summary_io
-from tensorflow_core.contrib.metrics.python.ops.metric_ops import cohen_kappa
-from tensorflow_core.python.data.experimental import shuffle_and_repeat, prefetch_to_device
-from tensorflow_core.python.training.session_run_hook import SessionRunHook
+from tensorflow.python.data.experimental import shuffle_and_repeat, prefetch_to_device
+from tensorflow.python.training.session_run_hook import SessionRunHook
 from tf_slim.learning import create_train_op
+from tf_slim.metrics import cohen_kappa
 from tifffile import imread
 from tqdm import tqdm
 

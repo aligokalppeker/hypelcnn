@@ -1,6 +1,6 @@
 import tensorflow as tf
 from hyperopt import hp
-from tensorflow_core.python.ops.gen_nn_ops import leaky_relu
+from tensorflow.python.ops.gen_nn_ops import leaky_relu
 from tf_slim import conv2d, dropout, flatten, fully_connected, arg_scope
 
 from nnmodel.NNModel import NNModel
