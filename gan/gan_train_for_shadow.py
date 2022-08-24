@@ -38,6 +38,8 @@ def add_parse_cmds_for_app(parser):
                         help="The weight of cycle consistency loss.")
     parser.add_argument("--nce_loss_weight", nargs="?", type=float, default=10.0,
                         help="The weight of NCE loss.")
+    parser.add_argument("--tau", nargs="?", type=float, default=0.07,
+                        help="Tau value for the NCE loss.")
 
     parser.add_argument("--validation_steps", nargs="?", type=int, default=1000,
                         help="Validation frequency")
@@ -240,11 +242,15 @@ def main(_):
             "cut_x2y": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
                                   identity_loss_weight=flags.identity_loss_weight,
                                   use_identity_loss=flags.use_identity_loss,
-                                  swap_inputs=False),
+                                  swap_inputs=False,
+                                  tau=flags.tau,
+                                  batch_size=flags.batch_size),
             "cut_y2x": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
                                   identity_loss_weight=flags.identity_loss_weight,
                                   use_identity_loss=flags.use_identity_loss,
-                                  swap_inputs=True)}
+                                  swap_inputs=True,
+                                  tau=flags.tau,
+                                  batch_size=flags.batch_size)}
         wrapper = gan_train_wrapper_dict[gan_type]
 
         with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):

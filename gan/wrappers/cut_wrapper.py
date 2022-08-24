@@ -367,15 +367,9 @@ def cut_model(
 
 
 # Contrastive loss for x data and generated x data.
-def calc_cross_feats(generated_data, real_data, tau):
-    # generated_data = tf.Print(generated_data, [generated_data], message="generated_data", summarize=100)
-    # real_data = tf.Print(real_data, [real_data], message="real_data", summarize=100)
+def calc_cross_feats(generated_data, real_data, tau, batch_size):
     cross_feature_logit = tf.matmul(generated_data, tf.transpose(a=real_data, perm=[0, 2, 1])) / tau
-    labels = tf.eye(cross_feature_logit.shape[1].value, cross_feature_logit.shape[2].value, batch_shape=[1])
-    labels = tf.compat.v1.placeholder_with_default(labels, [None, labels.shape[1].value, labels.shape[2].value])
-    # cross_feature_logit = tf.Print(cross_feature_logit, [cross_feature_logit], message="cross_feature_mat",
-    #                                summarize=100)
-    # labels = tf.Print(labels, [labels], message="labels", summarize=100)
+    labels = tf.eye(tf.shape(cross_feature_logit)[1], tf.shape(cross_feature_logit)[2], batch_shape=[batch_size])
     return flatten(labels), flatten(cross_feature_logit)
 
 
@@ -383,6 +377,8 @@ def contrastive_gen_data_x_loss_impl(
         feat_discriminator_gen_data,
         feat_discriminator_real_data_x,
         discriminator_gen_outputs,
+        batch_size,
+        tau,
         weights=1.0,
         scope=None,
         loss_collection=tf.compat.v1.GraphKeys.LOSSES,
@@ -391,7 +387,8 @@ def contrastive_gen_data_x_loss_impl(
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
     with tf.compat.v1.name_scope(scope, "contrastive_gen_loss", (discriminator_gen_outputs, weights)) as scope:
-        labels, logits = calc_cross_feats(feat_discriminator_gen_data, feat_discriminator_real_data_x, tau=0.07)
+        labels, logits = calc_cross_feats(feat_discriminator_gen_data, feat_discriminator_real_data_x,
+                                          batch_size=batch_size, tau=tau)
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
         loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope, loss_collection, reduction)
         # softmax_entropy = tf.boolean_mask(softmax_entropy, tf.is_finite(softmax_entropy))
@@ -411,6 +408,8 @@ def contrastive_identity_loss_impl(
         feat_discriminator_real_data_y,
         feat_discriminator_generated_data_y,
         discriminator_gen_outputs,
+        batch_size,
+        tau,
         weights=1.0,
         scope=None,
         loss_collection=tf.compat.v1.GraphKeys.LOSSES,
@@ -419,7 +418,8 @@ def contrastive_identity_loss_impl(
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
     with tf.compat.v1.name_scope(scope, "contrastive_identity_loss", (discriminator_gen_outputs, weights)) as scope:
-        labels, logits = calc_cross_feats(feat_discriminator_generated_data_y, feat_discriminator_real_data_y, tau=0.07)
+        labels, logits = calc_cross_feats(feat_discriminator_generated_data_y, feat_discriminator_real_data_y,
+                                          batch_size=batch_size, tau=tau)
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
         loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope, loss_collection, reduction)
     if add_summaries:
@@ -432,11 +432,13 @@ contrastive_identity_loss = args_to_gan_model(contrastive_identity_loss_impl)
 
 class CUTWrapper:
 
-    def __init__(self, nce_loss_weight, identity_loss_weight, use_identity_loss, swap_inputs) -> None:
+    def __init__(self, nce_loss_weight, identity_loss_weight, use_identity_loss, tau, batch_size, swap_inputs) -> None:
         super().__init__()
         self._nce_loss_weight = nce_loss_weight
         self._identity_loss_weight = 0.0 if not use_identity_loss else identity_loss_weight
         self._swap_inputs = swap_inputs
+        self._tau = tau
+        self._batch_size = batch_size
 
     def define_model(self, images_x, images_y):
         """Defines a CycleGAN model that maps between images_x and images_y.
@@ -472,8 +474,8 @@ class CUTWrapper:
         # Define CycleGAN loss.
         loss = cut_loss(model, generator_loss_fn=tuple_losses.least_squares_generator_loss,
                         discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
-                        gen_discriminator_loss_fn=contrastive_gen_data_x_loss,
-                        identity_discriminator_loss_fn=contrastive_identity_loss,
+                        gen_discriminator_loss_fn=partial(contrastive_gen_data_x_loss, tau=self._tau, batch_size= self._batch_size),
+                        identity_discriminator_loss_fn=partial(contrastive_identity_loss, tau=self._tau, batch_size= self._batch_size),
                         nce_loss_weight=self._nce_loss_weight,
                         nce_identity_loss_weight=self._identity_loss_weight)
         return loss
