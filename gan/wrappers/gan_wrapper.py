@@ -111,8 +111,8 @@ class GANInferenceWrapper:
     def create_generator_restorer(self):
         # Restore all the variables that were saved in the checkpoint.
         gan_restorer = tf.compat.v1.train.Saver(
-            get_variables_to_restore(include=[model_base_name]),
-            name='GeneratorRestoreHandler'
+            var_list=get_variables_to_restore(include=[model_base_name]),
+            name="GeneratorRestoreHandler"
         )
         return gan_restorer
 

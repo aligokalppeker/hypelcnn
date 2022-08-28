@@ -58,27 +58,27 @@ def _shadowdata_generator_model(netinput, create_only_encoder=False, is_training
         kernel_size = band_size
 
         net0 = tf.expand_dims(tf.squeeze(netinput, axis=[1, 2]), axis=2)
-        net1 = convolution1d(net0, num_filters, kernel_size, padding='SAME')
+        net1 = convolution1d(net0, num_filters, kernel_size, scope="net1", padding="SAME")
         net1 = net1 + net0
 
-        net2 = convolution1d(net1, num_filters, kernel_size // 2, padding='SAME')
+        net2 = convolution1d(net1, num_filters, kernel_size // 2, scope="net2", padding='SAME')
         net2 = net2 + net1 + net0
 
-        net3 = convolution1d(net2, num_filters, kernel_size // 4, padding='SAME')
+        net3 = convolution1d(net2, num_filters, kernel_size // 4, scope="net3", padding='SAME')
         net3 = net3 + net2 + net1
 
-        net4 = convolution1d(net3, num_filters, kernel_size // 8, padding='SAME')
+        net4 = convolution1d(net3, num_filters, kernel_size // 8, scope="net4", padding='SAME')
         net4 = net4 + net3 + net2
         result = net4
 
         if not create_only_encoder:
-            net5 = convolution1d(net4, num_filters, kernel_size // 4, padding='SAME')
+            net5 = convolution1d(net4, num_filters, kernel_size // 4, scope="net5", padding='SAME')
             net5 = net5 + net4 + net3
 
-            net6 = convolution1d(net5, num_filters, kernel_size // 2, padding='SAME')
+            net6 = convolution1d(net5, num_filters, kernel_size // 2, scope="net6", padding='SAME')
             net6 = net6 + net5 + net4
 
-            net7 = convolution1d(net6, num_filters, kernel_size, padding='SAME',
+            net7 = convolution1d(net6, num_filters, kernel_size, scope="net7", padding='SAME',
                                  normalizer_fn=None,
                                  normalizer_params=None,
                                  weights_regularizer=None,

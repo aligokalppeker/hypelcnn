@@ -124,8 +124,7 @@ class TestHook(tf.estimator.SessionRunHook):
 def run_monitored_session(cross_entropy, log_dir, class_range,
                           save_checkpoint_steps, validation_steps,
                           train_step, required_steps,
-                          augmentation_info, device,
-                          training_nn_params, training_tensor,
+                          augmentation_info, training_nn_params, training_tensor,
                           testing_nn_params, testing_tensor,
                           validation_nn_params, validation_tensor,
                           importer, flags_as_json_str, alg_params_as_json_str):

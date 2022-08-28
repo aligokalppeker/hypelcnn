@@ -143,9 +143,9 @@ class CycleGANInferenceWrapper:
     def create_generator_restorer(self):
         # Restore all the variables that were saved in the checkpoint.
         cyclegan_restorer = tf.compat.v1.train.Saver(
-            get_variables_to_restore(include=[model_base_name + "/" + model_forward_generator_name]) +
-            get_variables_to_restore(include=[model_base_name + "/" + model_backward_generator_name]),
-            name='GeneratorRestoreHandler'
+            var_list=get_variables_to_restore(include=[model_base_name + "/" + model_forward_generator_name]) +
+                     get_variables_to_restore(include=[model_base_name + "/" + model_backward_generator_name]),
+            name="GeneratorRestoreHandler"
         )
         return cyclegan_restorer
 
