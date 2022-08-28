@@ -54,7 +54,7 @@ class GRSS2013DataLoader(DataLoader):
         return self.base_dir + '/2013_DFTC/'
 
     def get_point_value(self, data_set, point):
-        return get_data_point_func(data_set.casi, data_set.lidar, data_set.neighborhood, point)
+        return get_data_point_func(data_set.casi, data_set.lidar, data_set.neighborhood, point[0], point[1])
 
     def get_samples_color_list(self):
         color_list = numpy.zeros([15, 3], numpy.uint8)

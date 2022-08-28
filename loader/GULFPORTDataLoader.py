@@ -77,7 +77,7 @@ class GULFPORTDataLoader(DataLoader):
         return self.base_dir + '/GULFPORT/'
 
     def get_point_value(self, data_set, point):
-        return get_data_point_func(data_set.casi, data_set.lidar, data_set.neighborhood, point)
+        return get_data_point_func(data_set.casi, data_set.lidar, data_set.neighborhood, point[0], point[1])
 
     def get_band_measurements(self):
         return numpy.linspace(405, 1005, 64)

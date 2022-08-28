@@ -134,9 +134,9 @@ class AugmentationInfo:
 
 
 @jit(nopython=True)
-def get_data_point_func(casi, lidar, neighborhood, point):
-    start_x = point[0]  # + neighborhood(pad offset) - neighborhood(back step); padding and back shift makes delta zero
-    start_y = point[1]  # + neighborhood(pad offset) - neighborhood(back step); padding and back shift makes delta zero
+def get_data_point_func(casi, lidar, neighborhood, point_x, point_y):
+    start_x = point_x  # + neighborhood(pad offset) - neighborhood(back step); padding and back shift makes delta zero
+    start_y = point_y  # + neighborhood(pad offset) - neighborhood(back step); padding and back shift makes delta zero
     end_x = start_x + (2 * neighborhood) + 1
     end_y = start_y + (2 * neighborhood) + 1
     value = numpy.concatenate(
