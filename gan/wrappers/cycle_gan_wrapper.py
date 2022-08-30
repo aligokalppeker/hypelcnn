@@ -12,6 +12,7 @@ from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_disc
 from gan.wrappers.gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, \
     model_base_name, \
     model_generator_name, define_standard_train_ops, create_inference_for_matrix_input
+from gan.wrappers.wrapper import Wrapper, InferenceWrapper
 
 model_forward_generator_name = "ModelX2Y"
 model_backward_generator_name = "ModelY2X"
@@ -43,7 +44,7 @@ def create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_
     return peer_validation_hook
 
 
-class CycleGANWrapper:
+class CycleGANWrapper(Wrapper):
 
     def __init__(self, cycle_consistency_loss_weight, identity_loss_weight, use_identity_loss) -> None:
         super().__init__()
@@ -115,16 +116,16 @@ class CycleGANWrapper:
 
         x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
         y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
-        cyclegan_model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
+        model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
         return create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                            validation_iteration_count, validation_sample_count,
-                                           cyclegan_model_for_validation.model_x2y.generated_data,
-                                           cyclegan_model_for_validation.model_y2x.generated_data,
+                                           model_for_validation.model_x2y.generated_data,
+                                           model_for_validation.model_y2x.generated_data,
                                            x_input_tensor, y_input_tensor)
 
 
-class CycleGANInferenceWrapper:
-    def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
+class CycleGANInferenceWrapper(InferenceWrapper):
+    def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values):
         model_name = model_forward_generator_name if is_shadow_graph else model_backward_generator_name
         with tf.compat.v1.variable_scope(model_base_name):
             with tf.compat.v1.variable_scope(model_name):
@@ -164,8 +165,8 @@ class CycleGANInferenceWrapper:
                                            shadow_ratio=shadow_ratio,
                                            validation_iteration_count=0,
                                            validation_sample_count=validation_sample_count,
-                                           model_forward=self.construct_inference_graph(x_input_tensor, True),
-                                           model_backward=self.construct_inference_graph(y_input_tensor, False),
+                                           model_forward=self.construct_inference_graph(x_input_tensor, True, False),
+                                           model_backward=self.construct_inference_graph(y_input_tensor, False, False),
                                            x_input_tensor=x_input_tensor, y_input_tensor=y_input_tensor)
 
 

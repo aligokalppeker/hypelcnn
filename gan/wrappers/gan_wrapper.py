@@ -8,9 +8,10 @@ from tf_slim import get_variables_to_restore
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan.wrappers.gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
     model_generator_name, adj_shadow_ratio, define_standard_train_ops, create_inference_for_matrix_input
+from gan.wrappers.wrapper import Wrapper, InferenceWrapper
 
 
-class GANWrapper:
+class GANWrapper(Wrapper):
 
     def __init__(self, identity_loss_weight, use_identity_loss, swap_inputs) -> None:
         super().__init__()
@@ -92,11 +93,11 @@ class GANWrapper:
                                                       self._swap_inputs)
 
 
-class GANInferenceWrapper:
+class GANInferenceWrapper(InferenceWrapper):
     def __init__(self, fetch_shadows):
         self.fetch_shadows = fetch_shadows
 
-    def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values=False):
+    def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values):
         with tf.compat.v1.variable_scope(model_base_name):
             with tf.compat.v1.variable_scope(model_generator_name, reuse=tf.compat.v1.AUTO_REUSE):
                 result = create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values)
@@ -133,6 +134,6 @@ class GANInferenceWrapper:
                               shadow_map=shadow_map,
                               shadow_ratio=adj_shadow_ratio(shadow_ratio, self.fetch_shadows),
                               input_tensor=input_tensor,
-                              infer_model=self.construct_inference_graph(input_tensor, None),
+                              infer_model=self.construct_inference_graph(input_tensor, None, clip_invalid_values=False),
                               fetch_shadows=self.fetch_shadows,
                               name_suffix="")

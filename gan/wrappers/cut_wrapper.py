@@ -17,6 +17,7 @@ from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_disc
     _shadowdata_feature_discriminator_model
 from gan.wrappers.gan_common import _get_lr
 from gan.wrappers.gan_wrapper import GANInferenceWrapper, GANWrapper
+from gan.wrappers.wrapper import Wrapper
 
 
 class CUTTrainSteps(
@@ -430,7 +431,7 @@ def contrastive_identity_loss_impl(
 contrastive_identity_loss = args_to_gan_model(contrastive_identity_loss_impl)
 
 
-class CUTWrapper:
+class CUTWrapper(Wrapper):
 
     def __init__(self, nce_loss_weight, identity_loss_weight, use_identity_loss, tau, batch_size, swap_inputs) -> None:
         super().__init__()
@@ -446,7 +447,6 @@ class CUTWrapper:
         Args:
           images_x: A 4D float `Tensor` of NHWC format.  Images in set X.
           images_y: A 4D float `Tensor` of NHWC format.  Images in set Y.
-          use_identity_loss: Whether to use identity loss or not
 
         Returns:
           A `CycleGANModel` namedtuple.
@@ -550,8 +550,8 @@ class CUTWrapper:
           discriminator_optimizer: The optimizer for the discriminator updates.
           gen_discriminator_optimizer: The optimizer for the generator discriminator updates.
           check_for_unused_update_ops: If `True`, throws an exception if there are
-            update ops outside of the generator or discriminator scopes.
-          is_chief: Specifies whether or not the training is being run by the primary
+            update ops outside the generator or discriminator scopes.
+          is_chief: Specifies whether the training is being run by the primary
             replica during replica training.
           **kwargs: Keyword args to pass directly to
             `training.create_train_op` for both the generator and
