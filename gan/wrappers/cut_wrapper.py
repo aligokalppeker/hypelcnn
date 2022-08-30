@@ -99,7 +99,7 @@ def get_sequential_train_hooks_cut(train_steps):
 
 
 def cut_loss(
-        # GANModel.
+        # CUTModel.
         model,
         # Loss functions.
         generator_loss_fn=tuple_losses.wasserstein_generator_loss,
@@ -368,13 +368,13 @@ def cut_model(
 
 
 # Contrastive loss for x data and generated x data.
-def calc_cross_feats(generated_data, real_data, tau, batch_size):
+def _calc_cross_feats(generated_data, real_data, tau, batch_size):
     cross_feature_logit = tf.matmul(generated_data, tf.transpose(a=real_data, perm=[0, 2, 1])) / tau
     labels = tf.eye(tf.shape(cross_feature_logit)[1], tf.shape(cross_feature_logit)[2], batch_shape=[batch_size])
     return flatten(labels), flatten(cross_feature_logit)
 
 
-def contrastive_gen_data_x_loss_impl(
+def _contrastive_gen_data_x_loss_impl(
         feat_discriminator_gen_data,
         feat_discriminator_real_data_x,
         discriminator_gen_outputs,
@@ -388,8 +388,8 @@ def contrastive_gen_data_x_loss_impl(
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
     with tf.compat.v1.name_scope(scope, "contrastive_gen_loss", (discriminator_gen_outputs, weights)) as scope:
-        labels, logits = calc_cross_feats(feat_discriminator_gen_data, feat_discriminator_real_data_x,
-                                          batch_size=batch_size, tau=tau)
+        labels, logits = _calc_cross_feats(feat_discriminator_gen_data, feat_discriminator_real_data_x,
+                                           batch_size=batch_size, tau=tau)
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
         loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope, loss_collection, reduction)
         # softmax_entropy = tf.boolean_mask(softmax_entropy, tf.is_finite(softmax_entropy))
@@ -401,11 +401,11 @@ def contrastive_gen_data_x_loss_impl(
     return loss
 
 
-contrastive_gen_data_x_loss = args_to_gan_model(contrastive_gen_data_x_loss_impl)
+contrastive_gen_data_x_loss = args_to_gan_model(_contrastive_gen_data_x_loss_impl)
 
 
 # Contrastive loss for x data and generated x data.
-def contrastive_identity_loss_impl(
+def _contrastive_identity_loss_impl(
         feat_discriminator_real_data_y,
         feat_discriminator_generated_data_y,
         discriminator_gen_outputs,
@@ -419,8 +419,8 @@ def contrastive_identity_loss_impl(
     # Override parameter, it should be always SUM_OVER_BATCH_SIZE
     reduction = tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE
     with tf.compat.v1.name_scope(scope, "contrastive_identity_loss", (discriminator_gen_outputs, weights)) as scope:
-        labels, logits = calc_cross_feats(feat_discriminator_generated_data_y, feat_discriminator_real_data_y,
-                                          batch_size=batch_size, tau=tau)
+        labels, logits = _calc_cross_feats(feat_discriminator_generated_data_y, feat_discriminator_real_data_y,
+                                           batch_size=batch_size, tau=tau)
         loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
         loss = tf.compat.v1.losses.compute_weighted_loss(loss, weights, scope, loss_collection, reduction)
     if add_summaries:
@@ -428,7 +428,171 @@ def contrastive_identity_loss_impl(
     return loss
 
 
-contrastive_identity_loss = args_to_gan_model(contrastive_identity_loss_impl)
+contrastive_identity_loss = args_to_gan_model(_contrastive_identity_loss_impl)
+
+
+def _get_update_ops(kwargs, gen_scope, dis_scope, gen_dis_scope, check_for_unused_ops=True):
+    """Gets generator and discriminator update ops.
+
+    Args:
+      kwargs: A dictionary of kwargs to be passed to `create_train_op`.
+        `update_ops` is removed, if present.
+      gen_scope: A scope for the generator.
+      dis_scope: A scope for the discriminator.
+      check_for_unused_ops: A Python bool. If `True`, throw Exception if there are
+        unused update ops.
+
+    Returns:
+      A 3-tuple of (generator update ops, discriminator train ops, generator discriminator train ops).
+
+    Raises:
+      ValueError: If there are update ops outside of the generator or
+        discriminator scopes.
+    """
+    if 'update_ops' in kwargs:
+        update_ops = set(kwargs['update_ops'])
+        del kwargs['update_ops']
+    else:
+        update_ops = set(
+            tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS))
+
+    all_gen_ops = set(
+        tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, gen_scope))
+    all_dis_ops = set(
+        tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, dis_scope))
+    all_gen_dis_ops = set(
+        tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, gen_dis_scope))
+
+    if check_for_unused_ops:
+        unused_ops = update_ops - all_gen_ops - all_dis_ops - all_gen_dis_ops
+        if unused_ops:
+            raise ValueError('There are unused update ops: %s' % unused_ops)
+
+    gen_update_ops = list(all_gen_ops & update_ops)
+    dis_update_ops = list(all_dis_ops & update_ops)
+    gen_dis_update_ops = list(all_gen_dis_ops & update_ops)
+
+    return gen_update_ops, dis_update_ops, gen_dis_update_ops
+
+
+def _cut_train_ops(
+        model,
+        loss,
+        generator_optimizer,
+        discriminator_optimizer,
+        gen_discriminator_optimizer,
+        check_for_unused_update_ops=True,
+        is_chief=True,
+        # Optional args to pass directly to the `create_train_op`.
+        **kwargs):
+    """Returns GAN train ops.
+
+    The highest-level call in TF-GAN. It is composed of functions that can also
+    be called, should a user require more control over some part of the GAN
+    training process.
+
+    Args:
+      model: A GANModel.
+      loss: A GANLoss.
+      generator_optimizer: The optimizer for generator updates.
+      discriminator_optimizer: The optimizer for the discriminator updates.
+      gen_discriminator_optimizer: The optimizer for the generator discriminator updates.
+      check_for_unused_update_ops: If `True`, throws an exception if there are
+        update ops outside the generator or discriminator scopes.
+      is_chief: Specifies whether the training is being run by the primary
+        replica during replica training.
+      **kwargs: Keyword args to pass directly to
+        `training.create_train_op` for both the generator and
+        discriminator train op.
+
+    Returns:
+      A GANTrainOps tuple of (generator_train_op, discriminator_train_op) that can
+      be used to train a generator/discriminator pair.
+    """
+    # Create global step increment op.
+    global_step = tf.compat.v1.train.get_or_create_global_step()
+    global_step_inc = global_step.assign_add(1)
+
+    # Get generator and discriminator update ops. We split them so that update
+    # ops aren't accidentally run multiple times. For now, throw an error if
+    # there are update ops that aren't associated with either the generator or
+    # the discriminator. Might modify the `kwargs` dictionary.
+    gen_update_ops, dis_update_ops, gen_dis_update_ops = _get_update_ops(
+        kwargs,
+        model.generator_scope.name, model.discriminator_scope.name, model.feat_discriminator_gen_data_scope.name,
+        check_for_unused_update_ops)
+
+    # Get the sync hooks if these are needed.
+    sync_hooks = []
+
+    generator_global_step = None
+    if isinstance(generator_optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
+        # WARNING: Making this variable a local variable causes sync replicas to
+        # hang forever.
+        generator_global_step = tf.compat.v1.get_variable(
+            'dummy_global_step_generator',
+            shape=[],
+            dtype=global_step.dtype.base_dtype,
+            initializer=tf.compat.v1.initializers.zeros(),
+            trainable=False,
+            collections=[tf.compat.v1.GraphKeys.GLOBAL_VARIABLES])
+        gen_update_ops += [generator_global_step.assign(global_step)]
+        sync_hooks.append(generator_optimizer.make_session_run_hook(is_chief))
+    with tf.compat.v1.name_scope('generator_train'):
+        gen_train_op = create_train_op(
+            total_loss=loss.generator_loss,
+            optimizer=generator_optimizer,
+            variables_to_train=model.generator_variables,
+            global_step=generator_global_step,
+            update_ops=gen_update_ops,
+            check_numerics=False,
+            **kwargs)
+
+    discriminator_global_step = None
+    if isinstance(discriminator_optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
+        # See comment above `generator_global_step`.
+        discriminator_global_step = tf.compat.v1.get_variable(
+            'dummy_global_step_discriminator',
+            shape=[],
+            dtype=global_step.dtype.base_dtype,
+            initializer=tf.compat.v1.initializers.zeros(),
+            trainable=False,
+            collections=[tf.compat.v1.GraphKeys.GLOBAL_VARIABLES])
+        dis_update_ops += [discriminator_global_step.assign(global_step)]
+        sync_hooks.append(discriminator_optimizer.make_session_run_hook(is_chief))
+    with tf.compat.v1.name_scope('discriminator_train'):
+        disc_train_op = create_train_op(
+            total_loss=loss.discriminator_loss,
+            optimizer=discriminator_optimizer,
+            variables_to_train=model.discriminator_variables,
+            global_step=discriminator_global_step,
+            update_ops=dis_update_ops,
+            check_numerics=False,
+            **kwargs)
+
+    gen_discriminator_global_step = None
+    if isinstance(gen_discriminator_optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
+        # See comment above `generator_global_step`.
+        gen_discriminator_global_step = tf.compat.v1.get_variable(
+            'dummy_global_step_discriminator',
+            shape=[],
+            dtype=global_step.dtype.base_dtype,
+            initializer=tf.compat.v1.initializers.zeros(),
+            trainable=False,
+            collections=[tf.compat.v1.GraphKeys.GLOBAL_VARIABLES])
+        gen_dis_update_ops += [gen_discriminator_global_step.assign(global_step)]
+        sync_hooks.append(gen_discriminator_optimizer.make_session_run_hook(is_chief))
+    with tf.compat.v1.name_scope('gen_discriminator_train'):
+        gen_disc_train_op = create_train_op(
+            total_loss=loss.gen_discriminator_loss,
+            optimizer=gen_discriminator_optimizer,
+            variables_to_train=model.feat_discriminator_gen_data_variables,
+            global_step=gen_discriminator_global_step,
+            update_ops=gen_dis_update_ops,
+            check_numerics=False,
+            **kwargs)
+
+    return CUTTrainOps(gen_train_op, disc_train_op, gen_disc_train_op, global_step_inc, sync_hooks)
 
 
 class CUTWrapper(Wrapper):
@@ -480,170 +644,6 @@ class CUTWrapper(Wrapper):
                         nce_identity_loss_weight=self._identity_loss_weight)
         return loss
 
-    @staticmethod
-    def _get_update_ops(kwargs, gen_scope, dis_scope, gen_dis_scope, check_for_unused_ops=True):
-        """Gets generator and discriminator update ops.
-
-        Args:
-          kwargs: A dictionary of kwargs to be passed to `create_train_op`.
-            `update_ops` is removed, if present.
-          gen_scope: A scope for the generator.
-          dis_scope: A scope for the discriminator.
-          check_for_unused_ops: A Python bool. If `True`, throw Exception if there are
-            unused update ops.
-
-        Returns:
-          A 3-tuple of (generator update ops, discriminator train ops, generator discriminator train ops).
-
-        Raises:
-          ValueError: If there are update ops outside of the generator or
-            discriminator scopes.
-        """
-        if 'update_ops' in kwargs:
-            update_ops = set(kwargs['update_ops'])
-            del kwargs['update_ops']
-        else:
-            update_ops = set(
-                tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS))
-
-        all_gen_ops = set(
-            tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, gen_scope))
-        all_dis_ops = set(
-            tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, dis_scope))
-        all_gen_dis_ops = set(
-            tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, gen_dis_scope))
-
-        if check_for_unused_ops:
-            unused_ops = update_ops - all_gen_ops - all_dis_ops - all_gen_dis_ops
-            if unused_ops:
-                raise ValueError('There are unused update ops: %s' % unused_ops)
-
-        gen_update_ops = list(all_gen_ops & update_ops)
-        dis_update_ops = list(all_dis_ops & update_ops)
-        gen_dis_update_ops = list(all_gen_dis_ops & update_ops)
-
-        return gen_update_ops, dis_update_ops, gen_dis_update_ops
-
-    @staticmethod
-    def _cut_train_ops(
-            model,
-            loss,
-            generator_optimizer,
-            discriminator_optimizer,
-            gen_discriminator_optimizer,
-            check_for_unused_update_ops=True,
-            is_chief=True,
-            # Optional args to pass directly to the `create_train_op`.
-            **kwargs):
-        """Returns GAN train ops.
-
-        The highest-level call in TF-GAN. It is composed of functions that can also
-        be called, should a user require more control over some part of the GAN
-        training process.
-
-        Args:
-          model: A GANModel.
-          loss: A GANLoss.
-          generator_optimizer: The optimizer for generator updates.
-          discriminator_optimizer: The optimizer for the discriminator updates.
-          gen_discriminator_optimizer: The optimizer for the generator discriminator updates.
-          check_for_unused_update_ops: If `True`, throws an exception if there are
-            update ops outside the generator or discriminator scopes.
-          is_chief: Specifies whether the training is being run by the primary
-            replica during replica training.
-          **kwargs: Keyword args to pass directly to
-            `training.create_train_op` for both the generator and
-            discriminator train op.
-
-        Returns:
-          A GANTrainOps tuple of (generator_train_op, discriminator_train_op) that can
-          be used to train a generator/discriminator pair.
-        """
-        # Create global step increment op.
-        global_step = tf.compat.v1.train.get_or_create_global_step()
-        global_step_inc = global_step.assign_add(1)
-
-        # Get generator and discriminator update ops. We split them so that update
-        # ops aren't accidentally run multiple times. For now, throw an error if
-        # there are update ops that aren't associated with either the generator or
-        # the discriminator. Might modify the `kwargs` dictionary.
-        gen_update_ops, dis_update_ops, gen_dis_update_ops = CUTWrapper._get_update_ops(
-            kwargs,
-            model.generator_scope.name, model.discriminator_scope.name, model.feat_discriminator_gen_data_scope.name,
-            check_for_unused_update_ops)
-
-        # Get the sync hooks if these are needed.
-        sync_hooks = []
-
-        generator_global_step = None
-        if isinstance(generator_optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
-            # WARNING: Making this variable a local variable causes sync replicas to
-            # hang forever.
-            generator_global_step = tf.compat.v1.get_variable(
-                'dummy_global_step_generator',
-                shape=[],
-                dtype=global_step.dtype.base_dtype,
-                initializer=tf.compat.v1.initializers.zeros(),
-                trainable=False,
-                collections=[tf.compat.v1.GraphKeys.GLOBAL_VARIABLES])
-            gen_update_ops += [generator_global_step.assign(global_step)]
-            sync_hooks.append(generator_optimizer.make_session_run_hook(is_chief))
-        with tf.compat.v1.name_scope('generator_train'):
-            gen_train_op = create_train_op(
-                total_loss=loss.generator_loss,
-                optimizer=generator_optimizer,
-                variables_to_train=model.generator_variables,
-                global_step=generator_global_step,
-                update_ops=gen_update_ops,
-                check_numerics=False,
-                **kwargs)
-
-        discriminator_global_step = None
-        if isinstance(discriminator_optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
-            # See comment above `generator_global_step`.
-            discriminator_global_step = tf.compat.v1.get_variable(
-                'dummy_global_step_discriminator',
-                shape=[],
-                dtype=global_step.dtype.base_dtype,
-                initializer=tf.compat.v1.initializers.zeros(),
-                trainable=False,
-                collections=[tf.compat.v1.GraphKeys.GLOBAL_VARIABLES])
-            dis_update_ops += [discriminator_global_step.assign(global_step)]
-            sync_hooks.append(discriminator_optimizer.make_session_run_hook(is_chief))
-        with tf.compat.v1.name_scope('discriminator_train'):
-            disc_train_op = create_train_op(
-                total_loss=loss.discriminator_loss,
-                optimizer=discriminator_optimizer,
-                variables_to_train=model.discriminator_variables,
-                global_step=discriminator_global_step,
-                update_ops=dis_update_ops,
-                check_numerics=False,
-                **kwargs)
-
-        gen_discriminator_global_step = None
-        if isinstance(gen_discriminator_optimizer, tf.compat.v1.train.SyncReplicasOptimizer):
-            # See comment above `generator_global_step`.
-            gen_discriminator_global_step = tf.compat.v1.get_variable(
-                'dummy_global_step_discriminator',
-                shape=[],
-                dtype=global_step.dtype.base_dtype,
-                initializer=tf.compat.v1.initializers.zeros(),
-                trainable=False,
-                collections=[tf.compat.v1.GraphKeys.GLOBAL_VARIABLES])
-            gen_dis_update_ops += [gen_discriminator_global_step.assign(global_step)]
-            sync_hooks.append(gen_discriminator_optimizer.make_session_run_hook(is_chief))
-        with tf.compat.v1.name_scope('gen_discriminator_train'):
-            gen_disc_train_op = create_train_op(
-                total_loss=loss.gen_discriminator_loss,
-                optimizer=gen_discriminator_optimizer,
-                variables_to_train=model.feat_discriminator_gen_data_variables,
-                global_step=gen_discriminator_global_step,
-                update_ops=gen_dis_update_ops,
-                check_numerics=False,
-                **kwargs)
-
-        return CUTTrainOps(gen_train_op, disc_train_op, gen_disc_train_op, global_step_inc, sync_hooks)
-
     def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
         gen_dis_lr = _get_lr(kwargs["gen_discriminator_lr"], max_number_of_steps)
         gen_lr = _get_lr(kwargs["generator_lr"], max_number_of_steps)
@@ -653,7 +653,7 @@ class CUTWrapper(Wrapper):
         dis_opt = AdamOptimizer(dis_lr, beta1=0.5, use_locking=True)
         gen_dis_opt = AdamOptimizer(gen_dis_lr, beta1=0.5, use_locking=True)
 
-        train_ops = self._cut_train_ops(
+        train_ops = _cut_train_ops(
             model,
             loss,
             generator_optimizer=gen_opt,
