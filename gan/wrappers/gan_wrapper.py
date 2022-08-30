@@ -7,7 +7,8 @@ from tf_slim import get_variables_to_restore
 
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan.wrappers.gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
-    model_generator_name, adj_shadow_ratio, define_standard_train_ops, create_inference_for_matrix_input
+    model_generator_name, adj_shadow_ratio, define_standard_train_ops, create_inference_for_matrix_input, \
+    define_val_model
 from gan.wrappers.wrapper import Wrapper, InferenceWrapper
 
 
@@ -68,12 +69,7 @@ class GANWrapper(Wrapper):
     @staticmethod
     def create_validation_hook_base(wrapper, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                     validation_iteration_count, validation_sample_count, swap_inputs):
-        element_size = data_set.get_data_shape()
-        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
-
-        x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
-        y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
-        model_for_validation = wrapper.define_model(x_input_tensor, y_input_tensor)
+        model_for_validation, x_input_tensor, y_input_tensor = define_val_model(wrapper, data_set)
         shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
                                                   sample_count=validation_sample_count,
                                                   log_dir=log_dir,

@@ -11,7 +11,7 @@ from tf_slim import get_variables_to_restore
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan.wrappers.gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, \
     model_base_name, \
-    model_generator_name, define_standard_train_ops, create_inference_for_matrix_input
+    model_generator_name, define_standard_train_ops, create_inference_for_matrix_input, define_val_model
 from gan.wrappers.wrapper import Wrapper, InferenceWrapper
 
 model_forward_generator_name = "ModelX2Y"
@@ -111,12 +111,7 @@ class CycleGANWrapper(Wrapper):
 
     def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                validation_iteration_count, validation_sample_count):
-        element_size = data_set.get_data_shape()
-        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
-
-        x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
-        y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
-        model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
+        model_for_validation, x_input_tensor, y_input_tensor = define_val_model(self, data_set)
         return create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                            validation_iteration_count, validation_sample_count,
                                            model_for_validation.model_x2y.generated_data,
