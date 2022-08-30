@@ -64,25 +64,32 @@ class GANWrapper:
     def get_train_hooks_fn(self):
         return tfgan.get_sequential_train_hooks(tfgan.GANTrainSteps(1, 1))
 
-    def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                               validation_iteration_count, validation_sample_count):
+    @staticmethod
+    def create_validation_hook_base(wrapper, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
+                                    validation_iteration_count, validation_sample_count, swap_inputs):
         element_size = data_set.get_data_shape()
         element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
 
         x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
         y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
-        model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
+        model_for_validation = wrapper.define_model(x_input_tensor, y_input_tensor)
         shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
                                                   sample_count=validation_sample_count,
                                                   log_dir=log_dir,
                                                   loader=loader, data_set=data_set, neighborhood=neighborhood,
                                                   shadow_map=shadow_map,
-                                                  shadow_ratio=adj_shadow_ratio(shadow_ratio, self._swap_inputs),
-                                                  input_tensor=y_input_tensor if self._swap_inputs else x_input_tensor,
+                                                  shadow_ratio=adj_shadow_ratio(shadow_ratio, swap_inputs),
+                                                  input_tensor=y_input_tensor if swap_inputs else x_input_tensor,
                                                   infer_model=model_for_validation.generated_data,
                                                   fetch_shadows=False,
-                                                  name_suffix="deshadowed" if self._swap_inputs else "shadowed")
+                                                  name_suffix="deshadowed" if swap_inputs else "shadowed")
         return shadowed_validation_hook
+
+    def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
+                               validation_iteration_count, validation_sample_count):
+        return GANWrapper.create_validation_hook_base(self, data_set, loader, log_dir, neighborhood, shadow_map,
+                                                      shadow_ratio, validation_iteration_count, validation_sample_count,
+                                                      self._swap_inputs)
 
 
 class GANInferenceWrapper:

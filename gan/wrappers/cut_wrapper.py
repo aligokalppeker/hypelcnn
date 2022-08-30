@@ -15,8 +15,8 @@ from tf_slim.learning import create_train_op
 
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model, \
     _shadowdata_feature_discriminator_model
-from gan.wrappers.gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, adj_shadow_ratio, _get_lr
-from gan.wrappers.gan_wrapper import GANInferenceWrapper
+from gan.wrappers.gan_common import _get_lr
+from gan.wrappers.gan_wrapper import GANInferenceWrapper, GANWrapper
 
 
 class CUTTrainSteps(
@@ -474,8 +474,10 @@ class CUTWrapper:
         # Define CycleGAN loss.
         loss = cut_loss(model, generator_loss_fn=tuple_losses.least_squares_generator_loss,
                         discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
-                        gen_discriminator_loss_fn=partial(contrastive_gen_data_x_loss, tau=self._tau, batch_size= self._batch_size),
-                        identity_discriminator_loss_fn=partial(contrastive_identity_loss, tau=self._tau, batch_size= self._batch_size),
+                        gen_discriminator_loss_fn=partial(contrastive_gen_data_x_loss, tau=self._tau,
+                                                          batch_size=self._batch_size),
+                        identity_discriminator_loss_fn=partial(contrastive_identity_loss, tau=self._tau,
+                                                               batch_size=self._batch_size),
                         nce_loss_weight=self._nce_loss_weight,
                         nce_identity_loss_weight=self._identity_loss_weight)
         return loss
@@ -675,23 +677,9 @@ class CUTWrapper:
 
     def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
                                validation_iteration_count, validation_sample_count):
-        element_size = data_set.get_data_shape()
-        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
-
-        x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
-        y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
-        model_for_validation = self.define_model(x_input_tensor, y_input_tensor)
-        shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
-                                                  sample_count=validation_sample_count,
-                                                  log_dir=log_dir,
-                                                  loader=loader, data_set=data_set, neighborhood=neighborhood,
-                                                  shadow_map=shadow_map,
-                                                  shadow_ratio=adj_shadow_ratio(shadow_ratio, self._swap_inputs),
-                                                  input_tensor=y_input_tensor if self._swap_inputs else x_input_tensor,
-                                                  infer_model=model_for_validation.generated_data,
-                                                  fetch_shadows=False,
-                                                  name_suffix="deshadowed" if self._swap_inputs else "shadowed")
-        return shadowed_validation_hook
+        return GANWrapper.create_validation_hook_base(self, data_set, loader, log_dir, neighborhood, shadow_map,
+                                                      shadow_ratio, validation_iteration_count, validation_sample_count,
+                                                      self._swap_inputs)
 
 
 class CUTInferenceWrapper(GANInferenceWrapper):
