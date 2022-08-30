@@ -44,8 +44,6 @@ class GANWrapper(Wrapper):
             generator_inputs=generator_inputs,
             real_data=real_data)
 
-        # Add summaries for generated images.
-        # tfgan.eval.add_cyclegan_image_summaries(gan_model)
         return gan_model
 
     def define_loss(self, model):
