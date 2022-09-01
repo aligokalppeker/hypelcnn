@@ -17,6 +17,7 @@ from common.common_nn_ops import set_all_gpu_config, get_loader_from_name, TextS
 from common.common_ops import replace_abbrs
 from gan.wrappers.cut_wrapper import CUTWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANWrapper
+from gan.wrappers.dcl_gan_wrapper import DCLGANWrapper
 from gan.wrappers.gan_common import InitializerHook, model_base_name
 from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
 from gan.wrappers.gan_wrapper import GANWrapper
@@ -250,7 +251,13 @@ def main(_):
                                   use_identity_loss=flags.use_identity_loss,
                                   swap_inputs=True,
                                   tau=flags.tau,
-                                  batch_size=flags.batch_size)}
+                                  batch_size=flags.batch_size),
+            "dcl_gan": DCLGANWrapper(nce_loss_weight=flags.nce_loss_weight,
+                                     identity_loss_weight=flags.identity_loss_weight,
+                                     use_identity_loss=flags.use_identity_loss,
+                                     tau=flags.tau,
+                                     batch_size=flags.batch_size)
+        }
         wrapper = gan_train_wrapper_dict[gan_type]
 
         with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):

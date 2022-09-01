@@ -1,5 +1,3 @@
-from __future__ import division, absolute_import, print_function
-
 import collections
 import inspect
 from functools import partial
@@ -55,8 +53,7 @@ class CUTTrainOps(
             "discriminator_train_op",
             "gen_discriminator_train_op",
             "global_step_inc_op",
-            "train_hooks"
-    ))):
+            "train_hooks",))):
     """CUTTrainOps contains the training ops.
 
     Args:
@@ -67,12 +64,6 @@ class CUTTrainOps(
         to be populated when training ops are instantiated. Used primarily for
         sync hooks.
     """
-
-    def __new__(cls, generator_train_op, discriminator_train_op, gen_discriminator_train_op,
-                global_step_inc_op, train_hooks=()):
-        return super(CUTTrainOps, cls).__new__(cls, generator_train_op,
-                                               discriminator_train_op, gen_discriminator_train_op,
-                                               global_step_inc_op, train_hooks)
 
 
 def get_sequential_train_hooks_cut(train_steps):
@@ -161,7 +152,7 @@ def cut_loss(
         `tfgan.features.tensor_pool`. Defaults to None (not using tensor pool).
       reduction: A `tf.losses.Reduction` to apply to loss, if the loss takes an
         argument called `reduction`. Otherwise, this is ignored.
-      add_summaries: Whether or not to add summaries for the losses.
+      add_summaries: Whether to add summaries for the losses.
 
     Returns:
       A GANLoss 2-tuple of (generator_loss, discriminator_loss). Includes
@@ -298,7 +289,7 @@ def cut_model(
         same shape as real data. Otherwise, skip this check.
 
     Returns:
-      A GANModel namedtuple.
+      A CUTModel namedtuple.
 
     Raises:
       ValueError: If the generator outputs a Tensor that isn't the same shape as
@@ -475,7 +466,7 @@ def _get_update_ops(kwargs, gen_scope, dis_scope, gen_dis_scope, check_for_unuse
     return gen_update_ops, dis_update_ops, gen_dis_update_ops
 
 
-def _cut_train_ops(
+def cut_train_ops(
         model,
         loss,
         generator_optimizer,
@@ -606,14 +597,14 @@ class CUTWrapper(Wrapper):
         self._batch_size = batch_size
 
     def define_model(self, images_x, images_y):
-        """Defines a CycleGAN model that maps between images_x and images_y.
+        """Defines a model that maps between images_x and images_y.
 
         Args:
           images_x: A 4D float `Tensor` of NHWC format.  Images in set X.
           images_y: A 4D float `Tensor` of NHWC format.  Images in set Y.
 
         Returns:
-          A `CycleGANModel` namedtuple.
+          A `CUTModel` namedtuple.
         """
         if self._swap_inputs:
             generator_inputs = images_y
@@ -622,7 +613,7 @@ class CUTWrapper(Wrapper):
             generator_inputs = images_x
             real_data = images_y
 
-        gan_model = cut_model(
+        return cut_model(
             generator_fn=_shadowdata_generator_model,
             discriminator_fn=_shadowdata_discriminator_model,
             feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model, embedded_feature_size=2,
@@ -630,11 +621,9 @@ class CUTWrapper(Wrapper):
             generator_inputs=generator_inputs,
             real_data=real_data)
 
-        return gan_model
-
     def define_loss(self, model):
-        # Define CycleGAN loss.
-        loss = cut_loss(model, generator_loss_fn=tuple_losses.least_squares_generator_loss,
+        # Define CUT loss.
+        return cut_loss(model, generator_loss_fn=tuple_losses.least_squares_generator_loss,
                         discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
                         gen_discriminator_loss_fn=partial(contrastive_gen_data_x_loss, tau=self._tau,
                                                           batch_size=self._batch_size),
@@ -642,7 +631,6 @@ class CUTWrapper(Wrapper):
                                                                batch_size=self._batch_size),
                         nce_loss_weight=self._nce_loss_weight,
                         nce_identity_loss_weight=self._identity_loss_weight)
-        return loss
 
     def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
         gen_dis_lr = _get_lr(kwargs["gen_discriminator_lr"], max_number_of_steps)
@@ -653,7 +641,7 @@ class CUTWrapper(Wrapper):
         dis_opt = AdamOptimizer(dis_lr, beta1=0.5, use_locking=True)
         gen_dis_opt = AdamOptimizer(gen_dis_lr, beta1=0.5, use_locking=True)
 
-        train_ops = _cut_train_ops(
+        train_ops = cut_train_ops(
             model,
             loss,
             generator_optimizer=gen_opt,

@@ -38,13 +38,11 @@ class GANWrapper(Wrapper):
             generator_inputs = images_x
             real_data = images_y
 
-        gan_model = tfgan.gan_model(
+        return tfgan.gan_model(
             generator_fn=_shadowdata_generator_model,
             discriminator_fn=_shadowdata_discriminator_model,
             generator_inputs=generator_inputs,
             real_data=real_data)
-
-        return gan_model
 
     def define_loss(self, model):
         # Define CycleGAN loss.
