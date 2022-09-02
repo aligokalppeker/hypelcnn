@@ -8,6 +8,7 @@ from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_log
 from common.common_nn_ops import set_all_gpu_config, get_loader_from_name
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
+from gan.wrappers.dcl_gan_wrapper import DCLGANInferenceWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper
 
 
@@ -56,7 +57,8 @@ def get_wrapper_dict():
                                   "gan_x2y": GANInferenceWrapper(fetch_shadows=False),
                                   "gan_y2x": GANInferenceWrapper(fetch_shadows=True),
                                   "cut_x2y": CUTInferenceWrapper(fetch_shadows=False),
-                                  "cut_y2x": CUTInferenceWrapper(fetch_shadows=True)}
+                                  "cut_y2x": CUTInferenceWrapper(fetch_shadows=True),
+                                  "dcl_gan": DCLGANInferenceWrapper()}
     return gan_inference_wrapper_dict
 
 

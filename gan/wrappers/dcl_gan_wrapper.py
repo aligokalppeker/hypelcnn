@@ -8,10 +8,9 @@ from tensorflow_gan.python.losses import tuple_losses
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model, \
     _shadowdata_feature_discriminator_model
 from gan.wrappers.cut_wrapper import cut_model, cut_loss, cut_train_ops, get_sequential_train_hooks_cut, CUTTrainSteps, \
-    contrastive_gen_data_x_loss, contrastive_identity_loss, CUTLoss
-from gan.wrappers.cycle_gan_wrapper import create_base_validation_hook
+    contrastive_gen_data_x_loss, contrastive_identity_loss
+from gan.wrappers.cycle_gan_wrapper import create_base_validation_hook, CycleGANInferenceWrapper
 from gan.wrappers.gan_common import _get_lr, define_val_model
-from gan.wrappers.gan_wrapper import GANInferenceWrapper, GANWrapper
 from gan.wrappers.wrapper import Wrapper
 
 
@@ -322,6 +321,6 @@ class DCLGANWrapper(Wrapper):
                                            x_input_tensor, y_input_tensor)
 
 
-class DCLGANInferenceWrapper(GANInferenceWrapper):
-    def __init__(self, fetch_shadows):
-        super().__init__(fetch_shadows)
+class DCLGANInferenceWrapper(CycleGANInferenceWrapper):
+    def __init__(self) -> None:
+        super().__init__()
