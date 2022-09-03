@@ -588,12 +588,15 @@ def cut_train_ops(
 
 class CUTWrapper(Wrapper):
 
-    def __init__(self, nce_loss_weight, identity_loss_weight, use_identity_loss, tau, batch_size, swap_inputs) -> None:
+    def __init__(self, nce_loss_weight, identity_loss_weight, use_identity_loss, tau, embedded_feat_size, patches,
+                 batch_size, swap_inputs) -> None:
         super().__init__()
         self._nce_loss_weight = nce_loss_weight
         self._identity_loss_weight = 0.0 if not use_identity_loss else identity_loss_weight
         self._swap_inputs = swap_inputs
         self._tau = tau
+        self._embedded_feat_size = embedded_feat_size
+        self._patches = patches
         self._batch_size = batch_size
 
     def define_model(self, images_x, images_y):
@@ -616,8 +619,9 @@ class CUTWrapper(Wrapper):
         return cut_model(
             generator_fn=_shadowdata_generator_model,
             discriminator_fn=_shadowdata_discriminator_model,
-            feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model, embedded_feature_size=2,
-                                          patch_count=6, is_training=True),
+            feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model,
+                                          embedded_feature_size=self._embedded_feat_size,
+                                          patch_count=self._patches, is_training=True),
             generator_inputs=generator_inputs,
             real_data=real_data)
 
