@@ -1,5 +1,6 @@
 import argparse
 import json
+from types import SimpleNamespace
 
 import tensorflow as tf
 from tensorflow.python.training.monitored_session import USE_DEFAULT
@@ -12,7 +13,7 @@ from tensorflow.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
-    type_ensure_strtobool
+    type_ensure_strtobool, add_parse_cmds_for_json_loader
 from common.common_nn_ops import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
 from common.common_ops import replace_abbrs
 from gan.wrappers.cut_wrapper import CUTWrapper
@@ -107,7 +108,7 @@ def gan_train(train_ops,
         summaries are written to disk using a default summary saver. If
         `save_summaries_steps` is set to `None`, then the default summary saver
         isn't used.
-      max_wait_secs: Maximum time workers should wait for the session to
+      max_wait_secs: Maximum time that workers should wait for the session to
         become available. This should be kept relatively short to help detect
         incorrect code, but sometimes may need to be increased if the chief takes
         a while to start up.
@@ -208,13 +209,20 @@ def main(_):
     add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)
     add_parse_cmds_for_trainers(parser)
+    add_parse_cmds_for_json_loader(parser)
     add_parse_cmds_for_app(parser)
     flags, unparsed = parser.parse_known_args()
 
+    if flags.flag_config_file:
+        flags = update_flags_from_json(flags, flags.flag_config_file)
+
+    run_session(flags)
+
+
+def run_session(flags):
     log_dir = f"{flags.base_log_path}_{get_log_suffix(flags)}"
     if not gfile.Exists(log_dir):
         gfile.MakeDirs(log_dir)
-
     with tf.device(replica_device_setter(flags.ps_tasks)):
         validation_iteration_count = flags.validation_steps
         validation_sample_count = flags.validation_sample_count
@@ -233,7 +241,6 @@ def main(_):
             images_x, images_y = training_input_iter.get_next()
 
         # Define model.
-        gan_type = flags.gan_type
         gan_train_wrapper_dict = {
             "cycle_gan": CycleGANWrapper(cycle_consistency_loss_weight=flags.cycle_consistency_loss_weight,
                                          identity_loss_weight=flags.identity_loss_weight,
@@ -268,7 +275,7 @@ def main(_):
                                      patches=flags.patches,
                                      batch_size=flags.batch_size)
         }
-        wrapper = gan_train_wrapper_dict[gan_type]
+        wrapper = gan_train_wrapper_dict[flags.gan_type]
 
         with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
             the_gan_model = wrapper.define_model(images_x, images_y)
@@ -308,6 +315,15 @@ def main(_):
             ],
             master=flags.master,
             is_chief=flags.task == 0)
+
+
+def update_flags_from_json(flags, flag_config_file):
+    print("Updating flags from json file,", flag_config_file)
+    flags_as_dict = vars(flags)
+    flags_from_json = json.load(open(flag_config_file, "r"))
+    flags_as_dict.update(flags_from_json)
+    flags = SimpleNamespace(**flags_as_dict)
+    return flags
 
 
 if __name__ == "__main__":

@@ -6,6 +6,12 @@ def type_ensure_strtobool(val):
     return bool(strtobool(str(val)))
 
 
+def add_parse_cmds_for_json_loader(parser):
+    parser.add_argument("--flag_config_file", nargs="?", type=str,
+                        default=None,
+                        help="Flags as json")
+
+
 def add_parse_cmds_for_trainers(parser):
     parser.add_argument("--batch_size", nargs="?", type=int,
                         default=20,
