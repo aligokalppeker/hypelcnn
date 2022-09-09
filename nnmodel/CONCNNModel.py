@@ -1,5 +1,4 @@
 import tensorflow as tf
-from hyperopt import hp
 from tf_slim import conv2d, dropout, flatten, fully_connected, arg_scope
 
 from common.common_nn_ops import ModelOutputTensors
@@ -55,16 +54,16 @@ class CONCNNModel(NNModel):
         return tf.nn.softmax_cross_entropy_with_logits(labels=label,
                                                        logits=tensor_output.y_conv)
 
-    def get_hyper_param_space(self):
+    def get_hyper_param_space(self, trial):
         return {
-            'filter_count': 128,
-            'drop_out_ratio': hp.uniform('drop_out_ratio', 0.1, 0.5),
-            'learning_rate': hp.uniform('learning_rate', 1e-8, 1e-2),
-            'lrelu_alpha': hp.uniform('lrelu_alpha', 0.1, 0.2),
-            'learning_rate_decay_factor': 0.96,
-            'learning_rate_decay_step': 350,
-            'batch_size': hp.choice('batch_size', [16, 32, 48, 64, 96]),
-            'optimizer': 'AdamOptimizer'
+            "filter_count": 128,
+            "drop_out_ratio": trial.suggest_float("drop_out_ratio", 0.1, 0.5),
+            "learning_rate": trial.suggest_float("learning_rate", 1e-8, 1e-2),
+            "lrelu_alpha": trial.suggest_float("lrelu_alpha", 0.1, 0.2),
+            "learning_rate_decay_factor": 0.96,
+            "learning_rate_decay_step": 350,
+            "batch_size": trial.suggest_categorical("batch_size", [16, 32, 48, 64, 96]),
+            "optimizer": "AdamOptimizer"
         }
 
     def get_default_params(self):

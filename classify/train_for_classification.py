@@ -1,12 +1,12 @@
 import argparse
 import json
 import os
-import pickle
 import time
 
+import optuna
 import tensorflow as tf
-from hyperopt import fmin, tpe, Trials, space_eval
 from numpy import std, mean
+from optuna.samplers import TPESampler
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
     type_ensure_strtobool, add_parse_cmds_for_models, add_parse_cmds_for_importers
@@ -189,12 +189,6 @@ def get_log_suffix(flags):
 def main(_):
     tf.compat.v1.disable_v2_behavior()
 
-    def convert_trial_to_dict(trial):
-        dict_value_results = {}
-        for k, v in trial.items():
-            dict_value_results[k] = None if len(v) == 0 else v[0]
-        return dict_value_results
-
     parser = argparse.ArgumentParser()
     add_parse_cmds_for_loaders(parser)
     add_parse_cmds_for_loggers(parser)
@@ -208,7 +202,6 @@ def main(_):
 
     nn_model = get_model_from_name(flags.model_name)
 
-    episode_run_index = 0
     if flags.max_evals == 1:
         print("Running in single execution training mode")
         algorithm_params = nn_model.get_default_params()
@@ -218,44 +211,18 @@ def main(_):
         perform_an_episode(flags, algorithm_params, nn_model, os.path.join(flags.base_log_path, get_log_suffix(flags)))
     else:
         print("Running in hyper parameter optimization mode")
-        model_space_fun = nn_model.get_hyper_param_space
 
-        trial_file_path = os.path.join(flags.base_log_path, "trial.p")
-        best = None
-
-        def optimization_func(params):
-            nonlocal episode_run_index
+        def objective(trial):
+            episode_run_index = trial.number
             print(f"Starting episode#{episode_run_index:d}")
+            params = nn_model.get_hyper_param_space(trial)
             log_path = os.path.join(flags.base_log_path, f"episode_{episode_run_index:d}")
-            loss = 1 - perform_an_episode(flags, params, nn_model, log_path).validation_accuracy
-            episode_run_index = episode_run_index + 1
-            return loss
+            return perform_an_episode(flags, params, nn_model, log_path).validation_accuracy
 
-        while True:
-            try:
-                with open(trial_file_path, "rb") as read_file:
-                    trials = pickle.load(read_file)
-                episode_run_index = len(trials.trials)
-                best = convert_trial_to_dict(trials.best_trial["misc"]["vals"])
-            except IOError:
-                print("No trials file found. Starting trials from scratch")
-                episode_run_index = 0
-                trials = Trials()
+        study = optuna.create_study(direction="maximize", sampler=TPESampler())
+        study.optimize(objective, n_trials=flags.max_evals)
 
-            if episode_run_index == flags.max_evals:
-                break
-
-            best = fmin(
-                fn=optimization_func,
-                space=model_space_fun(),
-                algo=tpe.suggest,
-                trials=trials,
-                max_evals=episode_run_index + 1)
-            pickle.dump(trials, open(trial_file_path, "wb"))
-
-        json.dump(trials.results, open("trial_results.json", "w"), indent=3)
-        if best is not None:
-            print(space_eval(model_space_fun(), best))
+        json.dump(study.best_trial.params, open("trial_results.json", "w"), indent=3)
 
 
 if __name__ == '__main__':

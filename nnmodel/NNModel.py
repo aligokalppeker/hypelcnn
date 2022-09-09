@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class NNModel(ABC):
     @abstractmethod
-    def get_hyper_param_space(self):
+    def get_hyper_param_space(self, trial):
         pass
 
     @abstractmethod

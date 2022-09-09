@@ -1,7 +1,6 @@
 import math
 
 import tensorflow as tf
-from hyperopt import hp
 from tensorflow import initializers
 from tensorflow.python.ops.gen_nn_ops import leaky_relu
 from tf_slim import conv2d, dropout, flatten, fully_connected, arg_scope, batch_norm, l2_regularizer
@@ -12,24 +11,24 @@ from nnmodel.NNModel import NNModel
 
 class HYPELCNNModel(NNModel):
 
-    def get_hyper_param_space(self):
+    def get_hyper_param_space(self, trial):
         return {
-            'drop_out_ratio': hp.uniform('drop_out_ratio', 0.3, 0.5),
-            'learning_rate': hp.uniform('learning_rate', 1e-5, 1e-3),
-            'lrelu_alpha': 0.18,
-            'learning_rate_decay_factor': 0.96,
-            'learning_rate_decay_step': 350,
-            'filter_count': 1200,
-            'batch_size': hp.choice('batch_size', [32, 48, 64]),
-            'optimizer': 'AdamOptimizer',
-            'bn_decay': hp.uniform('bn_decay', 0.900, 0.999),
-            'l2regularizer_scale': 0.00001,
-            'spectral_hierarchy_level': 3,
-            'spatial_hierarchy_level': 3,
-            'degradation_coeff': 3
+            "drop_out_ratio": trial.suggest_float("drop_out_ratio", 0.3, 0.5),
+            "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3),
+            "lrelu_alpha": 0.18,
+            "learning_rate_decay_factor": 0.96,
+            "learning_rate_decay_step": 350,
+            "filter_count": 1200,
+            "batch_size": trial.suggest_categorical("batch_size", [32, 48, 64]),
+            "optimizer": "AdamOptimizer",
+            "bn_decay": trial.suggest_float("bn_decay", 0.900, 0.999),
+            "l2regularizer_scale": 0.00001,
+            "spectral_hierarchy_level": 3,
+            "spatial_hierarchy_level": 3,
+            "degradation_coeff": 3
         }
 
-    # 'optimizer': hp.choice('optimizer',['AdamOptimizer', ('MomentumOptimizer', hp.uniform('momentum', 0.50, 0.99))])
+    # "optimizer": hp.choice("optimizer",["AdamOptimizer", ("MomentumOptimizer", hp.uniform("momentum", 0.50, 0.99))])
 
     def get_default_params(self):
         return {
@@ -50,8 +49,8 @@ class HYPELCNNModel(NNModel):
 
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         with tf.device(model_input_params.device_id):
-            data_format = None  # 'NHWC'
-            bn_training_params = {'is_training': model_input_params.is_training, 'decay': algorithm_params["bn_decay"]}
+            data_format = None  # "NHWC"
+            bn_training_params = {"is_training": model_input_params.is_training, "decay": algorithm_params["bn_decay"]}
             use_residual = algorithm_params["use_residual"]
             lrelu = lambda inp: leaky_relu(inp, alpha=algorithm_params["lrelu_alpha"])
             with arg_scope([conv2d, fully_connected],
@@ -62,7 +61,7 @@ class HYPELCNNModel(NNModel):
                            activation_fn=lrelu):
                 level_filter_count = algorithm_params["filter_count"]
 
-                if data_format == 'NCHW':
+                if data_format == "NCHW":
                     net0 = tf.transpose(a=model_input_params.x, perm=[0, 3, 1, 2])  # Convert input to NCHW
                 else:
                     net0 = model_input_params.x
@@ -183,7 +182,7 @@ class HYPELCNNModel(NNModel):
     @staticmethod
     def __create_a_level(level_filter_count, input_data, level_name, data_format):
         patch_size = input_data.get_shape()[1].value
-        with tf.compat.v1.name_scope(level_name + '_scope'):
+        with tf.compat.v1.name_scope(level_name + "_scope"):
             elements = []
             for patch_x_index in range(1, patch_size + 1):
                 for patch_y_index in range(1, patch_size + 1):
@@ -192,7 +191,7 @@ class HYPELCNNModel(NNModel):
                     # index_valid = True
                     if index_valid:
                         level_element = conv2d(input_data, level_filter_count, [patch_x_index, patch_y_index],
-                                               scope=f'{level_name}_conv{str(patch_x_index)}x{str(patch_y_index)}',
+                                               scope=f"{level_name}_conv{str(patch_x_index)}x{str(patch_y_index)}",
                                                data_format=data_format)
                         elements.append(level_element)
 
