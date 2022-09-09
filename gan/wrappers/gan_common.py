@@ -3,6 +3,7 @@ from __future__ import division, absolute_import, print_function
 import json
 import os
 import random
+import sys
 from json import JSONDecodeError
 
 import numpy
@@ -53,23 +54,26 @@ class BestRatioHolder:
         self.data_holder = []
         self.max_size = max_size
 
-    def add_point(self, iteration, kl_val):
+    def add_point(self, iteration, diver_val):
         iteration = int(iteration)  # For serialization purposes int64 => int
-        kl_val = float(kl_val)  # For serialization purposes float64 => float
+        diver_val = float(diver_val)  # For serialization purposes float64 => float
         insert_idx = 0
-        for (curr_iter, curr_kl) in self.data_holder:
-            if kl_val > curr_kl:
+        for (curr_iter, curr_diver) in self.data_holder:
+            if diver_val > curr_diver:
                 insert_idx = insert_idx + 1
 
-        self.data_holder.insert(insert_idx, (iteration, kl_val))
+        self.data_holder.insert(insert_idx, (iteration, diver_val))
         if len(self.data_holder) > self.max_size:
             self.data_holder.pop()
 
+    def get_best_diver(self):
+        return self.data_holder[0][1] if self.data_holder else None
+
     def get_point_with_itr(self, iteration):
         result = (None, None)
-        for (curr_iter, curr_kl) in self.data_holder:
+        for (curr_iter, curr_diver) in self.data_holder:
             if curr_iter == iteration:
-                result = (curr_iter, curr_kl)
+                result = (curr_iter, curr_diver)
                 break
 
         return result
@@ -127,6 +131,9 @@ class BaseValidationHook(SessionRunHook):
             result = current_iteration % self._iteration_frequency == 1 and current_iteration != 1
         return result
 
+    def get_ratio(self):
+        return self.best_ratio_holder.get_best_diver()
+
 
 class PeerValidationHook(SessionRunHook):
     def __init__(self, *validation_base_hooks):
@@ -144,6 +151,11 @@ class PeerValidationHook(SessionRunHook):
         if self._validation_base_hooks[0].validation_itr_mark:
             print("Best common options:",
                   BestRatioHolder.create_common_iterations(ratio_holder_list[0], ratio_holder_list[1]))
+
+    def get_ratio(self):
+        diver_val_list = [val_base_hook.get_ratio() for val_base_hook in self._validation_base_hooks
+                          if val_base_hook.get_ratio() is not None]
+        return min(diver_val_list) if diver_val_list else sys.maxsize
 
 
 class ValidationHook(BaseValidationHook):

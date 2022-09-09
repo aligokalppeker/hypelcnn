@@ -14,3 +14,4 @@ opencv-python>=4.0.0
 tf-slim==1.1.0
 tensorflow-addons==0.17.1
 numpy>=1.21.0
+optuna>=3.0.0

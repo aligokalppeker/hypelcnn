@@ -1,8 +1,12 @@
 import argparse
 import json
+import random
+import string
 from types import SimpleNamespace
 
+import optuna
 import tensorflow as tf
+from optuna.samplers import TPESampler
 from tensorflow.python.training.monitored_session import USE_DEFAULT
 from tensorflow.python import data
 from tensorflow.python.data.experimental import shuffle_and_repeat
@@ -71,6 +75,19 @@ def add_parse_cmds_for_app(parser):
                         help="The Task ID. This value is used when training with multiple workers to "
                              "identify each worker.")
 
+    parser.add_argument("--flag_config_file_min", nargs="?", type=str,
+                        default=None,
+                        help="Minimum values for flags as json")
+    parser.add_argument("--flag_config_file_max", nargs="?", type=str,
+                        default=None,
+                        help="Maximum values for flags as json")
+    parser.add_argument("--opt_trial_count", nargs="?", type=int,
+                        default=10,
+                        help="Trial count for the optimization part.")
+    parser.add_argument("--opt_run_count", nargs="?", type=int,
+                        default=1,
+                        help="Retry count for each trial during the optimization.")
+
 
 def gan_train(train_ops,
               logdir,
@@ -135,6 +152,7 @@ def gan_train(train_ops,
         gstep = None
         while not session.should_stop():
             gstep = session.run(train_ops.global_step_inc_op)
+    tf.compat.v1.reset_default_graph()
     return gstep
 
 
@@ -165,7 +183,7 @@ def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ra
     data_set = data_set.map(
         lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_, shadow_ratio, reg_support_rate),
         num_parallel_calls=4)
-    data_set = data_set.batch(batch_size)
+    data_set = data_set.batch(batch_size, drop_remainder=True)
     data_set_itr = tf.compat.v1.data.make_initializable_iterator(data_set)
 
     return InitializerHook(data_set_itr,
@@ -216,65 +234,95 @@ def main(_):
     if flags.flag_config_file:
         flags = update_flags_from_json(flags, flags.flag_config_file)
 
-    run_session(flags)
+    if flags.flag_config_file_min and flags.flag_config_file_max:
+        flags_from_json_min = json.load(open(flags.flag_config_file_min, "r"))
+        flags_from_json_max = json.load(open(flags.flag_config_file_max, "r"))
+
+        def objective(trial):
+            flags_as_dict = dict(vars(flags))
+            for key in flags_from_json_min.keys():
+                if type(flags_from_json_min[key]) is float:
+                    flags_as_dict[key] = trial.suggest_float(key, flags_from_json_min[key], flags_from_json_max[key])
+                if type(flags_from_json_min[key]) is int:
+                    flags_as_dict[key] = trial.suggest_int(key, flags_from_json_min[key], flags_from_json_max[key])
+
+            losses = []
+            for run_idx in range(0, flags.opt_run_count):
+                trial_postfix = f"_{''.join(random.choices(string.ascii_lowercase + string.digits, k=5))}"
+                flags_as_dict["base_log_path"] = flags_as_dict["base_log_path"] + trial_postfix
+                print(f"Starting run#{run_idx}")
+                losses.append(run_session(SimpleNamespace(**flags_as_dict)))
+
+            print("Trial runs are completed. Losses:")
+            print(*losses, sep=",")
+            return max(losses)
+
+        print("Running on hyper parameter mode")
+        study = optuna.create_study(direction="minimize", sampler=TPESampler())
+        study.optimize(objective, n_trials=flags.opt_trial_count)
+    else:
+        print("Running on training mode")
+        run_session(flags)
 
 
 def run_session(flags):
     log_dir = f"{flags.base_log_path}_{get_log_suffix(flags)}"
     if not gfile.Exists(log_dir):
         gfile.MakeDirs(log_dir)
+
+    gan_train_wrapper_dict = {
+        "cycle_gan": CycleGANWrapper(cycle_consistency_loss_weight=flags.cycle_consistency_loss_weight,
+                                     identity_loss_weight=flags.identity_loss_weight,
+                                     use_identity_loss=flags.use_identity_loss),
+        "gan_x2y": GANWrapper(identity_loss_weight=flags.identity_loss_weight,
+                              use_identity_loss=flags.use_identity_loss,
+                              swap_inputs=False),
+        "gan_y2x": GANWrapper(identity_loss_weight=flags.identity_loss_weight,
+                              use_identity_loss=flags.use_identity_loss,
+                              swap_inputs=True),
+        "cut_x2y": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
+                              identity_loss_weight=flags.identity_loss_weight,
+                              use_identity_loss=flags.use_identity_loss,
+                              swap_inputs=False,
+                              tau=flags.tau,
+                              embedded_feat_size=flags.embedded_feat_size,
+                              patches=flags.patches,
+                              batch_size=flags.batch_size),
+        "cut_y2x": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
+                              identity_loss_weight=flags.identity_loss_weight,
+                              use_identity_loss=flags.use_identity_loss,
+                              swap_inputs=True,
+                              tau=flags.tau,
+                              embedded_feat_size=flags.embedded_feat_size,
+                              patches=flags.patches,
+                              batch_size=flags.batch_size),
+        "dcl_gan": DCLGANWrapper(nce_loss_weight=flags.nce_loss_weight,
+                                 identity_loss_weight=flags.identity_loss_weight,
+                                 use_identity_loss=flags.use_identity_loss,
+                                 tau=flags.tau,
+                                 embedded_feat_size=flags.embedded_feat_size,
+                                 patches=flags.patches,
+                                 batch_size=flags.batch_size)
+    }
+
+    validation_iteration_count = flags.validation_steps
+    validation_sample_count = flags.validation_sample_count
+    neighborhood = 0
+    checkpoint_count = flags.step // validation_iteration_count
+
+    loader = get_loader_from_name(flags.loader_name, flags.path)
+    data_set = loader.load_data(neighborhood, True)
+    shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
+
     with tf.device(replica_device_setter(flags.ps_tasks)):
-        validation_iteration_count = flags.validation_steps
-        validation_sample_count = flags.validation_sample_count
-        neighborhood = 0
-        loader = get_loader_from_name(flags.loader_name, flags.path)
-        data_set = loader.load_data(neighborhood, True)
-
-        shadow_map, shadow_ratio = loader.load_shadow_map(neighborhood, data_set)
-
         with tf.compat.v1.name_scope("inputs"):
             initializer_hook = load_op(flags.batch_size, flags.step, loader, data_set,
                                        shadow_map, shadow_ratio,
                                        flags.regularization_support_rate,
                                        flags.pairing_method)
-            training_input_iter = initializer_hook.input_itr
-            images_x, images_y = training_input_iter.get_next()
+            images_x, images_y = initializer_hook.input_itr.get_next()
 
         # Define model.
-        gan_train_wrapper_dict = {
-            "cycle_gan": CycleGANWrapper(cycle_consistency_loss_weight=flags.cycle_consistency_loss_weight,
-                                         identity_loss_weight=flags.identity_loss_weight,
-                                         use_identity_loss=flags.use_identity_loss),
-            "gan_x2y": GANWrapper(identity_loss_weight=flags.identity_loss_weight,
-                                  use_identity_loss=flags.use_identity_loss,
-                                  swap_inputs=False),
-            "gan_y2x": GANWrapper(identity_loss_weight=flags.identity_loss_weight,
-                                  use_identity_loss=flags.use_identity_loss,
-                                  swap_inputs=True),
-            "cut_x2y": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
-                                  identity_loss_weight=flags.identity_loss_weight,
-                                  use_identity_loss=flags.use_identity_loss,
-                                  swap_inputs=False,
-                                  tau=flags.tau,
-                                  embedded_feat_size=flags.embedded_feat_size,
-                                  patches=flags.patches,
-                                  batch_size=flags.batch_size),
-            "cut_y2x": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
-                                  identity_loss_weight=flags.identity_loss_weight,
-                                  use_identity_loss=flags.use_identity_loss,
-                                  swap_inputs=True,
-                                  tau=flags.tau,
-                                  embedded_feat_size=flags.embedded_feat_size,
-                                  patches=flags.patches,
-                                  batch_size=flags.batch_size),
-            "dcl_gan": DCLGANWrapper(nce_loss_weight=flags.nce_loss_weight,
-                                     identity_loss_weight=flags.identity_loss_weight,
-                                     use_identity_loss=flags.use_identity_loss,
-                                     tau=flags.tau,
-                                     embedded_feat_size=flags.embedded_feat_size,
-                                     patches=flags.patches,
-                                     batch_size=flags.batch_size)
-        }
         wrapper = gan_train_wrapper_dict[flags.gan_type]
 
         with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
@@ -291,13 +339,10 @@ def run_session(flags):
                                              gen_discriminator_lr=flags.gen_discriminator_lr)
 
         # Training
-        status_message = tf.strings.join(
-            ["Starting train step: ", tf.as_string(get_or_create_global_step())],
-            name="status_message")
+        status_message = tf.strings.join(["Starting train step: ", tf.as_string(get_or_create_global_step())],
+                                         name="status_message")
 
         set_all_gpu_config()
-
-        checkpoint_count = flags.step // validation_iteration_count
 
         train_hooks_fn = wrapper.get_train_hooks_fn()
         gan_train(
@@ -316,11 +361,13 @@ def run_session(flags):
             master=flags.master,
             is_chief=flags.task == 0)
 
+    return peer_validation_hook.get_ratio()
+
 
 def update_flags_from_json(flags, flag_config_file):
     print("Updating flags from json file,", flag_config_file)
-    flags_as_dict = vars(flags)
     flags_from_json = json.load(open(flag_config_file, "r"))
+    flags_as_dict = vars(flags)
     flags_as_dict.update(flags_from_json)
     flags = SimpleNamespace(**flags_as_dict)
     return flags
