@@ -251,7 +251,7 @@ def main(_):
                 trial_postfix = f"_{''.join(random.choices(string.ascii_lowercase + string.digits, k=5))}"
                 flags_as_dict["base_log_path"] = flags_as_dict["base_log_path"] + trial_postfix
                 print(f"Starting run#{run_idx}")
-                losses.append(run_session(SimpleNamespace(**flags_as_dict)))
+                losses.append(max(run_session(SimpleNamespace(**flags_as_dict))))
 
             print("Trial runs are completed. Losses:")
             print(*losses, sep=",")
@@ -361,7 +361,7 @@ def run_session(flags):
             master=flags.master,
             is_chief=flags.task == 0)
 
-    return peer_validation_hook.get_best_upper_div()
+    return [peer_validation_hook.get_best_upper_div(), peer_validation_hook.get_best_mean_div()]
 
 
 def update_flags_from_json(flags, flag_config_file):
