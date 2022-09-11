@@ -361,7 +361,7 @@ def run_session(flags):
             master=flags.master,
             is_chief=flags.task == 0)
 
-    return peer_validation_hook.get_ratio()
+    return peer_validation_hook.get_best_upper_div()
 
 
 def update_flags_from_json(flags, flag_config_file):

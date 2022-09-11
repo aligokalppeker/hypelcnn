@@ -119,7 +119,8 @@ class BaseValidationHook(SessionRunHook):
         self._global_step_tensor = None
         self._shadow_ratio = shadow_ratio
         self._log_dir = log_dir
-        self.best_ratio_holder = BestRatioHolder(10)
+        self.best_mean_div_holder = BestRatioHolder(10)
+        self.best_upper_div_holder = BestRatioHolder(10)
         self.validation_itr_mark = False
 
     def after_create_session(self, session, coord):
@@ -131,8 +132,11 @@ class BaseValidationHook(SessionRunHook):
             result = current_iteration % self._iteration_frequency == 1 and current_iteration != 1
         return result
 
-    def get_ratio(self):
-        return self.best_ratio_holder.get_best_diver()
+    def get_best_mean_div(self):
+        return self.best_mean_div_holder.get_best_diver()
+
+    def get_best_upper_div(self):
+        return self.best_upper_div_holder.get_best_diver()
 
 
 class PeerValidationHook(SessionRunHook):
@@ -147,14 +151,19 @@ class PeerValidationHook(SessionRunHook):
         ratio_holder_list = []
         for validation_base_hook in self._validation_base_hooks:
             validation_base_hook.after_run(run_context, run_values)
-            ratio_holder_list.append(validation_base_hook.best_ratio_holder)
+            ratio_holder_list.append(validation_base_hook.best_mean_div_holder)
         if self._validation_base_hooks[0].validation_itr_mark:
             print("Best common options:",
                   BestRatioHolder.create_common_iterations(ratio_holder_list[0], ratio_holder_list[1]))
 
-    def get_ratio(self):
-        diver_val_list = [val_base_hook.get_ratio() for val_base_hook in self._validation_base_hooks
-                          if val_base_hook.get_ratio() is not None]
+    def get_best_mean_div(self):
+        diver_val_list = [val_base_hook.get_best_mean_div() for val_base_hook in self._validation_base_hooks
+                          if val_base_hook.get_best_mean_div() is not None]
+        return min(diver_val_list) if diver_val_list else sys.maxsize
+
+    def get_best_upper_div(self):
+        diver_val_list = [val_base_hook.get_best_upper_div() for val_base_hook in self._validation_base_hooks
+                          if val_base_hook.get_best_upper_div() is not None]
         return min(diver_val_list) if diver_val_list else sys.maxsize
 
 
@@ -168,16 +177,16 @@ class ValidationHook(BaseValidationHook):
         self._input_tensor = input_tensor
         self._name_suffix = name_suffix
         self._plt_name = f"band_ratio_{name_suffix}"
-        self._best_ratio_addr = os.path.join(self._log_dir, f"best_ratio_{name_suffix}.json")
-        self.best_ratio_holder.load(self._best_ratio_addr)
+        self._best_mean_div_addr = os.path.join(self._log_dir, f"best_ratio_{name_suffix}.json")
+        self.best_mean_div_holder.load(self._best_mean_div_addr)
         self._bands = loader.get_band_measurements()
         self._data_sample_list = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
                                                           shadow_map, fetch_shadows=fetch_shadows)
-        self._diver_tensor, self._ratio_tensor, self._mean_tensor, self._std_tensor = create_stats_tensor(
+        self._div_tensor_mean, self._div_tensor_upper, self._ratio_tensor, self._mean_tensor, self._std_tensor = create_stats_tensor(
             self._infer_model,
             self._input_tensor,
             shadow_ratio)
-        self._diver_summary = scalar(f"divergence_{name_suffix}", self._diver_tensor, collections=["custom"])
+        self._div_mean_summ = scalar(f"divergence_{name_suffix}", self._div_tensor_mean, collections=["custom"])
 
         for idx, _data_sample in enumerate(self._data_sample_list):
             self._data_sample_list[idx] = numpy.expand_dims(_data_sample, axis=0)
@@ -188,21 +197,24 @@ class ValidationHook(BaseValidationHook):
         self._writer = summary_io.SummaryWriterCache.get(self._log_dir)
 
     def after_run(self, run_context, run_values):
-        current_iteration = run_context.session.run(
+        current_iter = run_context.session.run(
             self._global_step_tensor) if self._global_step_tensor is not None else 0
 
-        self.validation_itr_mark = self._is_validation_itr(current_iteration)
+        self.validation_itr_mark = self._is_validation_itr(current_iter)
         if self.validation_itr_mark:
-            ratio, mean, std, divergence, divergence_summary = run_context.session.run(
-                [self._ratio_tensor, self._mean_tensor, self._std_tensor, self._diver_tensor, self._diver_summary],
+            ratio, mean, std, div_mean, div_upper, div_mean_summ = run_context.session.run(
+                [self._ratio_tensor, self._mean_tensor, self._std_tensor,
+                 self._div_tensor_mean, self._div_tensor_upper, self._div_mean_summ],
                 feed_dict={self._input_tensor: self._data_sample_list})
-            self.best_ratio_holder.add_point(current_iteration, divergence)
-            self.best_ratio_holder.save(self._best_ratio_addr)
+            self.best_mean_div_holder.add_point(current_iter, div_mean)
+            self.best_mean_div_holder.save(self._best_mean_div_addr)
 
-            self._writer.add_summary(divergence_summary, current_iteration)
-            self.print_stats(current_iteration, divergence, mean, ratio, std)
+            self.best_upper_div_holder.add_point(current_iter, div_upper)
 
-    def print_stats(self, current_iteration, divergence, mean, ratio, std):
+            self._writer.add_summary(div_mean_summ, current_iter)
+            self.print_stats(current_iter, div_mean, div_upper, mean, ratio, std)
+
+    def print_stats(self, current_iteration, div_mean, div_upper, mean, ratio, std):
         print(f"Validation metrics for {self._name_suffix} #{current_iteration}")
         print_overall_info(mean, std)
         plot_overall_info(self._bands,
@@ -210,8 +222,8 @@ class ValidationHook(BaseValidationHook):
                           numpy.percentile(ratio, 10, axis=0),
                           numpy.percentile(ratio, 90, axis=0),
                           current_iteration, self._plt_name, self._log_dir)
-        print(f"Divergence for {self._name_suffix}:{divergence}")
-        print(f"Best {self._name_suffix} options:{self.best_ratio_holder}")
+        print(f"Divergence for {self._name_suffix}; mean:{div_mean}, upper:{div_upper}")
+        print(f"Best {self._name_suffix} options:{self.best_mean_div_holder}")
 
 
 def _get_lr(base_lr, max_number_of_steps):
@@ -312,8 +324,9 @@ def create_stats_tensor(generate_y_tensor, images_x_input_tensor, shadow_ratio):
     ratio_tensor_inf_eliminated = ratio_tensor[finite_map_tensor]
     mean = reduce_mean(ratio_tensor_inf_eliminated, axis=0)
     std = reduce_std(ratio_tensor_inf_eliminated, axis=0)
-    divergence = tf.abs(js_divergence(tf.abs(mean - 1), tf.zeros_like(mean)))
-    return divergence, ratio_tensor_inf_eliminated, mean, std
+    div_mean = tf.abs(js_divergence(tf.abs(mean - 1), tf.zeros_like(mean)))
+    div_upper = tf.abs(js_divergence(tf.abs(mean + std - 1), tf.zeros_like(mean)))
+    return div_mean, div_upper, ratio_tensor_inf_eliminated, mean, std
 
 
 def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, generate_y_tensor, shadow_ratio,
