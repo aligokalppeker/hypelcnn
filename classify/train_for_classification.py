@@ -219,7 +219,9 @@ def main(_):
             log_path = os.path.join(flags.base_log_path, f"episode_{episode_run_index:d}")
             return perform_an_episode(flags, params, nn_model, log_path).validation_accuracy
 
-        study = optuna.create_study(direction="maximize", sampler=TPESampler())
+        study_name = "classification_opt"
+        study = optuna.create_study(study_name=study_name, direction="maximize", sampler=TPESampler(),
+                                    storage=f"sqlite:///{study_name}.db", load_if_exists=True)
         study.optimize(objective, n_trials=flags.max_evals)
 
         json.dump(study.best_trial.params, open("trial_results.json", "w"), indent=3)

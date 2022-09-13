@@ -258,7 +258,10 @@ def main(_):
             return max(losses)
 
         print("Running on hyper parameter mode")
-        study = optuna.create_study(direction="minimize", sampler=TPESampler())
+        study_name = "gan_shadow_opt"
+        study = optuna.create_study(study_name=study_name, direction="minimize",
+                                    sampler=TPESampler(), storage=f"sqlite:///{study_name}.db",
+                                    load_if_exists=True)
         study.optimize(objective, n_trials=flags.opt_trial_count)
     else:
         print("Running on training mode")
