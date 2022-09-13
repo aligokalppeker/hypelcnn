@@ -9,8 +9,8 @@ from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_disc
     _shadowdata_feature_discriminator_model
 from gan.wrappers.cut_wrapper import cut_model, cut_loss, cut_train_ops, get_sequential_train_hooks_cut, CUTTrainSteps, \
     contrastive_gen_data_x_loss, contrastive_identity_loss
-from gan.wrappers.cycle_gan_wrapper import create_base_validation_hook, CycleGANInferenceWrapper
-from gan.wrappers.gan_common import _get_lr, define_val_model
+from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
+from gan.wrappers.gan_common import _get_lr, model_base_name
 from gan.wrappers.wrapper import Wrapper
 
 
@@ -253,26 +253,27 @@ class DCLGANWrapper(Wrapper):
         Returns:
           A `DCLGANModel` namedtuple.
         """
-
-        return dcl_gan_model(
-            generator_fn=_shadowdata_generator_model,
-            discriminator_fn=_shadowdata_discriminator_model,
-            feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model,
-                                          embedded_feature_size=self._embedded_feat_size,
-                                          patch_count=self._patches, is_training=True),
-            image_x=images_x,
-            image_y=images_y)
+        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
+            return dcl_gan_model(
+                generator_fn=_shadowdata_generator_model,
+                discriminator_fn=_shadowdata_discriminator_model,
+                feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model,
+                                              embedded_feature_size=self._embedded_feat_size,
+                                              patch_count=self._patches, is_training=True),
+                image_x=images_x,
+                image_y=images_y)
 
     def define_loss(self, model):
-        # Define CycleGAN loss.
-        return dcl_gan_loss(model, generator_loss_fn=tuple_losses.least_squares_generator_loss,
-                            discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
-                            gen_discriminator_loss_fn=partial(contrastive_gen_data_x_loss, tau=self._tau,
-                                                              batch_size=self._batch_size),
-                            identity_discriminator_loss_fn=partial(contrastive_identity_loss, tau=self._tau,
-                                                                   batch_size=self._batch_size),
-                            nce_loss_weight=self._nce_loss_weight,
-                            nce_identity_loss_weight=self._identity_loss_weight)
+        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
+            # Define CycleGAN loss.
+            return dcl_gan_loss(model, generator_loss_fn=tuple_losses.least_squares_generator_loss,
+                                discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
+                                gen_discriminator_loss_fn=partial(contrastive_gen_data_x_loss, tau=self._tau,
+                                                                  batch_size=self._batch_size),
+                                identity_discriminator_loss_fn=partial(contrastive_identity_loss, tau=self._tau,
+                                                                       batch_size=self._batch_size),
+                                nce_loss_weight=self._nce_loss_weight,
+                                nce_identity_loss_weight=self._identity_loss_weight)
 
     def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
         gen_dis_lr = _get_lr(kwargs["gen_discriminator_lr"], max_number_of_steps)
@@ -314,15 +315,6 @@ class DCLGANWrapper(Wrapper):
 
     def get_train_hooks_fn(self):
         return get_sequential_train_hooks_dclgan(CUTTrainSteps(1, 1, 1))
-
-    def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                               validation_iteration_count, validation_sample_count):
-        model_for_validation, x_input_tensor, y_input_tensor = define_val_model(self, data_set)
-        return create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                                           validation_iteration_count, validation_sample_count,
-                                           model_for_validation.model_x2y.generated_data,
-                                           model_for_validation.model_y2x.generated_data,
-                                           x_input_tensor, y_input_tensor)
 
 
 class DCLGANInferenceWrapper(CycleGANInferenceWrapper):

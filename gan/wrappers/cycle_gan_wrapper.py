@@ -11,7 +11,7 @@ from tf_slim import get_variables_to_restore
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan.wrappers.gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, \
     model_base_name, \
-    model_generator_name, define_standard_train_ops, create_inference_for_matrix_input, define_val_model
+    model_generator_name, define_standard_train_ops, create_inference_for_matrix_input, create_input_tensor
 from gan.wrappers.wrapper import Wrapper, InferenceWrapper
 
 model_forward_generator_name = "ModelX2Y"
@@ -63,42 +63,44 @@ class CycleGANWrapper(Wrapper):
         Returns:
           A `CycleGANModel` namedtuple.
         """
-        if self._use_identity_loss:
-            cyclegan_model = cyclegan_model_with_identity(
-                generator_fn=_shadowdata_generator_model,
-                discriminator_fn=_shadowdata_discriminator_model,
-                data_x=images_x,
-                data_y=images_y)
-        else:
-            cyclegan_model = tfgan.cyclegan_model(
-                generator_fn=_shadowdata_generator_model,
-                discriminator_fn=_shadowdata_discriminator_model,
-                data_x=images_x,
-                data_y=images_y)
+        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
+            if self._use_identity_loss:
+                cyclegan_model = cyclegan_model_with_identity(
+                    generator_fn=_shadowdata_generator_model,
+                    discriminator_fn=_shadowdata_discriminator_model,
+                    data_x=images_x,
+                    data_y=images_y)
+            else:
+                cyclegan_model = tfgan.cyclegan_model(
+                    generator_fn=_shadowdata_generator_model,
+                    discriminator_fn=_shadowdata_discriminator_model,
+                    data_x=images_x,
+                    data_y=images_y)
 
-        # Add summaries for generated images.
-        # tfgan.eval.add_cyclegan_image_summaries(cyclegan_model)
+            # Add summaries for generated images.
+            # tfgan.eval.add_cyclegan_image_summaries(cyclegan_model)
 
         return cyclegan_model
 
     def define_loss(self, model):
-        if self._use_identity_loss:
-            cyclegan_loss = cyclegan_loss_with_identity(
-                model,
-                # generator_loss_fn=wasserstein_generator_loss,
-                # discriminator_loss_fn=wasserstein_discriminator_loss,
-                cycle_consistency_loss_weight=self._cycle_consistency_loss_weight,
-                identity_loss_weight=self._identity_loss_weight,
-                tensor_pool_fn=tfgan.features.tensor_pool)
-        else:
-            # Define CycleGAN loss.
-            cyclegan_loss = tfgan.cyclegan_loss(
-                model,
-                # generator_loss_fn=wasserstein_generator_loss,
-                # discriminator_loss_fn=wasserstein_discriminator_loss,
-                cycle_consistency_loss_weight=self._cycle_consistency_loss_weight,
-                tensor_pool_fn=tfgan.features.tensor_pool)
-        return cyclegan_loss
+        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
+            if self._use_identity_loss:
+                cyclegan_loss = cyclegan_loss_with_identity(
+                    model,
+                    # generator_loss_fn=wasserstein_generator_loss,
+                    # discriminator_loss_fn=wasserstein_discriminator_loss,
+                    cycle_consistency_loss_weight=self._cycle_consistency_loss_weight,
+                    identity_loss_weight=self._identity_loss_weight,
+                    tensor_pool_fn=tfgan.features.tensor_pool)
+            else:
+                # Define CycleGAN loss.
+                cyclegan_loss = tfgan.cyclegan_loss(
+                    model,
+                    # generator_loss_fn=wasserstein_generator_loss,
+                    # discriminator_loss_fn=wasserstein_discriminator_loss,
+                    cycle_consistency_loss_weight=self._cycle_consistency_loss_weight,
+                    tensor_pool_fn=tfgan.features.tensor_pool)
+            return cyclegan_loss
 
     def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
         return define_standard_train_ops(model, loss,
@@ -108,15 +110,6 @@ class CycleGANWrapper(Wrapper):
 
     def get_train_hooks_fn(self):
         return tfgan.get_sequential_train_hooks(tfgan.GANTrainSteps(1, 1))
-
-    def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                               validation_iteration_count, validation_sample_count):
-        model_for_validation, x_input_tensor, y_input_tensor = define_val_model(self, data_set)
-        return create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                                           validation_iteration_count, validation_sample_count,
-                                           model_for_validation.model_x2y.generated_data,
-                                           model_for_validation.model_y2x.generated_data,
-                                           x_input_tensor, y_input_tensor)
 
 
 class CycleGANInferenceWrapper(InferenceWrapper):
@@ -130,9 +123,7 @@ class CycleGANInferenceWrapper(InferenceWrapper):
         return result
 
     def make_inference_graph(self, data_set, is_shadow_graph, clip_invalid_values):
-        element_size = data_set.get_data_shape()
-        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
-        input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
+        input_tensor = create_input_tensor(data_set, is_shadow_graph=True)
         generated = self.construct_inference_graph(input_tensor, is_shadow_graph, clip_invalid_values)
         return input_tensor, generated
 
@@ -146,19 +137,19 @@ class CycleGANInferenceWrapper(InferenceWrapper):
         return cyclegan_restorer
 
     def create_inference_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                              validation_sample_count):
+                              validation_iteration_count, validation_sample_count):
         element_size = data_set.get_data_shape()
         element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
 
-        x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name='x')
-        y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name='y')
+        x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
+        y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
         return create_base_validation_hook(data_set=data_set,
                                            loader=loader,
                                            log_dir=log_dir,
                                            neighborhood=neighborhood,
                                            shadow_map=shadow_map,
                                            shadow_ratio=shadow_ratio,
-                                           validation_iteration_count=0,
+                                           validation_iteration_count=validation_iteration_count,
                                            validation_sample_count=validation_sample_count,
                                            model_forward=self.construct_inference_graph(x_input_tensor, True, False),
                                            model_backward=self.construct_inference_graph(y_input_tensor, False, False),

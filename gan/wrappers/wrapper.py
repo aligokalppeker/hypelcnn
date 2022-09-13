@@ -18,11 +18,6 @@ class Wrapper(ABC):
     def get_train_hooks_fn(self):
         pass
 
-    @abstractmethod
-    def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                               validation_iteration_count, validation_sample_count):
-        pass
-
 
 class InferenceWrapper:
     @abstractmethod
@@ -39,5 +34,5 @@ class InferenceWrapper:
 
     @abstractmethod
     def create_inference_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                              validation_sample_count):
+                              validation_iteration_count, validation_sample_count):
         pass

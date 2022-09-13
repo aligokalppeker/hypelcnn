@@ -7,12 +7,12 @@ from types import SimpleNamespace
 import optuna
 import tensorflow as tf
 from optuna.samplers import TPESampler
-from tensorflow.python.training.monitored_session import USE_DEFAULT
 from tensorflow.python import data
 from tensorflow.python.data.experimental import shuffle_and_repeat
 from tensorflow.python.platform import gfile
 from tensorflow.python.training.basic_session_run_hooks import StopAtStepHook, LoggingTensorHook
 from tensorflow.python.training.device_setter import replica_device_setter
+from tensorflow.python.training.monitored_session import USE_DEFAULT
 from tensorflow.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
@@ -20,12 +20,9 @@ from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_log
     type_ensure_strtobool, add_parse_cmds_for_json_loader
 from common.common_nn_ops import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
 from common.common_ops import replace_abbrs
-from gan.wrappers.cut_wrapper import CUTWrapper
-from gan.wrappers.cycle_gan_wrapper import CycleGANWrapper
-from gan.wrappers.dcl_gan_wrapper import DCLGANWrapper
-from gan.wrappers.gan_common import InitializerHook, model_base_name
+from gan.wrapper_registry import get_wrapper_dict, get_infer_wrapper_dict
+from gan.wrappers.gan_common import InitializerHook
 from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
-from gan.wrappers.gan_wrapper import GANWrapper
 
 
 def add_parse_cmds_for_app(parser):
@@ -273,40 +270,8 @@ def run_session(flags):
     if not gfile.Exists(log_dir):
         gfile.MakeDirs(log_dir)
 
-    gan_train_wrapper_dict = {
-        "cycle_gan": CycleGANWrapper(cycle_consistency_loss_weight=flags.cycle_consistency_loss_weight,
-                                     identity_loss_weight=flags.identity_loss_weight,
-                                     use_identity_loss=flags.use_identity_loss),
-        "gan_x2y": GANWrapper(identity_loss_weight=flags.identity_loss_weight,
-                              use_identity_loss=flags.use_identity_loss,
-                              swap_inputs=False),
-        "gan_y2x": GANWrapper(identity_loss_weight=flags.identity_loss_weight,
-                              use_identity_loss=flags.use_identity_loss,
-                              swap_inputs=True),
-        "cut_x2y": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
-                              identity_loss_weight=flags.identity_loss_weight,
-                              use_identity_loss=flags.use_identity_loss,
-                              swap_inputs=False,
-                              tau=flags.tau,
-                              embedded_feat_size=flags.embedded_feat_size,
-                              patches=flags.patches,
-                              batch_size=flags.batch_size),
-        "cut_y2x": CUTWrapper(nce_loss_weight=flags.nce_loss_weight,
-                              identity_loss_weight=flags.identity_loss_weight,
-                              use_identity_loss=flags.use_identity_loss,
-                              swap_inputs=True,
-                              tau=flags.tau,
-                              embedded_feat_size=flags.embedded_feat_size,
-                              patches=flags.patches,
-                              batch_size=flags.batch_size),
-        "dcl_gan": DCLGANWrapper(nce_loss_weight=flags.nce_loss_weight,
-                                 identity_loss_weight=flags.identity_loss_weight,
-                                 use_identity_loss=flags.use_identity_loss,
-                                 tau=flags.tau,
-                                 embedded_feat_size=flags.embedded_feat_size,
-                                 patches=flags.patches,
-                                 batch_size=flags.batch_size)
-    }
+    gan_train_wrapper_dict = get_wrapper_dict(flags)
+    gan_inference_wrapper_dict = get_infer_wrapper_dict()
 
     validation_iteration_count = flags.validation_steps
     validation_sample_count = flags.validation_sample_count
@@ -328,13 +293,12 @@ def run_session(flags):
         # Define model.
         wrapper = gan_train_wrapper_dict[flags.gan_type]
 
-        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
-            the_gan_model = wrapper.define_model(images_x, images_y)
-            peer_validation_hook = wrapper.create_validation_hook(data_set, loader, log_dir, neighborhood,
-                                                                  shadow_map, shadow_ratio, validation_iteration_count,
-                                                                  validation_sample_count)
+        the_gan_model = wrapper.define_model(images_x, images_y)
+        the_gan_loss = wrapper.define_loss(the_gan_model)
 
-            the_gan_loss = wrapper.define_loss(the_gan_model)
+        peer_validation_hook = gan_inference_wrapper_dict[flags.gan_type].create_inference_hook(
+            data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
+            validation_iteration_count, validation_sample_count)
 
         # Define GAN train ops.
         train_ops = wrapper.define_train_ops(the_gan_model, the_gan_loss, max_number_of_steps=flags.step,

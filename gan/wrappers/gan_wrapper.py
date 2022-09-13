@@ -8,7 +8,7 @@ from tf_slim import get_variables_to_restore
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan.wrappers.gan_common import ValidationHook, input_x_tensor_name, input_y_tensor_name, model_base_name, \
     model_generator_name, adj_shadow_ratio, define_standard_train_ops, create_inference_for_matrix_input, \
-    define_val_model
+    create_input_tensor
 from gan.wrappers.wrapper import Wrapper, InferenceWrapper
 
 
@@ -31,27 +31,29 @@ class GANWrapper(Wrapper):
         Returns:
           A `CycleGANModel` namedtuple.
         """
-        if self._swap_inputs:
-            generator_inputs = images_y
-            real_data = images_x
-        else:
-            generator_inputs = images_x
-            real_data = images_y
+        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
+            if self._swap_inputs:
+                generator_inputs = images_y
+                real_data = images_x
+            else:
+                generator_inputs = images_x
+                real_data = images_y
 
-        return tfgan.gan_model(
-            generator_fn=_shadowdata_generator_model,
-            discriminator_fn=_shadowdata_discriminator_model,
-            generator_inputs=generator_inputs,
-            real_data=real_data)
+            return tfgan.gan_model(
+                generator_fn=_shadowdata_generator_model,
+                discriminator_fn=_shadowdata_discriminator_model,
+                generator_inputs=generator_inputs,
+                real_data=real_data)
 
     def define_loss(self, model):
-        # Define CycleGAN loss.
-        loss = gan_loss(
-            model,
-            # generator_loss_fn=wasserstein_generator_loss,
-            # discriminator_loss_fn=wasserstein_discriminator_loss,
-            tensor_pool_fn=tfgan.features.tensor_pool)
-        return loss
+        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
+            # Define CycleGAN loss.
+            loss = gan_loss(
+                model,
+                # generator_loss_fn=wasserstein_generator_loss,
+                # discriminator_loss_fn=wasserstein_discriminator_loss,
+                tensor_pool_fn=tfgan.features.tensor_pool)
+            return loss
 
     def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
         return define_standard_train_ops(model, loss,
@@ -61,28 +63,6 @@ class GANWrapper(Wrapper):
 
     def get_train_hooks_fn(self):
         return tfgan.get_sequential_train_hooks(tfgan.GANTrainSteps(1, 1))
-
-    @staticmethod
-    def create_validation_hook_base(wrapper, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                                    validation_iteration_count, validation_sample_count, swap_inputs):
-        model_for_validation, x_input_tensor, y_input_tensor = define_val_model(wrapper, data_set)
-        shadowed_validation_hook = ValidationHook(iteration_freq=validation_iteration_count,
-                                                  sample_count=validation_sample_count,
-                                                  log_dir=log_dir,
-                                                  loader=loader, data_set=data_set, neighborhood=neighborhood,
-                                                  shadow_map=shadow_map,
-                                                  shadow_ratio=adj_shadow_ratio(shadow_ratio, swap_inputs),
-                                                  input_tensor=y_input_tensor if swap_inputs else x_input_tensor,
-                                                  infer_model=model_for_validation.generated_data,
-                                                  fetch_shadows=False,
-                                                  name_suffix="deshadowed" if swap_inputs else "shadowed")
-        return shadowed_validation_hook
-
-    def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                               validation_iteration_count, validation_sample_count):
-        return GANWrapper.create_validation_hook_base(self, data_set, loader, log_dir, neighborhood, shadow_map,
-                                                      shadow_ratio, validation_iteration_count, validation_sample_count,
-                                                      self._swap_inputs)
 
 
 class GANInferenceWrapper(InferenceWrapper):
@@ -95,16 +75,8 @@ class GANInferenceWrapper(InferenceWrapper):
                 result = create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values)
         return result
 
-    @staticmethod
-    def __create_input_tensor(data_set, is_shadow_graph):
-        element_size = data_set.get_data_shape()
-        element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
-        input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size,
-                                                name=input_x_tensor_name if is_shadow_graph else input_y_tensor_name)
-        return input_tensor
-
     def make_inference_graph(self, data_set, is_shadow_graph, clip_invalid_values):
-        input_tensor = self.__create_input_tensor(data_set, is_shadow_graph)
+        input_tensor = create_input_tensor(data_set, is_shadow_graph)
         generated = self.construct_inference_graph(input_tensor, is_shadow_graph, clip_invalid_values)
         return input_tensor, generated
 
@@ -117,9 +89,9 @@ class GANInferenceWrapper(InferenceWrapper):
         return gan_restorer
 
     def create_inference_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                              validation_sample_count):
-        input_tensor = self.__create_input_tensor(data_set, self.fetch_shadows)
-        return ValidationHook(iteration_freq=0,
+                              validation_iteration_count, validation_sample_count):
+        input_tensor = create_input_tensor(data_set, self.fetch_shadows)
+        return ValidationHook(iteration_freq=validation_iteration_count,
                               sample_count=validation_sample_count,
                               log_dir=log_dir,
                               loader=loader, data_set=data_set, neighborhood=neighborhood,
@@ -128,4 +100,4 @@ class GANInferenceWrapper(InferenceWrapper):
                               input_tensor=input_tensor,
                               infer_model=self.construct_inference_graph(input_tensor, None, clip_invalid_values=False),
                               fetch_shadows=self.fetch_shadows,
-                              name_suffix="")
+                              name_suffix="deshadowed" if self.fetch_shadows else "shadowed")

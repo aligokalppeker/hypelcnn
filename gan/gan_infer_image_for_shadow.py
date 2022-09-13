@@ -8,11 +8,8 @@ from tqdm import tqdm
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, type_ensure_strtobool
 from common.common_nn_ops import set_all_gpu_config, get_loader_from_name
-from gan.wrappers.cut_wrapper import CUTInferenceWrapper
-from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
-from gan.wrappers.dcl_gan_wrapper import DCLGANInferenceWrapper
-from gan.wrappers.gan_wrapper import GANInferenceWrapper
 from common.hsi_rgb_converter import get_rgb_from_hsi
+from gan.wrapper_registry import get_infer_wrapper_dict
 
 
 def add_parse_cmds_for_app(parser):
@@ -44,7 +41,7 @@ def main(_):
     element_size = data_set.get_data_shape()
     element_size = [element_size[0], element_size[1], data_set.get_casi_band_count()]
 
-    convert_only_the_convenient_pixels = not flags.convert_all
+    conv_only_convenient_pixs = not flags.convert_all
     if make_them_shadow == "shadow":
         shadow = True
         sign_to_filter_in_shadow_map = 0
@@ -56,16 +53,15 @@ def main(_):
         sign_to_filter_in_shadow_map = -1
         make_them_shadow = "none"
 
-    gan_inference_wrapper_dict = get_wrapper_dict()
+    gan_inf_wrapper_dict = get_infer_wrapper_dict()
 
-    input_tensor, output_tensor = gan_inference_wrapper_dict[flags.gan_type].make_inference_graph(data_set,
-                                                                                                  shadow,
-                                                                                                  clip_invalid_values=False)
+    input_tensor, output_tensor = gan_inf_wrapper_dict[flags.gan_type].make_inference_graph(data_set, shadow,
+                                                                                            clip_invalid_values=False)
 
     set_all_gpu_config()
     with tf.compat.v1.Session() as sess:
         if make_them_shadow != "none":
-            gan_inference_wrapper_dict[flags.gan_type].create_generator_restorer().restore(sess, flags.base_log_path)
+            gan_inf_wrapper_dict[flags.gan_type].create_generator_restorer().restore(sess, flags.base_log_path)
 
         screen_size_first_dim = scene_shape[0]
         screen_size_sec_dim = scene_shape[1]
@@ -78,8 +74,7 @@ def main(_):
                 input_data = numpy.expand_dims(
                     loader.get_point_value(data_set, [second_idx, first_idx])[:, :, 0:band_size], axis=0)
 
-                if not convert_only_the_convenient_pixels or shadow_map[
-                    first_idx, second_idx] == sign_to_filter_in_shadow_map:
+                if not conv_only_convenient_pixs or shadow_map[first_idx, second_idx] == sign_to_filter_in_shadow_map:
                     generated_y_data = sess.run(output_tensor, feed_dict={input_tensor: input_data})
                 else:
                     generated_y_data = input_data
@@ -91,11 +86,11 @@ def main(_):
 
         progress_bar.close()
 
-        convert_region_suffix = "" if convert_only_the_convenient_pixels else "_all"
+        convert_region_sfx = "" if conv_only_convenient_pixs else "_all"
         chkpnt_num_str = flags.base_log_path.rsplit("-", 1)[-1]
 
         hsi_image_save_path = os.path.join(flags.output_path,
-                                           f"shadow_image_{make_them_shadow}_{chkpnt_num_str}{convert_region_suffix}.tif")
+                                           f"shadow_image_{make_them_shadow}_{chkpnt_num_str}{convert_region_sfx}.tif")
         print(f"Saving output to {hsi_image_save_path}")
         imwrite(hsi_image_save_path, hsi_image, planarconfig="contig")
 
@@ -104,19 +99,9 @@ def main(_):
         hsi_image /= data_set.casi_max
         hsi_as_rgb = (get_rgb_from_hsi(loader.get_band_measurements(), hsi_image) * 255).astype(numpy.uint8)
         hsi_image_rgb_save_path = os.path.join(flags.output_path,
-                                               f"shadow_image_rgb_{make_them_shadow}_{chkpnt_num_str}_{convert_region_suffix}.tif")
+                                               f"shadow_image_rgb_{make_them_shadow}_{chkpnt_num_str}_{convert_region_sfx}.tif")
         print(f"Saving output RGB to {hsi_image_rgb_save_path}")
         imwrite(hsi_image_rgb_save_path, hsi_as_rgb)
-
-
-def get_wrapper_dict():
-    gan_inference_wrapper_dict = {"cycle_gan": CycleGANInferenceWrapper(),
-                                  "gan_x2y": GANInferenceWrapper(fetch_shadows=False),
-                                  "gan_y2x": GANInferenceWrapper(fetch_shadows=True),
-                                  "cut_x2y": CUTInferenceWrapper(fetch_shadows=False),
-                                  "cut_y2x": CUTInferenceWrapper(fetch_shadows=True),
-                                  "dcl_gan": DCLGANInferenceWrapper()}
-    return gan_inference_wrapper_dict
 
 
 if __name__ == '__main__':

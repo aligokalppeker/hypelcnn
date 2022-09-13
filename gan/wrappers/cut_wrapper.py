@@ -13,8 +13,8 @@ from tf_slim.learning import create_train_op
 
 from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model, \
     _shadowdata_feature_discriminator_model
-from gan.wrappers.gan_common import _get_lr
-from gan.wrappers.gan_wrapper import GANInferenceWrapper, GANWrapper
+from gan.wrappers.gan_common import _get_lr, model_base_name
+from gan.wrappers.gan_wrapper import GANInferenceWrapper
 from gan.wrappers.wrapper import Wrapper
 
 
@@ -609,32 +609,34 @@ class CUTWrapper(Wrapper):
         Returns:
           A `CUTModel` namedtuple.
         """
-        if self._swap_inputs:
-            generator_inputs = images_y
-            real_data = images_x
-        else:
-            generator_inputs = images_x
-            real_data = images_y
+        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
+            if self._swap_inputs:
+                generator_inputs = images_y
+                real_data = images_x
+            else:
+                generator_inputs = images_x
+                real_data = images_y
 
-        return cut_model(
-            generator_fn=_shadowdata_generator_model,
-            discriminator_fn=_shadowdata_discriminator_model,
-            feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model,
-                                          embedded_feature_size=self._embedded_feat_size,
-                                          patch_count=self._patches, is_training=True),
-            generator_inputs=generator_inputs,
-            real_data=real_data)
+            return cut_model(
+                generator_fn=_shadowdata_generator_model,
+                discriminator_fn=_shadowdata_discriminator_model,
+                feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model,
+                                              embedded_feature_size=self._embedded_feat_size,
+                                              patch_count=self._patches, is_training=True),
+                generator_inputs=generator_inputs,
+                real_data=real_data)
 
     def define_loss(self, model):
-        # Define CUT loss.
-        return cut_loss(model, generator_loss_fn=tuple_losses.least_squares_generator_loss,
-                        discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
-                        gen_discriminator_loss_fn=partial(contrastive_gen_data_x_loss, tau=self._tau,
-                                                          batch_size=self._batch_size),
-                        identity_discriminator_loss_fn=partial(contrastive_identity_loss, tau=self._tau,
-                                                               batch_size=self._batch_size),
-                        nce_loss_weight=self._nce_loss_weight,
-                        nce_identity_loss_weight=self._identity_loss_weight)
+        with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
+            # Define CUT loss.
+            return cut_loss(model, generator_loss_fn=tuple_losses.least_squares_generator_loss,
+                            discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
+                            gen_discriminator_loss_fn=partial(contrastive_gen_data_x_loss, tau=self._tau,
+                                                              batch_size=self._batch_size),
+                            identity_discriminator_loss_fn=partial(contrastive_identity_loss, tau=self._tau,
+                                                                   batch_size=self._batch_size),
+                            nce_loss_weight=self._nce_loss_weight,
+                            nce_identity_loss_weight=self._identity_loss_weight)
 
     def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
         gen_dis_lr = _get_lr(kwargs["gen_discriminator_lr"], max_number_of_steps)
@@ -664,12 +666,6 @@ class CUTWrapper(Wrapper):
 
     def get_train_hooks_fn(self):
         return get_sequential_train_hooks_cut(CUTTrainSteps(1, 1, 1))
-
-    def create_validation_hook(self, data_set, loader, log_dir, neighborhood, shadow_map, shadow_ratio,
-                               validation_iteration_count, validation_sample_count):
-        return GANWrapper.create_validation_hook_base(self, data_set, loader, log_dir, neighborhood, shadow_map,
-                                                      shadow_ratio, validation_iteration_count, validation_sample_count,
-                                                      self._swap_inputs)
 
 
 class CUTInferenceWrapper(GANInferenceWrapper):

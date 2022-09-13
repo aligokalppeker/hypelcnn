@@ -311,6 +311,14 @@ def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invali
     return tf.concat(output_tensor_in_col, axis=first_dim_idx)
 
 
+def create_input_tensor(data_set, is_shadow_graph):
+    element_size = data_set.get_data_shape()
+    element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
+    input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size,
+                                            name=input_x_tensor_name if is_shadow_graph else input_y_tensor_name)
+    return input_tensor
+
+
 def create_stats_tensor(generate_y_tensor, images_x_input_tensor, shadow_ratio):
     def kl_divergence(p, q):
         return reduce_sum(tf.compat.v1.where(tf.not_equal(p, 0.), p * tf.math.log(p / q), tf.zeros_like(p)))
@@ -415,12 +423,3 @@ def print_overall_info(mean, std):
 
         print(f"{prefix}{mean[band_index]:2.4f}\u00B1{std[band_index]:2.2f}{postfix}",
               end="\n" if band_index % 5 == 1 else " ")
-
-
-def define_val_model(wrapper, data_set):
-    element_size = data_set.get_data_shape()
-    element_size = [None, element_size[0], element_size[1], data_set.get_casi_band_count()]
-    x_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_x_tensor_name)
-    y_input_tensor = tf.compat.v1.placeholder(dtype=tf.float32, shape=element_size, name=input_y_tensor_name)
-    model_for_validation = wrapper.define_model(x_input_tensor, y_input_tensor)
-    return model_for_validation, x_input_tensor, y_input_tensor

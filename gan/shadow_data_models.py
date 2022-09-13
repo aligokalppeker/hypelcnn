@@ -1,8 +1,9 @@
 import tensorflow as tf
 from tensorflow import transpose
 from tensorflow.python.ops.gen_nn_ops import leaky_relu
+from tensorflow.python.ops.initializers_ns import variance_scaling
 from tf_slim import conv2d, flatten, fully_connected, arg_scope, l2_regularizer, separable_conv2d, \
-    convolution1d, conv2d_transpose
+    convolution1d, conv2d_transpose, batch_norm
 
 
 def _shadowdata_generator_model_simple(netinput, is_training=True):
