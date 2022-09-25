@@ -1,5 +1,7 @@
 from __future__ import division, absolute_import, print_function
 
+from functools import partial
+
 import tensorflow as tf
 import tensorflow_gan as tfgan
 from tensorflow_gan import gan_loss
@@ -66,14 +68,14 @@ class CycleGANWrapper(Wrapper):
         with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
             if self._use_identity_loss:
                 cyclegan_model = cyclegan_model_with_identity(
-                    generator_fn=_shadowdata_generator_model,
-                    discriminator_fn=_shadowdata_discriminator_model,
+                    generator_fn=partial(_shadowdata_generator_model, create_only_encoder=False, is_training=True),
+                    discriminator_fn=partial(_shadowdata_discriminator_model, is_training=True),
                     data_x=images_x,
                     data_y=images_y)
             else:
                 cyclegan_model = tfgan.cyclegan_model(
-                    generator_fn=_shadowdata_generator_model,
-                    discriminator_fn=_shadowdata_discriminator_model,
+                    generator_fn=partial(_shadowdata_generator_model, create_only_encoder=False, is_training=True),
+                    discriminator_fn=partial(_shadowdata_discriminator_model, is_training=True),
                     data_x=images_x,
                     data_y=images_y)
 

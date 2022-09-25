@@ -1,5 +1,7 @@
 from __future__ import division, absolute_import, print_function
 
+from functools import partial
+
 import tensorflow as tf
 import tensorflow_gan as tfgan
 from tensorflow_gan import gan_loss
@@ -40,8 +42,8 @@ class GANWrapper(Wrapper):
                 real_data = images_y
 
             return tfgan.gan_model(
-                generator_fn=_shadowdata_generator_model,
-                discriminator_fn=_shadowdata_discriminator_model,
+                generator_fn=partial(_shadowdata_generator_model, create_only_encoder=False, is_training=True),
+                discriminator_fn=partial(_shadowdata_discriminator_model, is_training=True),
                 generator_inputs=generator_inputs,
                 real_data=real_data)
 

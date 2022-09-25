@@ -295,7 +295,7 @@ def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invali
         output_tensor_in_row = []
         for second_dim in range(shp[second_dim_idx]):
             input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 1), 1)
-            generated_tensor = _shadowdata_generator_model(input_cell, is_training=False)
+            generated_tensor = _shadowdata_generator_model(input_cell, create_only_encoder=False, is_training=False)
             if clip_invalid_values:
                 input_mean = reduce_mean(input_cell)
                 generated_mean = reduce_mean(generated_tensor)

@@ -255,8 +255,8 @@ class DCLGANWrapper(Wrapper):
         """
         with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
             return dcl_gan_model(
-                generator_fn=_shadowdata_generator_model,
-                discriminator_fn=_shadowdata_discriminator_model,
+                generator_fn=partial(_shadowdata_generator_model, is_training=True),
+                discriminator_fn=partial(_shadowdata_discriminator_model, is_training=True),
                 feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model,
                                               embedded_feature_size=self._embedded_feat_size,
                                               patch_count=self._patches, is_training=True),

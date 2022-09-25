@@ -301,7 +301,7 @@ def cut_model(
     # Create models
     with tf.compat.v1.variable_scope(generator_scope, reuse=tf.compat.v1.AUTO_REUSE) as gen_scope:
         generator_inputs = _convert_tensor_or_l_or_d(generator_inputs)
-        generated_data = generator_fn(generator_inputs)
+        generated_data = generator_fn(generator_inputs, create_only_encoder=False)
     with tf.compat.v1.variable_scope(discriminator_scope, reuse=tf.compat.v1.AUTO_REUSE) as dis_scope:
         discriminator_gen_outputs = discriminator_fn(generated_data, generator_inputs)
     with tf.compat.v1.variable_scope(dis_scope, reuse=True):
@@ -329,7 +329,7 @@ def cut_model(
 
     # real_data fed into generator(identity data)
     with tf.compat.v1.variable_scope(gen_scope, reuse=True):
-        generated_data_from_real_data = generator_fn(real_data)
+        generated_data_from_real_data = generator_fn(real_data, create_only_encoder=False)
 
     with tf.compat.v1.variable_scope(gen_scope, reuse=True):
         feature_embeddings_generated_data_y = generator_fn(generated_data_from_real_data, create_only_encoder=True)
@@ -618,8 +618,8 @@ class CUTWrapper(Wrapper):
                 real_data = images_y
 
             return cut_model(
-                generator_fn=_shadowdata_generator_model,
-                discriminator_fn=_shadowdata_discriminator_model,
+                generator_fn=partial(_shadowdata_generator_model, is_training=True),
+                discriminator_fn=partial(_shadowdata_discriminator_model, is_training=True),
                 feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model,
                                               embedded_feature_size=self._embedded_feat_size,
                                               patch_count=self._patches, is_training=True),
