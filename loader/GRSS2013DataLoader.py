@@ -3,7 +3,7 @@ from functools import partial
 import numpy
 from tifffile import imread
 
-from gan.shadow_data_models import _shadowdata_generator_model
+from gan.shadow_data_models import shadowdata_generator_model
 from loader.DataLoader import DataLoader, SampleSet
 from common.common_nn_ops import read_targets_from_image, shuffle_test_data_using_ratio, load_shadow_map_common, \
     DataSet, get_data_point_func
@@ -24,7 +24,7 @@ class GRSS2013DataLoader(DataLoader):
                            normalize=normalize)
 
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
-        generator_fn = partial(_shadowdata_generator_model, create_only_encoder=False, is_training=False)
+        generator_fn = partial(shadowdata_generator_model, create_only_encoder=False, is_training=False)
         data_set.shadow_creator_dict = {
             "cycle_gan": create_gan_struct(CycleGANInferenceWrapper(generator_fn), self.get_model_base_dir(),
                                            "shadow_cycle_gan/modelv4/model.ckpt-33000"),

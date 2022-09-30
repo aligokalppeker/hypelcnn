@@ -1,7 +1,7 @@
 from functools import partial
 
-from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model, \
-    _shadowdata_feature_discriminator_model
+from gan.shadow_data_models import shadowdata_generator_model, shadowdata_discriminator_model, \
+    shadowdata_feature_discriminator_model
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper, CUTWrapper
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper, CycleGANWrapper
 from gan.wrappers.dcl_gan_wrapper import DCLGANInferenceWrapper, DCLGANWrapper
@@ -9,7 +9,7 @@ from gan.wrappers.gan_wrapper import GANInferenceWrapper, GANWrapper
 
 
 def get_infer_wrapper_dict():
-    generator_fn = partial(_shadowdata_generator_model, create_only_encoder=False, is_training=False)
+    generator_fn = partial(shadowdata_generator_model, create_only_encoder=False, is_training=False)
     gan_inference_wrapper_dict = {
         "cycle_gan": CycleGANInferenceWrapper(shadow_generator_fn=generator_fn),
         "gan_x2y": GANInferenceWrapper(fetch_shadows=False, shadow_generator_fn=generator_fn),
@@ -21,10 +21,10 @@ def get_infer_wrapper_dict():
 
 
 def get_wrapper_dict(flags):
-    generator_fn = partial(_shadowdata_generator_model, is_training=True)
-    generator_fn_gan = partial(_shadowdata_generator_model, create_only_encoder=False, is_training=True)
-    discriminator_fn = partial(_shadowdata_discriminator_model, is_training=True)
-    feat_discriminator_fn = partial(_shadowdata_feature_discriminator_model,
+    generator_fn = partial(shadowdata_generator_model, is_training=True)
+    generator_fn_gan = partial(shadowdata_generator_model, create_only_encoder=False, is_training=True)
+    discriminator_fn = partial(shadowdata_discriminator_model, is_training=True, scale=flags.discriminator_reg_scale)
+    feat_discriminator_fn = partial(shadowdata_feature_discriminator_model,
                                     embedded_feature_size=flags.embedded_feat_size,
                                     patch_count=flags.patches, is_training=True)
 

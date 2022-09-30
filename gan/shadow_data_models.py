@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow import transpose
 from tensorflow.python.keras.activations import tanh
 from tensorflow.python.ops.gen_nn_ops import leaky_relu
 from tensorflow.python.ops.initializers_ns import variance_scaling
@@ -41,7 +40,7 @@ def _shadowdata_discriminator_model_simple(generated_data, generator_input, is_t
     return net
 
 
-def _shadowdata_generator_model(netinput, create_only_encoder, is_training):
+def shadowdata_generator_model(netinput, create_only_encoder, is_training):
     with arg_scope(
             [conv2d, conv2d_transpose, convolution1d],
             # weights_initializer=initializers.variance_scaling(scale=2.0),
@@ -91,10 +90,10 @@ def _shadowdata_generator_model(netinput, create_only_encoder, is_training):
     return tf.expand_dims(tf.expand_dims(flattened, axis=1), axis=1)
 
 
-def _shadowdata_discriminator_model(generated_data, generator_input, is_training):
+def shadowdata_discriminator_model(generated_data, generator_input, is_training, scale):
     with arg_scope([fully_connected, separable_conv2d, convolution1d],
                    weights_initializer=tf.compat.v1.initializers.variance_scaling(scale=2.0),
-                   weights_regularizer=l2_regularizer(0.0001),
+                   weights_regularizer=l2_regularizer(scale),
                    normalizer_fn=batch_norm,
                    normalizer_params={"is_training": is_training, "decay": 0.999},
                    # normalizer_fn=instance_norm,
@@ -123,7 +122,7 @@ def _shadowdata_discriminator_model(generated_data, generator_input, is_training
     return tf.expand_dims(tf.expand_dims(flatten(net2), axis=1), axis=1)
 
 
-def _shadowdata_feature_discriminator_model(generated_data, patch_count, embedded_feature_size, is_training):
+def shadowdata_feature_discriminator_model(generated_data, patch_count, embedded_feature_size, is_training):
     with arg_scope([fully_connected, separable_conv2d, convolution1d],
                    weights_initializer=tf.compat.v1.initializers.variance_scaling(scale=2.0),
                    weights_regularizer=l2_regularizer(0.001),

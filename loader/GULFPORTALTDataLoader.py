@@ -6,7 +6,7 @@ from tifffile import imread
 from common.common_nn_ops import INVALID_TARGET_VALUE, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size, load_shadow_map_common
 from gan.gan_utilities import create_gan_struct, create_simple_shadow_struct
-from gan.shadow_data_models import _shadowdata_generator_model
+from gan.shadow_data_models import shadowdata_generator_model
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper
 from loader.DataLoader import SampleSet
@@ -21,7 +21,7 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
     def load_data(self, neighborhood, normalize):
         data_set = super().load_data(neighborhood, normalize)
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
-        generator_fn = partial(_shadowdata_generator_model, create_only_encoder=False, is_training=False)
+        generator_fn = partial(shadowdata_generator_model, create_only_encoder=False, is_training=False)
         data_set.shadow_creator_dict = {
             "cycle_gan": create_gan_struct(CycleGANInferenceWrapper(generator_fn), self.get_model_base_dir(),
                                            "shadow_cycle_gan/modelv3/model.ckpt-108000"),
