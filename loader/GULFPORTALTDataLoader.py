@@ -1,3 +1,5 @@
+from functools import partial
+
 import numpy
 from tifffile import imread
 
@@ -19,12 +21,11 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
     def load_data(self, neighborhood, normalize):
         data_set = super().load_data(neighborhood, normalize)
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
+        generator_fn = partial(_shadowdata_generator_model, create_only_encoder=False, is_training=False)
         data_set.shadow_creator_dict = {
-            "cycle_gan": create_gan_struct(CycleGANInferenceWrapper(_shadowdata_generator_model),
-                                           self.get_model_base_dir(),
+            "cycle_gan": create_gan_struct(CycleGANInferenceWrapper(generator_fn), self.get_model_base_dir(),
                                            "shadow_cycle_gan/modelv3/model.ckpt-108000"),
-            "gan": create_gan_struct(GANInferenceWrapper(True, _shadowdata_generator_model),
-                                     self.get_model_base_dir(),
+            "gan": create_gan_struct(GANInferenceWrapper(True, generator_fn), self.get_model_base_dir(),
                                      "../utilities/log/model.ckpt-203000"),
             "simple": create_simple_shadow_struct(shadow_ratio)}
         return data_set
