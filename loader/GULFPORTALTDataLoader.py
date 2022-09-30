@@ -4,6 +4,7 @@ from tifffile import imread
 from common.common_nn_ops import INVALID_TARGET_VALUE, shuffle_training_data_using_ratio, \
     shuffle_training_data_using_size, load_shadow_map_common
 from gan.gan_utilities import create_gan_struct, create_simple_shadow_struct
+from gan.shadow_data_models import _shadowdata_generator_model
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper
 from loader.DataLoader import SampleSet
@@ -18,13 +19,14 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
     def load_data(self, neighborhood, normalize):
         data_set = super().load_data(neighborhood, normalize)
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
-        data_set.shadow_creator_dict = {"cycle_gan": create_gan_struct(CycleGANInferenceWrapper(),
-                                                                       self.get_model_base_dir(),
-                                                                       "shadow_cycle_gan/modelv3/model.ckpt-108000"),
-                                        "gan": create_gan_struct(GANInferenceWrapper(None),
-                                                                 self.get_model_base_dir(),
-                                                                 "../utilities/log/model.ckpt-203000"),
-                                        "simple": create_simple_shadow_struct(shadow_ratio)}
+        data_set.shadow_creator_dict = {
+            "cycle_gan": create_gan_struct(CycleGANInferenceWrapper(_shadowdata_generator_model),
+                                           self.get_model_base_dir(),
+                                           "shadow_cycle_gan/modelv3/model.ckpt-108000"),
+            "gan": create_gan_struct(GANInferenceWrapper(True, _shadowdata_generator_model),
+                                     self.get_model_base_dir(),
+                                     "../utilities/log/model.ckpt-203000"),
+            "simple": create_simple_shadow_struct(shadow_ratio)}
         return data_set
 
     def load_samples(self, train_data_ratio, test_data_ratio):

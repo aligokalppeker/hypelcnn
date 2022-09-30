@@ -5,8 +5,6 @@ import tensorflow as tf
 from tensorflow.python.training.adam import AdamOptimizer
 from tensorflow_gan.python.losses import tuple_losses
 
-from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model, \
-    _shadowdata_feature_discriminator_model
 from gan.wrappers.cut_wrapper import cut_model, cut_loss, cut_train_ops, get_sequential_train_hooks_cut, CUTTrainSteps, \
     contrastive_gen_data_x_loss, contrastive_identity_loss
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
@@ -233,15 +231,16 @@ def get_sequential_train_hooks_dclgan(train_steps):
 
 class DCLGANWrapper(Wrapper):
 
-    def __init__(self, nce_loss_weight, identity_loss_weight, use_identity_loss, tau, embedded_feat_size, patches,
-                 batch_size) -> None:
+    def __init__(self, nce_loss_weight, identity_loss_weight, use_identity_loss, tau, batch_size,
+                 generator_fn, discriminator_fn, feat_discriminator_fn) -> None:
         super().__init__()
         self._nce_loss_weight = nce_loss_weight
         self._identity_loss_weight = 0.0 if not use_identity_loss else identity_loss_weight
         self._tau = tau
-        self._embedded_feat_size = embedded_feat_size
-        self._patches = patches
         self._batch_size = batch_size
+        self._generator_fn = generator_fn
+        self._discriminator_fn = discriminator_fn
+        self._feat_discriminator_fn = feat_discriminator_fn
 
     def define_model(self, images_x, images_y):
         """Defines a CycleGAN model that maps between images_x and images_y.
@@ -255,11 +254,9 @@ class DCLGANWrapper(Wrapper):
         """
         with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
             return dcl_gan_model(
-                generator_fn=partial(_shadowdata_generator_model, is_training=True),
-                discriminator_fn=partial(_shadowdata_discriminator_model, is_training=True),
-                feat_discriminator_fn=partial(_shadowdata_feature_discriminator_model,
-                                              embedded_feature_size=self._embedded_feat_size,
-                                              patch_count=self._patches, is_training=True),
+                generator_fn=self._generator_fn,
+                discriminator_fn=self._discriminator_fn,
+                feat_discriminator_fn=self._feat_discriminator_fn,
                 image_x=images_x,
                 image_y=images_y)
 
@@ -318,5 +315,5 @@ class DCLGANWrapper(Wrapper):
 
 
 class DCLGANInferenceWrapper(CycleGANInferenceWrapper):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, shadow_generator_fn) -> None:
+        super().__init__(shadow_generator_fn)

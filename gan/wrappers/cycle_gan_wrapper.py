@@ -10,7 +10,6 @@ from tensorflow_gan.python.losses import tuple_losses
 from tensorflow_gan.python.train import _validate_aux_loss_weight
 from tf_slim import get_variables_to_restore
 
-from gan.shadow_data_models import _shadowdata_generator_model, _shadowdata_discriminator_model
 from gan.wrappers.gan_common import PeerValidationHook, ValidationHook, input_x_tensor_name, input_y_tensor_name, \
     model_base_name, \
     model_generator_name, define_standard_train_ops, create_inference_for_matrix_input, create_input_tensor
@@ -48,11 +47,14 @@ def create_base_validation_hook(data_set, loader, log_dir, neighborhood, shadow_
 
 class CycleGANWrapper(Wrapper):
 
-    def __init__(self, cycle_consistency_loss_weight, identity_loss_weight, use_identity_loss) -> None:
+    def __init__(self, cycle_consistency_loss_weight, identity_loss_weight, use_identity_loss,
+                 generator_fn, discriminator_fn) -> None:
         super().__init__()
         self._cycle_consistency_loss_weight = cycle_consistency_loss_weight
         self._identity_loss_weight = identity_loss_weight
         self._use_identity_loss = use_identity_loss
+        self._discriminator_fn = discriminator_fn
+        self._generator_fn = generator_fn
 
     def define_model(self, images_x, images_y):
         """Defines a CycleGAN model that maps between images_x and images_y.
@@ -68,14 +70,14 @@ class CycleGANWrapper(Wrapper):
         with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
             if self._use_identity_loss:
                 cyclegan_model = cyclegan_model_with_identity(
-                    generator_fn=partial(_shadowdata_generator_model, create_only_encoder=False, is_training=True),
-                    discriminator_fn=partial(_shadowdata_discriminator_model, is_training=True),
+                    generator_fn=self._generator_fn,
+                    discriminator_fn=self._discriminator_fn,
                     data_x=images_x,
                     data_y=images_y)
             else:
                 cyclegan_model = tfgan.cyclegan_model(
-                    generator_fn=partial(_shadowdata_generator_model, create_only_encoder=False, is_training=True),
-                    discriminator_fn=partial(_shadowdata_discriminator_model, is_training=True),
+                    generator_fn=self._generator_fn,
+                    discriminator_fn=self._discriminator_fn,
                     data_x=images_x,
                     data_y=images_y)
 
@@ -115,12 +117,18 @@ class CycleGANWrapper(Wrapper):
 
 
 class CycleGANInferenceWrapper(InferenceWrapper):
+
+    def __init__(self, shadow_generator_fn) -> None:
+        super().__init__()
+        self._shadow_generator_fn = shadow_generator_fn
+
     def construct_inference_graph(self, input_tensor, is_shadow_graph, clip_invalid_values):
         model_name = model_forward_generator_name if is_shadow_graph else model_backward_generator_name
         with tf.compat.v1.variable_scope(model_base_name):
             with tf.compat.v1.variable_scope(model_name):
                 with tf.compat.v1.variable_scope(model_generator_name, reuse=tf.compat.v1.AUTO_REUSE):
-                    result = create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values)
+                    result = create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values,
+                                                               self._shadow_generator_fn)
 
         return result
 

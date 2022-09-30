@@ -20,8 +20,6 @@ from tensorflow.python.training.learning_rate_decay import polynomial_decay
 from tensorflow.python.training.session_run_hook import SessionRunHook
 from tensorflow.python.training.training_util import get_or_create_global_step, get_global_step
 
-from gan.shadow_data_models import _shadowdata_generator_model
-
 model_generator_name = "Generator"
 model_base_name = "Model"
 
@@ -286,7 +284,7 @@ def define_standard_train_ops(gan_model, gan_loss, max_number_of_steps,
     return train_ops
 
 
-def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values):
+def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invalid_values, generator_fn):
     first_dim_idx = 1
     second_dim_idx = 2
     shp = input_tensor.get_shape()
@@ -295,7 +293,7 @@ def create_inference_for_matrix_input(input_tensor, is_shadow_graph, clip_invali
         output_tensor_in_row = []
         for second_dim in range(shp[second_dim_idx]):
             input_cell = tf.expand_dims(tf.expand_dims(input_tensor[:, first_dim, second_dim], 1), 1)
-            generated_tensor = _shadowdata_generator_model(input_cell, create_only_encoder=False, is_training=False)
+            generated_tensor = generator_fn(input_cell)
             if clip_invalid_values:
                 input_mean = reduce_mean(input_cell)
                 generated_mean = reduce_mean(generated_tensor)
