@@ -26,7 +26,7 @@ def get_wrapper_dict(flags):
     discriminator_fn = partial(shadowdata_discriminator_model, is_training=True, scale=flags.discriminator_reg_scale)
     feat_discriminator_fn = partial(shadowdata_feature_discriminator_model,
                                     embedded_feature_size=flags.embedded_feat_size,
-                                    patch_count=flags.patches, is_training=True)
+                                    patch_count=flags.patches, is_training=True, scale=flags.gen_disc_reg_scale)
 
     gan_train_wrapper_dict = {
         "cycle_gan": CycleGANWrapper(cycle_consistency_loss_weight=flags.cycle_consistency_loss_weight,

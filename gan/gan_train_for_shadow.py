@@ -59,8 +59,10 @@ def add_parse_cmds_for_app(parser):
                         help="The discriminator learning rate.")
     parser.add_argument("--gen_discriminator_lr", nargs="?", type=float, default=0.0001,
                         help="The generator discriminator learning rate.")
-    parser.add_argument("--discriminator_reg_scale", nargs="?", type=float, default=0.0001,
+    parser.add_argument("--discriminator_reg_scale", nargs="?", type=float, default=0.00001,
                         help="The discriminator regularization scale.")
+    parser.add_argument("--gen_disc_reg_scale", nargs="?", type=float, default=0.0001,
+                        help="The generator discriminator regularization scale.")
     parser.add_argument("--pairing_method", nargs="?", type=str, default="random",
                         help="Pairing method for the shadowed and non-shadowed samples. "
                              "Opts: random, target, dummy, neighbour")

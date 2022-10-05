@@ -123,10 +123,10 @@ def shadowdata_discriminator_model(generated_data, generator_input, is_training,
     return tf.expand_dims(tf.expand_dims(flatten(net3), axis=1), axis=1)
 
 
-def shadowdata_feature_discriminator_model(generated_data, patch_count, embedded_feature_size, is_training):
+def shadowdata_feature_discriminator_model(generated_data, patch_count, embedded_feature_size, is_training, scale):
     with arg_scope([fully_connected, separable_conv2d, convolution1d],
                    weights_initializer=tf.compat.v1.initializers.variance_scaling(scale=2.0),
-                   weights_regularizer=l2_regularizer(0.001),
+                   weights_regularizer=l2_regularizer(scale),
                    # normalizer_fn=batch_norm,
                    # normalizer_params={"is_training": is_training, "decay": 0.999},
                    # normalizer_fn=instance_norm,
