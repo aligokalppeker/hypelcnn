@@ -263,7 +263,8 @@ class DCLGANWrapper(Wrapper):
     def define_loss(self, model):
         with tf.compat.v1.variable_scope(model_base_name, reuse=tf.compat.v1.AUTO_REUSE):
             # Define CycleGAN loss.
-            return dcl_gan_loss(model, generator_loss_fn=tuple_losses.least_squares_generator_loss,
+            return dcl_gan_loss(model,
+                                generator_loss_fn=tuple_losses.least_squares_generator_loss,
                                 discriminator_loss_fn=tuple_losses.least_squares_discriminator_loss,
                                 gen_discriminator_loss_fn=partial(contrastive_gen_data_x_loss, tau=self._tau,
                                                                   batch_size=self._batch_size),

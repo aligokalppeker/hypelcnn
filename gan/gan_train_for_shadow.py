@@ -2,6 +2,7 @@ import argparse
 import json
 import random
 import string
+from collections.abc import Sequence
 from types import SimpleNamespace
 
 import optuna
@@ -266,7 +267,7 @@ def main(_):
         study.optimize(objective, n_trials=flags.opt_trial_count)
     else:
         print("Running on training mode")
-        run_session(flags)
+        print("Output divergence values:", run_session(flags))
 
 
 def run_session(flags):
@@ -331,8 +332,11 @@ def run_session(flags):
             ],
             master=flags.master,
             is_chief=flags.task == 0)
-
-    return [peer_validation_hook.get_best_upper_div(), peer_validation_hook.get_best_mean_div()]
+    # Use the return value for hyperparameter optimization
+    best_upper_div = peer_validation_hook.get_best_upper_div()
+    best_mean_div = peer_validation_hook.get_best_mean_div()
+    return [max(best_upper_div) if isinstance(best_upper_div, Sequence) else best_upper_div,
+            max(best_mean_div) if isinstance(best_mean_div, Sequence) else best_mean_div]
 
 
 def update_flags_from_json(flags, flag_config_file):

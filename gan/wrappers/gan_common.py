@@ -155,14 +155,12 @@ class PeerValidationHook(SessionRunHook):
                   BestRatioHolder.create_common_iterations(ratio_holder_list[0], ratio_holder_list[1]))
 
     def get_best_mean_div(self):
-        diver_val_list = [val_base_hook.get_best_mean_div() for val_base_hook in self._validation_base_hooks
-                          if val_base_hook.get_best_mean_div() is not None]
-        return min(diver_val_list) if diver_val_list else sys.maxsize
+        return [val_base_hook.get_best_mean_div() for val_base_hook in self._validation_base_hooks
+                if val_base_hook.get_best_mean_div() is not None]
 
     def get_best_upper_div(self):
-        diver_val_list = [val_base_hook.get_best_upper_div() for val_base_hook in self._validation_base_hooks
-                          if val_base_hook.get_best_upper_div() is not None]
-        return min(diver_val_list) if diver_val_list else sys.maxsize
+        return [val_base_hook.get_best_upper_div() for val_base_hook in self._validation_base_hooks
+                if val_base_hook.get_best_upper_div() is not None]
 
 
 class ValidationHook(BaseValidationHook):
