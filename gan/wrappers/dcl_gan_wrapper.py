@@ -274,6 +274,10 @@ class DCLGANWrapper(Wrapper):
                                 nce_identity_loss_weight=self._identity_loss_weight)
 
     def define_train_ops(self, model, loss, max_number_of_steps, **kwargs):
+        return self.base_trainops_method(model, loss, max_number_of_steps, kwargs)
+
+    @staticmethod
+    def base_trainops_method(model, loss, max_number_of_steps, kwargs):
         gen_dis_lr = _get_lr(kwargs["gen_discriminator_lr"], max_number_of_steps)
         gen_lr = _get_lr(kwargs["generator_lr"], max_number_of_steps)
         dis_lr = _get_lr(kwargs["discriminator_lr"], max_number_of_steps)
