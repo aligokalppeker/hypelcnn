@@ -3,6 +3,7 @@ import json
 import random
 import string
 from collections.abc import Sequence
+from statistics import mean
 from types import SimpleNamespace
 
 import optuna
@@ -253,7 +254,7 @@ def main(_):
                 trial_postfix = f"_{''.join(random.choices(string.ascii_lowercase + string.digits, k=5))}"
                 flags_as_dict["base_log_path"] = flags_as_dict["base_log_path"] + trial_postfix
                 print(f"Starting run#{run_idx}")
-                losses.append(max(run_session(SimpleNamespace(**flags_as_dict))))
+                losses.append(mean(run_session(SimpleNamespace(**flags_as_dict))))
 
             print("Trial runs are completed. Losses:")
             print(*losses, sep=",")
