@@ -78,12 +78,9 @@ def add_parse_cmds_for_app(parser):
                         help="The Task ID. This value is used when training with multiple workers to "
                              "identify each worker.")
 
-    parser.add_argument("--flag_config_file_min", nargs="?", type=str,
+    parser.add_argument("--flag_config_file_opt", nargs="?", type=str,
                         default=None,
-                        help="Minimum values for flags as json")
-    parser.add_argument("--flag_config_file_max", nargs="?", type=str,
-                        default=None,
-                        help="Maximum values for flags as json")
+                        help="Flag config file for hyper parameter optimization")
     parser.add_argument("--opt_trial_count", nargs="?", type=int,
                         default=10,
                         help="Trial count for the optimization part.")
@@ -237,17 +234,30 @@ def main(_):
     if flags.flag_config_file:
         flags = update_flags_from_json(flags, flags.flag_config_file)
 
-    if flags.flag_config_file_min and flags.flag_config_file_max:
-        flags_from_json_min = json.load(open(flags.flag_config_file_min, "r"))
-        flags_from_json_max = json.load(open(flags.flag_config_file_max, "r"))
+    if flags.flag_config_file_opt:
+        flags_from_json_opt = json.load(open(flags.flag_config_file_opt, "r"))
 
         def objective(trial):
             flags_as_dict = dict(vars(flags))
-            for key in flags_from_json_min.keys():
-                if type(flags_from_json_min[key]) is float:
-                    flags_as_dict[key] = trial.suggest_float(key, flags_from_json_min[key], flags_from_json_max[key])
-                if type(flags_from_json_min[key]) is int:
-                    flags_as_dict[key] = trial.suggest_int(key, flags_from_json_min[key], flags_from_json_max[key])
+            for key, value in flags_from_json_opt.items():
+                if type(value) is dict:
+                    if "min" in value and "max" in value:
+                        min_range_val = value["min"]
+                        max_range_val = value["max"]
+                        if type(min_range_val) is float and type(max_range_val) is float:
+                            flags_as_dict[key] = trial.suggest_float(key, min_range_val, max_range_val,
+                                                                     step=(value["step"] if "step" in value else None))
+                        elif type(min_range_val) is int and type(max_range_val) is int:
+                            flags_as_dict[key] = trial.suggest_int(key, min_range_val, max_range_val,
+                                                                   step=(value["step"] if "step" in value else 1))
+                        else:
+                            print(f"Parameter value is put in hyper optimization "
+                                  f"config but its min max type is inconsistent: {key}. "
+                                  f"Using the default value")
+                elif type(value) is list:
+                    flags_as_dict[key] = trial.suggest_categorical(key, value)
+                else:
+                    flags_as_dict[key] = value
 
             losses = []
             for run_idx in range(0, flags.opt_run_count):
