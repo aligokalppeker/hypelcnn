@@ -246,10 +246,11 @@ def main(_):
                         max_range_val = value["max"]
                         if type(min_range_val) is float and type(max_range_val) is float:
                             flags_as_dict[key] = trial.suggest_float(key, min_range_val, max_range_val,
-                                                                     step=(value["step"] if "step" in value else None))
+                                                                     step=value["step"] if "step" in value else None,
+                                                                     log=value["log"] if "log" in value else False)
                         elif type(min_range_val) is int and type(max_range_val) is int:
                             flags_as_dict[key] = trial.suggest_int(key, min_range_val, max_range_val,
-                                                                   step=(value["step"] if "step" in value else 1))
+                                                                   step=value["step"] if "step" in value else 1)
                         else:
                             print(f"Parameter value is put in hyper optimization "
                                   f"config but its min max type is inconsistent: {key}. "
