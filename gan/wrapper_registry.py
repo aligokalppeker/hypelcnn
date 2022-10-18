@@ -1,5 +1,6 @@
 from functools import partial
 
+from gan.gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, NeighborhoodBasedSampler, DummySampler
 from gan.shadow_data_models import shadowdata_generator_model, shadowdata_discriminator_model, \
     shadowdata_feature_discriminator_model
 from gan.wrappers.cut_wrapper import CUTInferenceWrapper, CUTWrapper
@@ -7,6 +8,14 @@ from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper, CycleGANWra
 from gan.wrappers.dcl_cycle_gan_wrapper import DCLCycleGANWrapper, DCLCycleGANInferenceWrapper
 from gan.wrappers.dcl_gan_wrapper import DCLGANInferenceWrapper, DCLGANWrapper
 from gan.wrappers.gan_wrapper import GANInferenceWrapper, GANWrapper
+
+
+def get_sampling_map():
+    sampling_method_map = {"target": TargetBasedSampler(margin=5),
+                           "random": RandomBasedSampler(multiply_shadowed_data=False),
+                           "neighbour": NeighborhoodBasedSampler(neighborhood_size=20, margin=2),
+                           "dummy": DummySampler(element_count=2000, fill_value=0.5, coefficient=2)}
+    return sampling_method_map
 
 
 def get_infer_wrapper_dict():

@@ -3,6 +3,7 @@ import json
 import random
 import string
 from collections.abc import Sequence
+from functools import partial
 from statistics import mean
 from types import SimpleNamespace
 
@@ -22,9 +23,8 @@ from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_log
     type_ensure_strtobool, add_parse_cmds_for_json_loader
 from common.common_nn_ops import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
 from common.common_ops import replace_abbrs
-from gan.wrapper_registry import get_wrapper_dict, get_infer_wrapper_dict
-from gan.wrappers.gan_common import InitializerHook
-from gan_sampling_methods import TargetBasedSampler, RandomBasedSampler, DummySampler, NeighborhoodBasedSampler
+from gan.wrapper_registry import get_wrapper_dict, get_infer_wrapper_dict, get_sampling_map
+from gan.wrappers.gan_common import InitializerHook, input_x_tensor_name, input_y_tensor_name
 
 
 def add_parse_cmds_for_app(parser):
@@ -157,32 +157,27 @@ def gan_train(train_ops,
 
 
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio, reg_support_rate, pairing_method):
-    sampling_method_map = {"target": TargetBasedSampler(margin=5),
-                           "random": RandomBasedSampler(multiply_shadowed_data=False),
-                           "neighbour": NeighborhoodBasedSampler(neighborhood_size=20, margin=2),
-                           "dummy": DummySampler(element_count=2000, fill_value=0.5, coefficient=2)}
-    if pairing_method in sampling_method_map:
-        normal_data_as_matrix, shadow_data_as_matrix = sampling_method_map[pairing_method].get_sample_pairs(
-            data_set,
-            loader,
-            shadow_map)
-    else:
+    sampling_method_map = get_sampling_map()
+    if pairing_method not in sampling_method_map:
         raise ValueError(f"Wrong sampling parameter value ({pairing_method}).")
 
+    normal_data_as_matrix, shadow_data_as_matrix = \
+        sampling_method_map[pairing_method].get_sample_pairs(data_set, loader, shadow_map)
     normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
     shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
 
-    normal_data_holder = tf.compat.v1.placeholder(dtype=normal_data_as_matrix.dtype, shape=normal_data_as_matrix.shape,
-                                                  name="x")
-    shadow_data_holder = tf.compat.v1.placeholder(dtype=shadow_data_as_matrix.dtype, shape=shadow_data_as_matrix.shape,
-                                                  name="y")
+    normal_data_holder = tf.compat.v1.placeholder(dtype=normal_data_as_matrix.dtype,
+                                                  shape=normal_data_as_matrix.shape,
+                                                  name=input_x_tensor_name)
+    shadow_data_holder = tf.compat.v1.placeholder(dtype=shadow_data_as_matrix.dtype,
+                                                  shape=shadow_data_as_matrix.shape,
+                                                  name=input_y_tensor_name)
 
     epoch = (iteration_count * batch_size) // normal_data_as_matrix.shape[0]
     data_set = data.Dataset.from_tensor_slices((normal_data_holder, shadow_data_holder)).apply(
         shuffle_and_repeat(buffer_size=10000, count=epoch))
-    data_set = data_set.map(
-        lambda param_x, param_y_: perform_shadow_augmentation_random(param_x, param_y_, shadow_ratio, reg_support_rate),
-        num_parallel_calls=4)
+    map_fn = partial(perform_shadow_augmentation_random, shadow_ratio=shadow_ratio, reg_support_rate=reg_support_rate)
+    data_set = data_set.map(map_fn, num_parallel_calls=4)
     data_set = data_set.batch(batch_size, drop_remainder=True)
     data_set_itr = tf.compat.v1.data.make_initializable_iterator(data_set)
 
