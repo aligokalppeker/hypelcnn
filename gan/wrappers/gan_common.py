@@ -3,7 +3,6 @@ from __future__ import division, absolute_import, print_function
 import json
 import os
 import random
-import sys
 from json import JSONDecodeError
 
 import numpy
@@ -382,6 +381,16 @@ def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shado
         sample_indice_in_image = [indices[1][random_indice_in_sample_list], indices[0][random_indice_in_sample_list]]
         data_sample_list.append(loader.get_point_value(data_set, sample_indice_in_image)[:, :, 0:band_size])
     return data_sample_list
+
+
+def read_hsi_data(loader, data_set, shadow_map, pairing_method, sampling_method_map):
+    if pairing_method not in sampling_method_map:
+        raise ValueError(f"Wrong sampling parameter value ({pairing_method}).")
+    normal_data_as_matrix, shadow_data_as_matrix = \
+        sampling_method_map[pairing_method].get_sample_pairs(data_set, loader, shadow_map)
+    normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
+    shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
+    return normal_data_as_matrix, shadow_data_as_matrix
 
 
 def plot_overall_info(bands, mean, lower_bound, upper_bound, iteration, plt_name, log_dir):

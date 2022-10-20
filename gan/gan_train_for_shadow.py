@@ -24,7 +24,7 @@ from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_log
 from common.common_nn_ops import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
 from common.common_ops import replace_abbrs
 from gan.wrapper_registry import get_wrapper_dict, get_infer_wrapper_dict, get_sampling_map
-from gan.wrappers.gan_common import InitializerHook, input_x_tensor_name, input_y_tensor_name
+from gan.wrappers.gan_common import InitializerHook, input_x_tensor_name, input_y_tensor_name, read_hsi_data
 
 
 def add_parse_cmds_for_app(parser):
@@ -157,14 +157,8 @@ def gan_train(train_ops,
 
 
 def load_op(batch_size, iteration_count, loader, data_set, shadow_map, shadow_ratio, reg_support_rate, pairing_method):
-    sampling_method_map = get_sampling_map()
-    if pairing_method not in sampling_method_map:
-        raise ValueError(f"Wrong sampling parameter value ({pairing_method}).")
-
-    normal_data_as_matrix, shadow_data_as_matrix = \
-        sampling_method_map[pairing_method].get_sample_pairs(data_set, loader, shadow_map)
-    normal_data_as_matrix = normal_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
-    shadow_data_as_matrix = shadow_data_as_matrix[:, :, :, 0:data_set.get_casi_band_count()]
+    normal_data_as_matrix, shadow_data_as_matrix = read_hsi_data(loader, data_set, shadow_map, pairing_method,
+                                                                 get_sampling_map())
 
     normal_data_holder = tf.compat.v1.placeholder(dtype=normal_data_as_matrix.dtype,
                                                   shape=normal_data_as_matrix.shape,
