@@ -85,7 +85,7 @@ def add_parse_cmds_for_app(parser):
                         default=10,
                         help="Trial count for the optimization part.")
     parser.add_argument("--opt_run_count", nargs="?", type=int,
-                        default=1,
+                        default=3,
                         help="Retry count for each trial during the optimization.")
 
 
@@ -272,6 +272,8 @@ def main(_):
 
 
 def run_session(flags):
+    print("Args:", json.dumps(vars(flags), indent=3))
+
     log_dir = f"{flags.base_log_path}_{get_log_suffix(flags)}"
     if not gfile.Exists(log_dir):
         gfile.MakeDirs(log_dir)
