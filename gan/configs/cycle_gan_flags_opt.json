@@ -1,0 +1,10 @@
+{
+  "gan_type": "cycle_gan",
+  "batch_size": 32,
+  "identity_loss_weight": {"min":0.5, "max":2.0, "step": 0.2},
+  "cycle_consistency_loss_weight": {"min":1.0, "max":10.0, "step": 0.5},
+  "generator_lr": {"min":0.00002, "max": 0.2, "log": true},
+  "discriminator_lr": {"min":0.00001, "max": 0.1, "log": true},
+  "discriminator_reg_scale": {"min":0.000001, "max": 0.001, "log": true},
+  "validation_sample_count": 600
+}
