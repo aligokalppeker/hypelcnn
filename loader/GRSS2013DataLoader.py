@@ -27,9 +27,11 @@ class GRSS2013DataLoader(DataLoader):
         generator_fn = partial(shadowdata_generator_model, create_only_encoder=False, is_training=False)
         data_set.shadow_creator_dict = {
             "cycle_gan": create_gan_struct(CycleGANInferenceWrapper(generator_fn), self.get_model_base_dir(),
-                                           "shadow_cycle_gan/modelv4/model.ckpt-33000"),
-            "gan": create_gan_struct(GANInferenceWrapper(True, generator_fn), self.get_model_base_dir(),
-                                     "../utilities/log/model.ckpt-203000"),
+                                           "shadow_gen_model/cycle_gan/model.ckpt-5000"),
+            "dcl_gan": create_gan_struct(CycleGANInferenceWrapper(generator_fn), self.get_model_base_dir(),
+                                         "shadow_gen_model/dcl_gan/model.ckpt-3000"),
+            "dcl_cycle_gan": create_gan_struct(CycleGANInferenceWrapper(generator_fn), self.get_model_base_dir(),
+                                               "shadow_gen_model/dcl_cycle_gan/model.ckpt-5000"),
             "simple": create_simple_shadow_struct(shadow_ratio)}
 
         return data_set
