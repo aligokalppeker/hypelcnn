@@ -11,16 +11,17 @@ Primary features are:
 - Plug-in based data set integration( via DataLoader interface )
 - Data efficient implementations for training( memory efficient/in-memory/record based )
 - Cross use of data set integration in classic machine learning and deep learning methods
-- Integrated hyperparameter optimization.
+- Integrated hyperparameter optimization (via optuna).
 - Training, classification and metrics integration for neural networks
 - CPU/GPU based training
 - Sample implementations for 
   - CNN networks
   - Capsule networks
 - GAN based data augmenter implementation with training and evaluation codes.
-  - Cycle GAN
   - Vanilla GAN
+  - Cycle GAN
   - Contrastive Unpaired Translation(CUT) GAN
+  - Dual Contrastive Learning Adversarial Generative Networks (DCLGAN)
 
 Project is developed using Tensorflow (Tested on version 2.9.0). For now, it works on TF2 using legacy mode. 
 Eager mode will be implemented in the upcoming days.
@@ -75,7 +76,7 @@ Works with Python 3.7-3.10. Library dependencies are put in "requirements.txt".
   - gan/gan_infer_for_shadow.py : Gan inference implementation.
   - gan/gan_train_for_shadow.py : Gan training runner.
   - gan.wrapper package
-      - gan/*_wrapper.py : Wrappers for various gan archs.
+      - gan/*_wrapper.py : Wrappers for various gan methods.
 - utilities package => Various utility functions for HSI visualization, TF summary read, HSI-LIDAR registration 
   - tfrecord_writer.py : TF record generator from samples.
   - hsi_rgb_converter.py : HSI to RGB conversion script.
