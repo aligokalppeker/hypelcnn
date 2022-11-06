@@ -20,18 +20,6 @@ class DUALCNNModel(NNModel):
             "optimizer": "AdamOptimizer"
         }
 
-    def get_default_params(self):
-        return {
-            "drop_out_ratio": 0.3,
-            "learning_rate": 1e-4,
-            "learning_rate_decay_factor": 0.96,
-            "learning_rate_decay_step": 350,
-            "lrelu_alpha": 0.2,
-            "filter_count": 300,
-            "batch_size": 16,
-            "optimizer": "AdamOptimizer"
-        }
-
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         with tf.device(model_input_params.device_id):
             with arg_scope([conv2d, fully_connected],

@@ -65,15 +65,3 @@ class CONCNNModel(NNModel):
             "batch_size": trial.suggest_categorical("batch_size", [16, 32, 48, 64, 96]),
             "optimizer": "AdamOptimizer"
         }
-
-    def get_default_params(self):
-        return {
-            "filter_count": 1200,
-            "drop_out_ratio": 0.3,
-            "learning_rate": 1e-4,
-            "learning_rate_decay_factor": 0.96,
-            "learning_rate_decay_step": 350,
-            "lrelu_alpha": 0.2,
-            "batch_size": 16,
-            "optimizer": "AdamOptimizer"
-        }

@@ -30,23 +30,6 @@ class HYPELCNNModel(NNModel):
 
     # "optimizer": hp.choice("optimizer",["AdamOptimizer", ("MomentumOptimizer", hp.uniform("momentum", 0.50, 0.99))])
 
-    def get_default_params(self):
-        return {
-            "drop_out_ratio": 0.3,
-            "learning_rate": 1e-4,
-            "learning_rate_decay_factor": 0.96,
-            "learning_rate_decay_step": 350,
-            "lrelu_alpha": 0.2,
-            "filter_count": 1200,
-            "batch_size": 16,
-            "optimizer": "AdamOptimizer",
-            "bn_decay": 0.95,
-            "l2regularizer_scale": 0.00001,
-            "spectral_hierarchy_level": 3,
-            "spatial_hierarchy_level": 3,
-            "degradation_coeff": 3
-        }
-
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         with tf.device(model_input_params.device_id):
             data_format = None  # "NHWC"

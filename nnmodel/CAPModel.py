@@ -26,24 +26,6 @@ class CAPModel(NNModel):
             "optimizer": "AdamOptimizer"
         }
 
-    def get_default_params(self):
-        return {
-            "iter_routing": 3,
-            "conv_layer_kernel_size": 3,
-            "primary_caps_kernel_size": 3,
-            "feature_count": 256,
-            "primary_capsule_count": 64,
-            "primary_capsule_output_space": 8,
-            "digit_capsule_output_space": 16,
-            "lrelu_alpha": 0.2,
-            "learning_rate": 1e-4,
-            "learning_rate_decay_factor": 0.96,
-            "learning_rate_decay_step": 350,
-            "batch_size": 16,
-            "enable_decoding": False,
-            "optimizer": "AdamOptimizer"
-        }
-
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         iter_routing = algorithm_params["iter_routing"]
         conv_layer_kernel_size = [algorithm_params["conv_layer_kernel_size"],

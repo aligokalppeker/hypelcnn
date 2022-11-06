@@ -204,10 +204,11 @@ def main(_):
 
     if flags.max_evals == 1:
         print("Running in single execution training mode")
-        algorithm_params = nn_model.get_default_params()
-        algorithm_params["batch_size"] = flags.batch_size
         if flags.algorithm_param_path is not None:
             algorithm_params = json.load(open(flags.algorithm_param_path, "r"))
+        else:
+            raise IOError("Algorithm parameter file is not given")
+        algorithm_params["batch_size"] = flags.batch_size
         perform_an_episode(flags, algorithm_params, nn_model, os.path.join(flags.base_log_path, get_log_suffix(flags)))
     else:
         print("Running in hyper parameter optimization mode")

@@ -102,10 +102,11 @@ def main(_):
     flags, unparsed = parser.parse_known_args()
 
     nn_model = get_model_from_name(flags.model_name)()
-    algorithm_params = nn_model.get_default_params()
-    algorithm_params["batch_size"] = flags.batch_size
     if flags.algorithm_param_path is not None:
         algorithm_params = json.load(open(flags.algorithm_param_path, 'r'))
+    else:
+        raise IOError("Algorithm parameter file is not given")
+    algorithm_params["batch_size"] = flags.batch_size
 
     data_importer = ControlledDataImporter()
 

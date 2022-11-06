@@ -7,10 +7,6 @@ class NNModel(ABC):
         pass
 
     @abstractmethod
-    def get_default_params(self):
-        pass
-
-    @abstractmethod
     def get_loss_func(self, tensor_output, label):
         pass
 
