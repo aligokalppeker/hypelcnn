@@ -1,10 +1,8 @@
 import argparse
+import functools
 import json
-import random
-import string
 from collections.abc import Sequence
 from functools import partial
-from statistics import mean
 from types import SimpleNamespace
 
 import optuna
@@ -20,8 +18,8 @@ from tensorflow.python.training.training_util import get_or_create_global_step
 from tensorflow_gan.python.train import get_sequential_train_hooks
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
-    type_ensure_strtobool, add_parse_cmds_for_json_loader
-from common.common_nn_ops import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook
+    type_ensure_strtobool, add_parse_cmds_for_json_loader, add_parse_cmds_for_opt
+from common.common_nn_ops import set_all_gpu_config, get_loader_from_name, TextSummaryAtStartHook, objective
 from common.common_ops import replace_abbrs
 from gan.wrapper_registry import get_wrapper_dict, get_infer_wrapper_dict, get_sampling_map
 from gan.wrappers.gan_common import InitializerHook, input_x_tensor_name, input_y_tensor_name, read_hsi_data
@@ -77,16 +75,6 @@ def add_parse_cmds_for_app(parser):
     parser.add_argument("--task", nargs="?", type=int, default=0,
                         help="The Task ID. This value is used when training with multiple workers to "
                              "identify each worker.")
-
-    parser.add_argument("--flag_config_file_opt", nargs="?", type=str,
-                        default=None,
-                        help="Flag config file for hyper parameter optimization")
-    parser.add_argument("--opt_trial_count", nargs="?", type=int,
-                        default=10,
-                        help="Trial count for the optimization part.")
-    parser.add_argument("--opt_run_count", nargs="?", type=int,
-                        default=3,
-                        help="Retry count for each trial during the optimization.")
 
 
 def gan_train(train_ops,
@@ -218,6 +206,7 @@ def main(_):
     add_parse_cmds_for_trainers(parser)
     add_parse_cmds_for_json_loader(parser)
     add_parse_cmds_for_app(parser)
+    add_parse_cmds_for_opt(parser)
     flags, unparsed = parser.parse_known_args()
 
     if flags.flag_config_file:
@@ -225,56 +214,30 @@ def main(_):
 
     if flags.flag_config_file_opt:
         flags_from_json_opt = json.load(open(flags.flag_config_file_opt, "r"))
+        print("Running on hyper parameter optimization mode")
+        objective_func = functools.partial(objective,
+                                           params=dict(vars(flags)),
+                                           params_from_json_opt=flags_from_json_opt,
+                                           opt_run_count=flags.opt_run_count,
+                                           func_to_run=run_session,
+                                           base_log_path=flags.base_log_path)
 
-        def objective(trial):
-            flags_as_dict = dict(vars(flags))
-            for key, value in flags_from_json_opt.items():
-                if type(value) is dict:
-                    if "min" in value and "max" in value:
-                        min_range_val = value["min"]
-                        max_range_val = value["max"]
-                        if type(min_range_val) is float and type(max_range_val) is float:
-                            flags_as_dict[key] = trial.suggest_float(key, min_range_val, max_range_val,
-                                                                     step=value["step"] if "step" in value else None,
-                                                                     log=value["log"] if "log" in value else False)
-                        elif type(min_range_val) is int and type(max_range_val) is int:
-                            flags_as_dict[key] = trial.suggest_int(key, min_range_val, max_range_val,
-                                                                   step=value["step"] if "step" in value else 1)
-                        else:
-                            print(f"Parameter value is put in hyper optimization "
-                                  f"config but its min max type is inconsistent: {key}. "
-                                  f"Using the default value")
-                elif type(value) is list:
-                    flags_as_dict[key] = trial.suggest_categorical(key, value)
-                else:
-                    flags_as_dict[key] = value
-
-            losses = []
-            for run_idx in range(0, flags.opt_run_count):
-                trial_postfix = f"_{''.join(random.choices(string.ascii_lowercase + string.digits, k=5))}"
-                flags_as_dict["base_log_path"] = flags_as_dict["base_log_path"] + trial_postfix
-                print(f"Starting run#{run_idx}")
-                losses.append(mean(run_session(SimpleNamespace(**flags_as_dict))))
-
-            print("Trial runs are completed. Losses:")
-            print(*losses, sep=",")
-            return max(losses)
-
-        print("Running on hyper parameter mode")
         study_name = "gan_shadow_opt"
         study = optuna.create_study(study_name=study_name, direction="minimize",
                                     sampler=TPESampler(), storage=f"sqlite:///{study_name}.db",
                                     load_if_exists=True)
-        study.optimize(objective, n_trials=flags.opt_trial_count)
+        study.optimize(objective_func, n_trials=flags.opt_trial_count)
     else:
         print("Running on training mode")
-        print("Output divergence values:", run_session(flags))
+        print("Output divergence values:",
+              run_session(params=dict(vars(flags)), base_log_path=flags.base_log_path))
 
 
-def run_session(flags):
+def run_session(params, base_log_path):
+    flags = SimpleNamespace(**params)
     print("Args:", json.dumps(vars(flags), indent=3))
 
-    log_dir = f"{flags.base_log_path}_{get_log_suffix(flags)}"
+    log_dir = f"{base_log_path}_{get_log_suffix(flags)}"
     if not gfile.Exists(log_dir):
         gfile.MakeDirs(log_dir)
 

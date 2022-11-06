@@ -65,3 +65,15 @@ def add_parse_cmds_for_importers(parser):
     parser.add_argument("--importer_name", nargs="?", const=True, type=str,
                         default="InMemoryImporter",
                         help="Importer name, Values : GeneratorImporter, InMemoryImporter, TFRecordImporter")
+
+
+def add_parse_cmds_for_opt(parser):
+    parser.add_argument("--flag_config_file_opt", nargs="?", type=str,
+                        default=None,
+                        help="Flag config file for hyper parameter optimization")
+    parser.add_argument("--opt_trial_count", nargs="?", type=int,
+                        default=10,
+                        help="Trial count for the optimization part.")
+    parser.add_argument("--opt_run_count", nargs="?", type=int,
+                        default=3,
+                        help="Retry count for each trial during the optimization.")

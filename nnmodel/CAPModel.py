@@ -8,23 +8,24 @@ from common.common_nn_ops import ModelOutputTensors
 
 
 class CAPModel(NNModel):
-    def get_hyper_param_space(self, trial):
-        return {
-            "iter_routing": trial.suggest_categorical("iter_routing", [3, 4, 5]),
-            "conv_layer_kernel_size": 3,
-            "primary_caps_kernel_size": 3,
-            "feature_count": trial.suggest_categorical("feature_count", [256, 378, 512]),
-            "primary_capsule_count": trial.suggest_categorical("primary_capsule_count", [64, 80, 96]),
-            "primary_capsule_output_space": 8,
-            "digit_capsule_output_space": 16,
-            "lrelu_alpha": trial.suggest_float("lrelu_alpha", 0.1, 0.2),
-            "learning_rate": trial.suggest_float("learning_rate", 1e-8, 1e-2),
-            "learning_rate_decay_factor": 0.96,
-            "learning_rate_decay_step": 350,
-            "batch_size": trial.suggest_categorical("batch_size", [16, 32, 48, 64, 96]),
-            "enable_decoding": trial.suggest_categorical("enable_decoding", [True, False]),
-            "optimizer": "AdamOptimizer"
-        }
+    # TODO: Move to hyper param json files
+    # def get_hyper_param_space(self, trial):
+    #     return {
+    #         "iter_routing": trial.suggest_categorical("iter_routing", [3, 4, 5]),
+    #         "conv_layer_kernel_size": 3,
+    #         "primary_caps_kernel_size": 3,
+    #         "feature_count": trial.suggest_categorical("feature_count", [256, 378, 512]),
+    #         "primary_capsule_count": trial.suggest_categorical("primary_capsule_count", [64, 80, 96]),
+    #         "primary_capsule_output_space": 8,
+    #         "digit_capsule_output_space": 16,
+    #         "lrelu_alpha": trial.suggest_float("lrelu_alpha", 0.1, 0.2),
+    #         "learning_rate": trial.suggest_float("learning_rate", 1e-8, 1e-2),
+    #         "learning_rate_decay_factor": 0.96,
+    #         "learning_rate_decay_step": 350,
+    #         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 48, 64, 96]),
+    #         "enable_decoding": trial.suggest_categorical("enable_decoding", [True, False]),
+    #         "optimizer": "AdamOptimizer"
+    #     }
 
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         iter_routing = algorithm_params["iter_routing"]

@@ -8,17 +8,18 @@ from common.common_nn_ops import ModelOutputTensors
 
 class DUALCNNModel(NNModel):
 
-    def get_hyper_param_space(self, trial):
-        return {
-            "drop_out_ratio": trial.suggest_float("drop_out_ratio", 0.1, 0.5),
-            "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3),
-            "lrelu_alpha": trial.suggest_float("lrelu_alpha", 0.1, 0.2),
-            "learning_rate_decay_factor": 0.96,
-            "learning_rate_decay_step": 350,
-            "filter_count": trial.suggest_categorical("filter_count", [100, 200, 400, 800]),
-            "batch_size": trial.suggest_categorical("batch_size", [32, 48, 64, 96]),
-            "optimizer": "AdamOptimizer"
-        }
+    # TODO: Move to hyper param json files
+    # def get_hyper_param_space(self, trial):
+    #     return {
+    #         "drop_out_ratio": trial.suggest_float("drop_out_ratio", 0.1, 0.5),
+    #         "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3),
+    #         "lrelu_alpha": trial.suggest_float("lrelu_alpha", 0.1, 0.2),
+    #         "learning_rate_decay_factor": 0.96,
+    #         "learning_rate_decay_step": 350,
+    #         "filter_count": trial.suggest_categorical("filter_count", [100, 200, 400, 800]),
+    #         "batch_size": trial.suggest_categorical("batch_size", [32, 48, 64, 96]),
+    #         "optimizer": "AdamOptimizer"
+    #     }
 
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         with tf.device(model_input_params.device_id):

@@ -1,3 +1,6 @@
+import random
+import string
+from statistics import mean
 import numpy
 import tensorflow as tf
 from numba import jit
@@ -124,8 +127,7 @@ class MetricOpsHolder:
 
 class AugmentationInfo:
     def __init__(self, shadow_struct, perform_shadow_augmentation, perform_rotation_augmentation,
-                 perform_reflection_augmentation, offline_or_online, augmentation_random_threshold):
-        self.offline_or_online = offline_or_online
+                 perform_reflection_augmentation, augmentation_random_threshold):
         self.perform_reflection_augmentation = perform_reflection_augmentation
         self.perform_rotation_augmentation = perform_rotation_augmentation
         self.perform_shadow_augmentation = perform_shadow_augmentation
@@ -147,20 +149,14 @@ def get_data_point_func(casi, lidar, neighborhood, point_x, point_y):
 def training_nn_iterator(data_set, augmentation_info, batch_size, num_epochs, device, prefetch_size):
     main_cycle_data_set = data_set.apply(shuffle_and_repeat(buffer_size=10000, count=num_epochs))
 
-    if augmentation_info.offline_or_online is False:
-        main_cycle_data_set = add_augmentation_graph(main_cycle_data_set, augmentation_info,
-                                                     perform_rotation_augmentation_random,
-                                                     perform_shadow_augmentation_random,
-                                                     perform_reflection_augmentation_random)
+    main_cycle_data_set = add_augmentation_graph(main_cycle_data_set, augmentation_info,
+                                                 perform_rotation_augmentation_random,
+                                                 perform_shadow_augmentation_random,
+                                                 perform_reflection_augmentation_random)
 
     main_cycle_data_set = main_cycle_data_set.batch(batch_size)
     main_cycle_data_set = main_cycle_data_set.prefetch(prefetch_size)
 
-    if augmentation_info.offline_or_online is True:
-        main_cycle_data_set = add_augmentation_graph(main_cycle_data_set, augmentation_info,
-                                                     perform_rotation_augmentation,
-                                                     perform_shadow_augmentation,
-                                                     perform_reflection_augmentation)
     main_cycle_data_set = main_cycle_data_set.apply(prefetch_to_device(device, 10000))
     return tf.compat.v1.data.make_initializable_iterator(main_cycle_data_set)
 
@@ -350,53 +346,6 @@ def add_augmentation_graph(main_cycle_dataset, augmentation_info, rotation_metho
             lambda param_x, param_y_: flip_method(param_x, param_y_, augmentation_info),
             num_parallel_calls=4)
     return main_cycle_dataset
-
-
-def perform_rotation_augmentation(images, labels, augmentation_info):
-    with tf.compat.v1.name_scope("rotation_augmentation"):
-        transforms = [images]
-        label_transforms = [labels]
-
-        for index in range(1, 4):
-            transforms.append(tf.image.rot90(images, index))
-            label_transforms.append(labels)
-
-        images = tf.concat(transforms, axis=0)
-        labels = tf.concat(label_transforms, axis=0)
-
-    return images, labels
-
-
-def perform_shadow_augmentation(images, labels, augmentation_info):
-    shadow_op = augmentation_info.shadow_struct.shadow_op
-    with tf.compat.v1.name_scope("shadow_augmentation"):
-        transforms = [images]
-        label_transforms = [labels]
-
-        transforms.append(shadow_op(images))
-        label_transforms.append(labels)
-
-        images = tf.concat(transforms, axis=0)
-        labels = tf.concat(label_transforms, axis=0)
-
-    return images, labels
-
-
-def perform_reflection_augmentation(images, labels, augmentation_info):
-    with tf.compat.v1.name_scope("reflection_augmentation"):
-        transforms = [images]
-        label_transforms = [labels]
-
-        transforms.append(tf.image.flip_left_right(images))
-        label_transforms.append(labels)
-
-        transforms.append(tf.image.flip_up_down(images))
-        label_transforms.append(labels)
-
-        images = tf.concat(transforms, axis=0)
-        labels = tf.concat(label_transforms, axis=0)
-
-    return images, labels
 
 
 def perform_rotation_augmentation_random(images, labels, augmentation_info):
@@ -589,3 +538,37 @@ class TextSummaryAtStartHook(SessionRunHook):
         current_iteration = session.run(tf.compat.v1.train.get_global_step())
         summary_io.SummaryWriterCache.get(self._log_dir).add_summary(session.run(self._summary_text_tensor),
                                                                      current_iteration)
+
+
+def objective(trial, params, params_from_json_opt, func_to_run, opt_run_count, base_log_path):
+    for key, value in params_from_json_opt.items():
+        if type(value) is dict:
+            if "min" in value and "max" in value:
+                min_range_val = value["min"]
+                max_range_val = value["max"]
+                if type(min_range_val) is float and type(max_range_val) is float:
+                    params[key] = trial.suggest_float(key, min_range_val, max_range_val,
+                                                      step=value["step"] if "step" in value else None,
+                                                      log=value["log"] if "log" in value else False)
+                elif type(min_range_val) is int and type(max_range_val) is int:
+                    params[key] = trial.suggest_int(key, min_range_val, max_range_val,
+                                                    step=value["step"] if "step" in value else 1)
+                else:
+                    print(f"Parameter value is put in hyper optimization "
+                          f"config but its min max type is inconsistent: {key}. "
+                          f"Using the default value")
+        elif type(value) is list:
+            params[key] = trial.suggest_categorical(key, value)
+        else:
+            params[key] = value
+
+    losses = []
+    for run_idx in range(0, opt_run_count):
+        trial_postfix = f"_{''.join(random.choices(string.ascii_lowercase + string.digits, k=5))}"
+        print(f"Starting run#{run_idx}")
+        losses.append(mean(
+            func_to_run(params=params, base_log_path=base_log_path + trial_postfix)))
+
+    print("Trial runs are completed. Losses:")
+    print(*losses, sep=",")
+    return max(losses)

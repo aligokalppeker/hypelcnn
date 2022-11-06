@@ -2,9 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class NNModel(ABC):
-    @abstractmethod
-    def get_hyper_param_space(self, trial):
-        pass
 
     @abstractmethod
     def get_loss_func(self, tensor_output, label):

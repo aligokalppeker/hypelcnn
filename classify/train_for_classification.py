@@ -1,4 +1,5 @@
 import argparse
+import functools
 import json
 import os
 import time
@@ -9,14 +10,16 @@ from numpy import std, mean
 from optuna.samplers import TPESampler
 
 from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_loggers, add_parse_cmds_for_trainers, \
-    type_ensure_strtobool, add_parse_cmds_for_models, add_parse_cmds_for_importers
+    type_ensure_strtobool, add_parse_cmds_for_models, add_parse_cmds_for_importers, add_parse_cmds_for_opt
 from common.common_nn_ops import create_graph, TrainingResult, AugmentationInfo, get_model_from_name, \
-    get_importer_from_name
+    get_importer_from_name, objective
 from classify.monitored_session_runner import run_monitored_session, add_classification_summaries, set_run_seed
 from common.common_ops import path_leaf, replace_abbrs
 
 
 def perform_an_episode(flags, algorithm_params, model, base_log_path):
+    print("Args:", json.dumps(vars(flags), indent=3))
+
     prefetch_size = 1000
     data_importer = get_importer_from_name(flags.importer_name)
 
@@ -32,14 +35,13 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
                                          perform_shadow_augmentation=flags.augment_data_with_shadow is not None,
                                          perform_rotation_augmentation=flags.augment_data_with_rotation,
                                          perform_reflection_augmentation=flags.augment_data_with_reflection,
-                                         offline_or_online=flags.offline_augmentation,
                                          augmentation_random_threshold=flags.augmentation_random_threshold)
 
     batch_size = algorithm_params["batch_size"]
     epoch = flags.epoch
     required_steps = flags.step if epoch is None else (train_data_w_labels.data.shape[0] * epoch) // batch_size
 
-    print(f"Steps: {required_steps:d}, Params: {algorithm_params}")
+    print(f"Steps: {required_steps:d}, Algorithm Params: {algorithm_params}")
 
     validation_accuracy_list = []
     testing_accuracy_list = []
@@ -51,59 +53,56 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
     elif flags.device == "cpu":
         device_id = "/cpu:0"
 
-    for run_index in range(0, flags.split_count):
-        with tf.Graph().as_default():
-            set_run_seed()
+    with tf.Graph().as_default():
+        set_run_seed()
 
-            print(f"Starting Run #{run_index:d}")
+        testing_tensor, training_tensor, validation_tensor = data_importer.convert_data_to_tensor(
+            test_data_w_labels, train_data_w_labels, val_data_w_labels, class_range)
 
-            testing_tensor, training_tensor, validation_tensor = data_importer.convert_data_to_tensor(
-                test_data_w_labels, train_data_w_labels, val_data_w_labels, class_range)
+        cross_entropy, learning_rate, testing_nn_params, training_nn_params, validation_nn_params, train_step = create_graph(
+            training_tensor.dataset, testing_tensor.dataset, validation_tensor.dataset, class_range,
+            batch_size, prefetch_size, device_id, epoch, augmentation_info=augmentation_info,
+            algorithm_params=algorithm_params, model=model,
+            create_separate_validation_branch=data_importer.requires_separate_validation_branch)
 
-            cross_entropy, learning_rate, testing_nn_params, training_nn_params, validation_nn_params, train_step = create_graph(
-                training_tensor.dataset, testing_tensor.dataset, validation_tensor.dataset, class_range,
-                batch_size, prefetch_size, device_id, epoch, augmentation_info=augmentation_info,
-                algorithm_params=algorithm_params, model=model,
-                create_separate_validation_branch=data_importer.requires_separate_validation_branch)
+        #######################################################################
+        training_nn_params.data_with_labels = train_data_w_labels
+        testing_nn_params.data_with_labels = test_data_w_labels
+        validation_nn_params.data_with_labels = val_data_w_labels
+        ############################################################################
 
-            #######################################################################
-            training_nn_params.data_with_labels = train_data_w_labels
-            testing_nn_params.data_with_labels = test_data_w_labels
-            validation_nn_params.data_with_labels = val_data_w_labels
-            ############################################################################
+        if not flags.perform_validation:
+            validation_nn_params = None
 
-            if not flags.perform_validation:
-                validation_nn_params = None
+        add_classification_summaries(cross_entropy, learning_rate, flags.log_model_params, testing_nn_params,
+                                     validation_nn_params)
 
-            add_classification_summaries(cross_entropy, learning_rate, flags.log_model_params, testing_nn_params,
-                                         validation_nn_params)
+        episode_start_time = time.time()
 
-            episode_start_time = time.time()
+        # log_dir = os.path.join(base_log_path, f"run_{run_index:d}")
+        training_result = run_monitored_session(cross_entropy, base_log_path, class_range,
+                                                flags.save_checkpoint_steps, flags.validation_steps,
+                                                train_step, required_steps,
+                                                augmentation_info, training_nn_params, training_tensor,
+                                                testing_nn_params, testing_tensor,
+                                                validation_nn_params, validation_tensor,
+                                                data_importer,
+                                                json.dumps(vars(flags), indent=3),
+                                                json.dumps(algorithm_params, indent=3))
 
-            log_dir = os.path.join(base_log_path, f"run_{run_index:d}")
-            training_result = run_monitored_session(cross_entropy, log_dir, class_range,
-                                                    flags.save_checkpoint_steps, flags.validation_steps,
-                                                    train_step, required_steps,
-                                                    augmentation_info, training_nn_params, training_tensor,
-                                                    testing_nn_params, testing_tensor,
-                                                    validation_nn_params, validation_tensor,
-                                                    data_importer,
-                                                    json.dumps(vars(flags), indent=3),
-                                                    json.dumps(algorithm_params, indent=3))
+        print(f"Done training for {time.time() - episode_start_time:.3f} sec")
 
-            print(f"Done training for {time.time() - episode_start_time:.3f} sec")
-
-            testing_accuracy_list.append(training_result.test_accuracy)
-            loss_list.append(training_result.loss)
-            if flags.perform_validation:
-                print(
-                    f"Run #{run_index:d}, Validation accuracy={training_result.validation_accuracy:g}, "
-                    f"Testing accuracy={training_result.test_accuracy:g}, loss={training_result.loss:.2f}")
-                validation_accuracy_list.append(training_result.validation_accuracy)
-            else:
-                print(
-                    f"Run #{run_index:d}, Testing accuracy={training_result.test_accuracy:g}, "
-                    f"loss={training_result.loss:.2f}")
+        testing_accuracy_list.append(training_result.test_accuracy)
+        loss_list.append(training_result.loss)
+        if flags.perform_validation:
+            print(
+                f"Validation accuracy={training_result.validation_accuracy:g}, "
+                f"Testing accuracy={training_result.test_accuracy:g}, loss={training_result.loss:.2f}")
+            validation_accuracy_list.append(training_result.validation_accuracy)
+        else:
+            print(
+                f"Testing accuracy={training_result.test_accuracy:g}, "
+                f"loss={training_result.loss:.2f}")
 
     mean_validation_accuracy = None
     if flags.perform_validation:
@@ -139,24 +138,15 @@ def add_parse_cmds_for_app(parser):
     parser.add_argument("--augmentation_random_threshold", nargs="?", type=float,
                         default=0.5,
                         help="Augmentation randomization threshold.")
-    parser.add_argument("--offline_augmentation", nargs="?", const=True, type=type_ensure_strtobool,
-                        default=False,
-                        help="If added, input data is augmented offline in a randomized fashion.")
     parser.add_argument("--device", nargs="?", type=str,
                         default="gpu",
                         help="Device for processing: gpu, cpu")
-    parser.add_argument("--split_count", nargs="?", type=int,
-                        default=1,
-                        help="Split count")
     parser.add_argument("--save_checkpoint_steps", nargs="?", type=int,
                         default=2000,
                         help="Save frequency of the checkpoint")
     parser.add_argument("--validation_steps", nargs="?", type=int,
                         default=40000,
                         help="Validation frequency")
-    parser.add_argument("--max_evals", nargs="?", type=int,
-                        default=2,
-                        help="Maximum evaluation count for hyper parameter optimization")
     parser.add_argument("--all_data_shuffle_ratio", nargs="?", type=float,
                         default=None,
                         help="If given as a valid ratio, validation and training data is shuffled and redistributed")
@@ -196,36 +186,37 @@ def main(_):
     add_parse_cmds_for_models(parser)
     add_parse_cmds_for_importers(parser)
     add_parse_cmds_for_app(parser)
+    add_parse_cmds_for_opt(parser)
     flags, unparsed = parser.parse_known_args()
-
-    print("Args:", json.dumps(vars(flags), indent=3))
 
     nn_model = get_model_from_name(flags.model_name)
 
-    if flags.max_evals == 1:
-        print("Running in single execution training mode")
+    if flags.flag_config_file_opt:
+        flags_from_json_opt = json.load(open(flags.flag_config_file_opt, "r"))
+        print("Running in hyper parameter optimization mode")
+
+        def run_session(params, base_log_path):
+            return 1 - perform_an_episode(flags, params, nn_model, base_log_path).validation_accuracy
+
+        objective_func = functools.partial(objective,
+                                           params=dict(vars(flags)),
+                                           params_from_json_opt=flags_from_json_opt,
+                                           opt_run_count=flags.opt_run_count,
+                                           func_to_run=run_session,
+                                           base_log_path=flags.base_log_path)
+
+        study_name = "classification_opt"
+        study = optuna.create_study(study_name=study_name, direction="minimize", sampler=TPESampler(),
+                                    storage=f"sqlite:///{study_name}.db", load_if_exists=True)
+        study.optimize(objective_func, n_trials=flags.opt_trial_count)
+    else:
+        print("Running on training mode")
         if flags.algorithm_param_path is not None:
             algorithm_params = json.load(open(flags.algorithm_param_path, "r"))
         else:
             raise IOError("Algorithm parameter file is not given")
         algorithm_params["batch_size"] = flags.batch_size
         perform_an_episode(flags, algorithm_params, nn_model, os.path.join(flags.base_log_path, get_log_suffix(flags)))
-    else:
-        print("Running in hyper parameter optimization mode")
-
-        def objective(trial):
-            episode_run_index = trial.number
-            print(f"Starting episode#{episode_run_index:d}")
-            params = nn_model.get_hyper_param_space(trial)
-            log_path = os.path.join(flags.base_log_path, f"episode_{episode_run_index:d}")
-            return perform_an_episode(flags, params, nn_model, log_path).validation_accuracy
-
-        study_name = "classification_opt"
-        study = optuna.create_study(study_name=study_name, direction="maximize", sampler=TPESampler(),
-                                    storage=f"sqlite:///{study_name}.db", load_if_exists=True)
-        study.optimize(objective, n_trials=flags.max_evals)
-
-        json.dump(study.best_trial.params, open("trial_results.json", "w"), indent=3)
 
 
 if __name__ == '__main__':

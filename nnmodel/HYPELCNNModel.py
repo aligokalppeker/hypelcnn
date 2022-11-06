@@ -11,22 +11,23 @@ from nnmodel.NNModel import NNModel
 
 class HYPELCNNModel(NNModel):
 
-    def get_hyper_param_space(self, trial):
-        return {
-            "drop_out_ratio": trial.suggest_float("drop_out_ratio", 0.3, 0.5),
-            "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3),
-            "lrelu_alpha": 0.18,
-            "learning_rate_decay_factor": 0.96,
-            "learning_rate_decay_step": 350,
-            "filter_count": 1200,
-            "batch_size": trial.suggest_categorical("batch_size", [32, 48, 64]),
-            "optimizer": "AdamOptimizer",
-            "bn_decay": trial.suggest_float("bn_decay", 0.900, 0.999),
-            "l2regularizer_scale": 0.00001,
-            "spectral_hierarchy_level": 3,
-            "spatial_hierarchy_level": 3,
-            "degradation_coeff": 3
-        }
+    # TODO: Move to hyper param json files
+    # def get_hyper_param_space(self, trial):
+    #     return {
+    #         "drop_out_ratio": trial.suggest_float("drop_out_ratio", 0.3, 0.5),
+    #         "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3),
+    #         "lrelu_alpha": 0.18,
+    #         "learning_rate_decay_factor": 0.96,
+    #         "learning_rate_decay_step": 350,
+    #         "filter_count": 1200,
+    #         "batch_size": trial.suggest_categorical("batch_size", [32, 48, 64]),
+    #         "optimizer": "AdamOptimizer",
+    #         "bn_decay": trial.suggest_float("bn_decay", 0.900, 0.999),
+    #         "l2regularizer_scale": 0.00001,
+    #         "spectral_hierarchy_level": 3,
+    #         "spatial_hierarchy_level": 3,
+    #         "degradation_coeff": 3
+    #     }
 
     # "optimizer": hp.choice("optimizer",["AdamOptimizer", ("MomentumOptimizer", hp.uniform("momentum", 0.50, 0.99))])
 

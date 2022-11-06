@@ -7,6 +7,19 @@ from nnmodel.NNModel import NNModel
 
 class CONCNNModel(NNModel):
 
+    # TODO: Move to hyper param json files
+    # def get_hyper_param_space(self, trial):
+    #     return {
+    #         "filter_count": 128,
+    #         "drop_out_ratio": trial.suggest_float("drop_out_ratio", 0.1, 0.5),
+    #         "learning_rate": trial.suggest_float("learning_rate", 1e-8, 1e-2),
+    #         "lrelu_alpha": trial.suggest_float("lrelu_alpha", 0.1, 0.2),
+    #         "learning_rate_decay_factor": 0.96,
+    #         "learning_rate_decay_step": 350,
+    #         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 48, 64, 96]),
+    #         "optimizer": "AdamOptimizer"
+    #     }
+
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         with tf.device(model_input_params.device_id):
             with arg_scope([conv2d, fully_connected]):
@@ -53,15 +66,3 @@ class CONCNNModel(NNModel):
     def get_loss_func(self, tensor_output, label):
         return tf.nn.softmax_cross_entropy_with_logits(labels=label,
                                                        logits=tensor_output.y_conv)
-
-    def get_hyper_param_space(self, trial):
-        return {
-            "filter_count": 128,
-            "drop_out_ratio": trial.suggest_float("drop_out_ratio", 0.1, 0.5),
-            "learning_rate": trial.suggest_float("learning_rate", 1e-8, 1e-2),
-            "lrelu_alpha": trial.suggest_float("lrelu_alpha", 0.1, 0.2),
-            "learning_rate_decay_factor": 0.96,
-            "learning_rate_decay_step": 350,
-            "batch_size": trial.suggest_categorical("batch_size", [16, 32, 48, 64, 96]),
-            "optimizer": "AdamOptimizer"
-        }
