@@ -12,7 +12,38 @@ from common.cmd_parser import add_parse_cmds_for_loaders, add_parse_cmds_for_log
     add_parse_cmds_for_models, add_parse_cmds_for_importers
 from common.common_nn_ops import simple_nn_iterator, ModelInputParams, NNParams, \
     perform_prediction, create_colored_image, get_model_from_name
-from importer.GeneratorImporter import GeneratorImporter
+from importer.GeneratorImporter import GeneratorImporter, GeneratorDataInfo
+
+
+def add_parse_cmds_for_app(parser):
+    parser.add_argument("--domain", nargs="?", type=str, default="all",
+                        help="Conversion domain for inferencing. It can be all or sample")
+
+
+def create_all_scene_data(scene_shape, data_with_labels_to_copy):
+    targets = numpy.zeros([scene_shape[0] * scene_shape[1], 3], dtype=int)
+    total_index = 0
+    for col_index in range(0, scene_shape[0]):
+        for row_index in range(0, scene_shape[1]):
+            targets[total_index] = [row_index, col_index, 0]
+            total_index = total_index + 1
+
+    return GeneratorDataInfo(data=None,
+                             targets=targets,
+                             loader=data_with_labels_to_copy.loader,
+                             dataset=data_with_labels_to_copy.dataset)
+
+
+def create_sample_data(test_data_with_labels,
+                       training_data_with_labels,
+                       validation_data_with_labels):
+    targets = numpy.vstack([test_data_with_labels.targets.astype(numpy.int32),
+                            training_data_with_labels.targets.astype(numpy.int32),
+                            validation_data_with_labels.targets.astype(numpy.int32)])
+    return GeneratorDataInfo(data=None,
+                             targets=targets,
+                             loader=test_data_with_labels.loader,
+                             dataset=test_data_with_labels.dataset)
 
 
 def main(_):
@@ -24,6 +55,7 @@ def main(_):
     add_parse_cmds_for_trainers(parser)
     add_parse_cmds_for_models(parser)
     add_parse_cmds_for_importers(parser)
+    add_parse_cmds_for_app(parser)
     flags, unparsed = parser.parse_known_args()
 
     nn_model = get_model_from_name(flags.model_name)
@@ -40,8 +72,14 @@ def main(_):
         data_importer.read_data_set(flags.loader_name, flags.path, flags.train_ratio, flags.test_ratio,
                                     flags.neighborhood, True)
 
-    validation_data_with_labels = data_importer.create_all_scene_data(scene_shape,
-                                                                      validation_data_with_labels)
+    if flags.domain == "all":
+        validation_data_with_labels = create_all_scene_data(scene_shape, validation_data_with_labels)
+    elif flags.domain == "sample":
+        validation_data_with_labels = create_sample_data(training_data_with_labels, test_data_with_labels,
+                                                         validation_data_with_labels)
+    else:
+        raise ValueError(f"Domain flags does not support value:{flags.domain}")
+
     testing_tensor, training_tensor, validation_tensor = data_importer.convert_data_to_tensor(
         test_data_with_labels,
         training_data_with_labels,
@@ -59,7 +97,7 @@ def main(_):
     validation_nn_params = NNParams(input_iterator=validation_input_iter, data_with_labels=validation_data_with_labels,
                                     metrics=None, predict_tensor=validation_tensor_outputs.y_conv)
 
-    scene_as_image = numpy.zeros(scene_shape, dtype=numpy.uint8)
+    scene_as_image = numpy.full(shape=scene_shape, dtype=numpy.uint8, fill_value=255)
 
     saver = tf.compat.v1.train.Saver(var_list=get_variables_to_restore(include=["nn_core"],
                                                                        exclude=["image_gen_net_"]))

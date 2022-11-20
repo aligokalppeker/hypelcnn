@@ -98,20 +98,3 @@ class GeneratorImporter(DataImporter):
 
     def requires_separate_validation_branch(self):
         return True
-
-    def create_all_scene_data(self, scene_shape, data_with_labels_to_copy):
-        targets = self.create_all_scene_target_array(scene_shape)
-        return GeneratorDataInfo(data=None,
-                                 targets=targets,
-                                 loader=data_with_labels_to_copy.loader,
-                                 dataset=data_with_labels_to_copy.dataset)
-
-    @staticmethod
-    def create_all_scene_target_array(scene_shape):
-        targets = numpy.zeros([scene_shape[0] * scene_shape[1], 3], dtype=int)
-        total_index = 0
-        for col_index in range(0, scene_shape[0]):
-            for row_index in range(0, scene_shape[1]):
-                targets[total_index] = [row_index, col_index, 0]
-                total_index = total_index + 1
-        return targets

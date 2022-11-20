@@ -76,10 +76,6 @@ class ControlledDataImporter(DataImporter):
     def requires_separate_validation_branch(self):
         return self.generator_importer.requires_separate_validation_branch()
 
-    def create_all_scene_data(self, scene_shape, data_with_labels_to_copy):
-        return self.generator_importer.create_all_scene_data(scene_shape=scene_shape,
-                                                             data_with_labels_to_copy=data_with_labels_to_copy)
-
     def _iterator_function(self):
         for data, tar_class in zip(self.target_data, self.target_class):
             yield data, tar_class

@@ -278,9 +278,9 @@ def perform_prediction(sess, nn_params, prediction_result):
             curr_prediction_batch = sess.run(tf.argmax(input=nn_params.predict_tensor, axis=1))
             prediction_count = curr_prediction_batch.shape[0]
             for idx in range(0, prediction_count):
-                pred_result_idx = nn_params.data_with_labels.targets[current_prediction_index + idx][0:2]
+                pred_result_idx = nn_params.data_with_labels.targets[current_prediction_index + idx]
                 prediction_result[pred_result_idx[1], pred_result_idx[0]] = curr_prediction_batch[idx]
-            progress_bar.update(prediction_count / (prediction_result.shape[0] * prediction_result.shape[1]))
+            progress_bar.update(prediction_count / nn_params.data_with_labels.targets.shape[0])
             current_prediction_index = current_prediction_index + prediction_count
         except tf.errors.OutOfRangeError:
             progress_bar.close()
@@ -398,7 +398,7 @@ def create_colored_image(target_image, color_list):
     for col_index in range(0, target_image.shape[0]):
         for row_index in range(0, target_image.shape[1]):
             target_value = target_image[col_index, row_index]
-            if target_value < len(color_list):
+            if len(color_list) > target_value:
                 image_colorized[col_index, row_index] = color_list[target_value]
     return image_colorized
 

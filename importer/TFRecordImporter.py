@@ -70,6 +70,3 @@ class TFRecordImporter(DataImporter):
 
     def requires_separate_validation_branch(self):
         return False
-
-    def create_all_scene_data(self, scene_shape, data_with_labels_to_copy):
-        raise NotImplementedError
