@@ -85,11 +85,12 @@ class AVONDataLoader(DataLoader):
         return range(0, 2)
 
     def get_samples_color_list(self):
-        color_list = numpy.zeros([1, 3], numpy.uint8)
+        color_list = numpy.zeros([2, 3], numpy.uint8)
         # Class 1
         color_list[0, :] = [0, 0, 255]
         # Class 2
-        color_list[0, :] = [255, 0, 0]
+        color_list[1, :] = [255, 0, 0]
+        return color_list
 
     def get_model_base_dir(self):
         return self.base_dir + '/AVON/'
