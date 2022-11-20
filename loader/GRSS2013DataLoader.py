@@ -9,7 +9,6 @@ from common.common_nn_ops import read_targets_from_image, shuffle_test_data_usin
     DataSet, get_data_point_func
 from gan.gan_utilities import create_gan_struct, create_simple_shadow_struct
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
-from gan.wrappers.gan_wrapper import GANInferenceWrapper
 
 
 class GRSS2013DataLoader(DataLoader):

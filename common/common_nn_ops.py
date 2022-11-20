@@ -270,17 +270,18 @@ def calculate_accuracy(sess, nn_params, class_range):
     return overall_accuracy, class_recall, class_precisions, kappa, mean_per_class_accuracy
 
 
-def perform_prediction(sess, nn_params, prediction_result_arr):
+def perform_prediction(sess, nn_params, prediction_result):
     current_prediction_index = 0
     progress_bar = tqdm(total=1)
     while True:
         try:
-            current_prediction = sess.run(tf.argmax(input=nn_params.predict_tensor, axis=1))
-            next_prediction_index = current_prediction_index + current_prediction.shape[0]
-            prediction_result_arr[current_prediction_index:next_prediction_index] = current_prediction.astype(
-                numpy.uint8)
-            progress_bar.update((next_prediction_index - current_prediction_index) / prediction_result_arr.shape[0])
-            current_prediction_index = next_prediction_index
+            curr_prediction_batch = sess.run(tf.argmax(input=nn_params.predict_tensor, axis=1))
+            prediction_count = curr_prediction_batch.shape[0]
+            for idx in range(0, prediction_count):
+                pred_result_idx = nn_params.data_with_labels.targets[current_prediction_index + idx][0:2]
+                prediction_result[pred_result_idx[1], pred_result_idx[0]] = curr_prediction_batch[idx]
+            progress_bar.update(prediction_count / (prediction_result.shape[0] * prediction_result.shape[1]))
+            current_prediction_index = current_prediction_index + prediction_count
         except tf.errors.OutOfRangeError:
             progress_bar.close()
             break
