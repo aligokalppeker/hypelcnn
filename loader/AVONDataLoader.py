@@ -49,10 +49,10 @@ class AVONDataLoader(DataLoader):
         return shadow_map, shadow_ratio
 
     def load_samples(self, train_data_ratio, test_data_ratio):
-        non_shadow_set_t1 = self.read_targets("0920-1857.georef_cropped_rgb_with_targets_1_nsh.bmp", target_no=1)
-        shadow_set_shadow_t1 = self.read_targets("0920-1857.georef_cropped_rgb_with_targets_1_sh.bmp", target_no=1)
-        non_shadow_set_t2 = self.read_targets("0920-1857.georef_cropped_rgb_with_targets_2_nsh.bmp", target_no=2)
-        shadow_set_shadow_t2 = self.read_targets("0920-1857.georef_cropped_rgb_with_targets_2_sh.bmp", target_no=2)
+        non_shadow_set_t1 = self.read_each_target("0920-1857.georef_cropped_rgb_with_targets_1_nsh.bmp", target_no=1)
+        shadow_set_shadow_t1 = self.read_each_target("0920-1857.georef_cropped_rgb_with_targets_1_sh.bmp", target_no=1)
+        non_shadow_set_t2 = self.read_each_target("0920-1857.georef_cropped_rgb_with_targets_2_nsh.bmp", target_no=2)
+        shadow_set_shadow_t2 = self.read_each_target("0920-1857.georef_cropped_rgb_with_targets_2_sh.bmp", target_no=2)
 
         if train_data_ratio < 1.0:
             train_set_t1, validation_set_t1 = shuffle_test_data_using_ratio(non_shadow_set_t1, train_data_ratio)
@@ -75,10 +75,15 @@ class AVONDataLoader(DataLoader):
         return SampleSet(training_targets=train_set, test_targets=test_set,
                          validation_targets=validation_set)
 
-    def read_targets(self, target_image_path, target_no):
+    def read_each_target(self, target_image_path, target_no):
         from imageio.v2 import imread
         image = imread(self.get_model_base_dir() + target_image_path)[BLANK_OFFSET:-BLANK_OFFSET, :]
         targets = ((image / 255).astype(int) * target_no) - 1
+        return read_targets_from_image(targets, self.get_class_count())
+
+    def read_targets(self, target_image_path):
+        from tifffile import imread
+        targets = imread(self.get_model_base_dir() + target_image_path)
         return read_targets_from_image(targets, self.get_class_count())
 
     def get_class_count(self):

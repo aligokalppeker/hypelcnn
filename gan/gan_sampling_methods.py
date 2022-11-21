@@ -91,7 +91,7 @@ class TargetBasedSampler(Sampler):
         self._margin = margin
 
     def get_sample_pairs(self, data_set, loader, shadow_map):
-        samples = SampleSet(training_targets=loader.read_targets("shadow_cycle_gan/class_result.tif"),
+        samples = SampleSet(training_targets=loader.read_targets("shadow_gen_model/class_result.tif"),
                             test_targets=None,
                             validation_targets=None)
         first_margin_start = self._margin
@@ -171,7 +171,7 @@ class TargetBasedSampler(Sampler):
                 shadow_data_reminder = normal_point_count % shadow_point_count
                 shadow_point_expanded_values = numpy.repeat(shadow_point_values, repeats=shadow_data_multiplier, axis=0)
                 shadow_point_expanded_values = numpy.vstack(
-                    [shadow_point_expanded_values, shadow_point_expanded_values[0:shadow_data_reminder, :, :, :]])
+                    [shadow_point_expanded_values, shadow_point_values[0:shadow_data_reminder, :, :, :]])
                 if normal_data_as_matrix is None:
                     normal_data_as_matrix = normal_point_values
                 else:
