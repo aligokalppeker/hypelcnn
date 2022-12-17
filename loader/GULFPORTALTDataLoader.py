@@ -8,7 +8,6 @@ from common.common_nn_ops import INVALID_TARGET_VALUE, shuffle_training_data_usi
 from gan.gan_utilities import create_gan_struct, create_simple_shadow_struct
 from gan.shadow_data_models import shadowdata_generator_model
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
-from gan.wrappers.gan_wrapper import GANInferenceWrapper
 from loader.DataLoader import SampleSet
 from loader.GULFPORTDataLoader import GULFPORTDataLoader
 
@@ -17,9 +16,14 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
 
     def __init__(self, base_dir):
         super().__init__(base_dir)
+        self._load_shadow_corrected = False
 
     def load_data(self, neighborhood, normalize):
-        data_set = super().load_data(neighborhood, normalize)
+        if self._load_shadow_corrected:
+            data_set = self._load_data_utility("muulf_deshadowed.tif", self.lidar_file, neighborhood, normalize)
+        else:
+            data_set = self._load_data_utility(self.hsi_file, self.lidar_file, neighborhood, normalize)
+
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
         generator_fn = partial(shadowdata_generator_model, create_only_encoder=False, is_training=False)
         data_set.shadow_creator_dict = {

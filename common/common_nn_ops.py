@@ -361,13 +361,18 @@ def perform_rotation_augmentation_random(images, labels, augmentation_info):
 
 
 def perform_shadow_augmentation_random(images, labels, augmentation_info):
+    def _gen_func():
+        # return tf.cond(pred=tf.less(tf.random.uniform([1], 0, 1.0)[0], 0.5),
+        #                true_fn=lambda: augmentation_info.shadow_struct.shadow_op(images),
+        #                false_fn=lambda: augmentation_info.shadow_struct.deshadow_op(images))
+        return augmentation_info.shadow_struct.shadow_op(images)
+
     if augmentation_info.shadow_struct is not None:
-        shadow_op = augmentation_info.shadow_struct.shadow_op
         with tf.compat.v1.name_scope("shadow_augmentation"):
             with tf.device("/cpu:0"):
                 rand_number = tf.random.uniform([1], 0, 1.0)[0]
                 images = tf.cond(pred=tf.less(rand_number, augmentation_info.augmentation_random_threshold),
-                                 true_fn=lambda: shadow_op(images),
+                                 true_fn=_gen_func,
                                  false_fn=lambda: images)
     return images, labels
 

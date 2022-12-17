@@ -10,14 +10,19 @@ class GULFPORTDataLoader(DataLoader):
 
     def __init__(self, base_dir):
         self.base_dir = base_dir
+        self.hsi_file = "muulf_hsi.tif"
+        self.lidar_file = "muulf_lidar.tif"
 
     def load_data(self, neighborhood, normalize):
-        casi = imread(self.get_model_base_dir() + 'muulf_hsi.tif')
-        lidar = numpy.expand_dims(imread(self.get_model_base_dir() + 'muulf_lidar.tif'), axis=2)
+        return self._load_data_utility(self.hsi_file, self.lidar_file, neighborhood, normalize)
+
+    def _load_data_utility(self, hsi_file, lidar_file, neighborhood, normalize):
+        casi = imread(self.get_model_base_dir() + hsi_file)
+        lidar = numpy.expand_dims(imread(self.get_model_base_dir() + lidar_file), axis=2)
         return DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood, normalize=normalize)
 
     def load_samples(self, train_data_ratio, test_data_ratio):
-        result = self.read_targets('muulf_gt.tif')
+        result = self.read_targets("muulf_gt.tif")
 
         if train_data_ratio < 1.0:
             train_set, validation_set = shuffle_training_data_using_ratio(result, train_data_ratio)

@@ -17,12 +17,17 @@ class AVONDataLoader(DataLoader):
 
     def __init__(self, base_dir):
         self.base_dir = base_dir
+        self.load_shadow_corrected = False
 
     def load_data(self, neighborhood, normalize):
         from tifffile import imread
-        casi = imread(self.get_model_base_dir() + "0920-1857.georef_cropped.tif")[:, :, BLANK_OFFSET:-BLANK_OFFSET]
+        if self.load_shadow_corrected:
+            casi = imread(self.get_model_base_dir() + "0920-1857.georef_cropped_shcorrected.tif")
+        else:
+            casi = imread(self.get_model_base_dir() + "0920-1857.georef_cropped.tif")[:, :, BLANK_OFFSET:-BLANK_OFFSET]
+            casi = numpy.swapaxes(casi, axis1=0, axis2=2)
+
         casi = casi.astype(numpy.uint16)
-        casi = numpy.swapaxes(casi, axis1=0, axis2=2)
         outlier_in_upper_bound = numpy.percentile(casi, 95, axis=[0, 1]).astype(casi.dtype)
         numpy.clip(casi, None, outlier_in_upper_bound, out=casi)
         data_set = DataSet(shadow_creator_dict=None, casi=casi, lidar=None, neighborhood=neighborhood,
