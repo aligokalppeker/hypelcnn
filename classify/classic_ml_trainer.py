@@ -96,7 +96,7 @@ def perform_full_scene_classification(data_path, loader_name, neighborhood, esti
     current_pixel_index = 0
     batch_pixel_index = 0
     for point in all_scene_target_array:
-        batch_cache[batch_pixel_index] = loader.get_point_value(data_set, point)
+        batch_cache[batch_pixel_index] = data_set.get_data_point(point[0], point[1])
         current_pixel_index = current_pixel_index + 1
         batch_pixel_index = batch_pixel_index + 1
         if current_pixel_index == predict_pixel_count or batch_pixel_index == batch_size:

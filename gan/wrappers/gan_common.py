@@ -379,7 +379,8 @@ def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shado
         # Pick a random point
         random_indice_in_sample_list = random.randint(0, indices[0].size - 1)
         sample_indice_in_image = [indices[1][random_indice_in_sample_list], indices[0][random_indice_in_sample_list]]
-        data_sample_list.append(loader.get_point_value(data_set, sample_indice_in_image)[:, :, 0:band_size])
+        data_sample_list.append(
+            data_set.get_data_point(sample_indice_in_image[0], sample_indice_in_image[1])[:, :, 0:band_size])
     return data_sample_list
 
 

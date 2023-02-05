@@ -1,14 +1,13 @@
 from functools import partial
 
 import numpy
-from numba import jit
 
+from common.common_nn_ops import load_shadow_map_common, shuffle_test_data_using_ratio, \
+    read_targets_from_image, shuffle_training_data_using_size, BasicDataSet
 from gan.gan_utilities import create_gan_struct, create_simple_shadow_struct
 from gan.shadow_data_models import shadowdata_generator_model
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from loader.DataLoader import DataLoader, SampleSet
-from common.common_nn_ops import DataSet, load_shadow_map_common, shuffle_test_data_using_ratio, \
-    read_targets_from_image, shuffle_training_data_using_size
 
 BLANK_OFFSET = 55
 
@@ -30,9 +29,9 @@ class AVONDataLoader(DataLoader):
         casi = casi.astype(numpy.uint16)
         outlier_in_upper_bound = numpy.percentile(casi, 95, axis=[0, 1]).astype(casi.dtype)
         numpy.clip(casi, None, outlier_in_upper_bound, out=casi)
-        data_set = DataSet(shadow_creator_dict=None, casi=casi, lidar=None, neighborhood=neighborhood,
-                           normalize=normalize,
-                           casi_min=0)
+        data_set = BasicDataSet(shadow_creator_dict=None, casi=casi, lidar=None, neighborhood=neighborhood,
+                                normalize=normalize,
+                                casi_min=0)
 
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
         generator_fn = partial(shadowdata_generator_model, create_only_encoder=False, is_training=False)
@@ -104,18 +103,6 @@ class AVONDataLoader(DataLoader):
 
     def get_model_base_dir(self):
         return self.base_dir + '/AVON/'
-
-    def get_point_value(self, data_set, point):
-        return self.__assign_func(data_set.casi, data_set.neighborhood, point)
-
-    @staticmethod
-    @jit(nopython=True)
-    def __assign_func(casi, neighborhood, point):
-        start_x = point[0]
-        start_y = point[1]
-        end_x = start_x + (2 * neighborhood) + 1
-        end_y = start_y + (2 * neighborhood) + 1
-        return casi[start_y:end_y:1, start_x:end_x:1, :]
 
     def get_band_measurements(self):
         return numpy.linspace(400, 2500, num=360)

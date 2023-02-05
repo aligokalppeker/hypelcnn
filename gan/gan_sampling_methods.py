@@ -36,7 +36,7 @@ class NeighborhoodBasedSampler(Sampler):
         normal_element_index = 0
         for x_index in range(0, shadow_map.shape[0]):
             for y_index in range(0, shadow_map.shape[1]):
-                point_value = loader.get_point_value(data_set, [y_index, x_index])
+                point_value = data_set.get_data_point(y_index, x_index)
                 if shadow_map[x_index, y_index] == 1:
                     shadow_data_as_matrix[shadow_element_index, :, :, :] = point_value
                     shadow_element_index = shadow_element_index + 1
@@ -67,7 +67,7 @@ class RandomBasedSampler(Sampler):
         normal_element_index = 0
         for x_index in range(0, shadow_map.shape[0]):
             for y_index in range(0, shadow_map.shape[1]):
-                point_value = loader.get_point_value(data_set, [y_index, x_index])
+                point_value = data_set.get_data_point(y_index, x_index)
                 if shadow_map[x_index, y_index] == 1:
                     shadow_data_as_matrix[shadow_element_index, :, :, :] = point_value
                     shadow_element_index = shadow_element_index + 1
@@ -150,7 +150,7 @@ class TargetBasedSampler(Sampler):
         normal_target_counter_map = numpy.zeros([class_count, 1], numpy.int32)
         for target_index in range(0, all_targets.shape[0]):
             current_target = all_targets[target_index]
-            point_value = loader.get_point_value(data_set, current_target)
+            point_value = data_set.get_data_point(current_target[0], current_target[1])
             target_id = current_target[2]
             if target_id >= 0:
                 if shadow_map[current_target[1], current_target[0]] == 1:

@@ -1,5 +1,6 @@
 import random
 import string
+from abc import ABC, abstractmethod
 from statistics import mean
 import numpy
 import tensorflow as tf
@@ -20,7 +21,29 @@ from common.common_ops import get_class, is_integer_num
 INVALID_TARGET_VALUE = 255
 
 
-class DataSet:
+class DataSet(ABC):
+    @abstractmethod
+    def get_data_shape(self):
+        pass
+
+    @abstractmethod
+    def get_casi_band_count(self):
+        pass
+
+    @abstractmethod
+    def get_scene_shape(self):
+        pass
+
+    @abstractmethod
+    def get_unnormalized_casi_dtype(self):
+        pass
+
+    @abstractmethod
+    def get_data_point(self, point_x, point_y):
+        pass
+
+
+class BasicDataSet(DataSet):
     def __init__(self, shadow_creator_dict, casi, lidar, neighborhood, normalize,
                  casi_min=None, casi_max=None, lidar_min=None, lidar_max=None) -> None:
         self.neighborhood = neighborhood
@@ -55,6 +78,10 @@ class DataSet:
                 self.casi_max = numpy.max(self.casi, axis=(0, 1)) if casi_max is None else casi_max
                 self.casi = self.casi / self.casi_max.astype(numpy.float32)
 
+        self._get_data_point_func = get_data_point_func
+        if self.lidar is None:
+            self._get_data_point_func = get_data_point_func_hsi
+
     def get_data_shape(self):
         dim = self.neighborhood * 2 + 1
         channel_count = self.casi.shape[2]
@@ -75,6 +102,9 @@ class DataSet:
 
     def get_unnormalized_casi_dtype(self):
         return self.casi_unnormalized_dtype
+
+    def get_data_point(self, point_x, point_y):
+        return self._get_data_point_func(self.casi, self.lidar, self.neighborhood, point_x, point_y)
 
 
 class NNParams:
@@ -135,7 +165,7 @@ class AugmentationInfo:
         self.augmentation_random_threshold = augmentation_random_threshold
 
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def get_data_point_func(casi, lidar, neighborhood, point_x, point_y):
     start_x = point_x  # + neighborhood(pad offset) - neighborhood(back step); padding and back shift makes delta zero
     start_y = point_y  # + neighborhood(pad offset) - neighborhood(back step); padding and back shift makes delta zero
@@ -144,6 +174,15 @@ def get_data_point_func(casi, lidar, neighborhood, point_x, point_y):
     value = numpy.concatenate(
         (casi[start_y:end_y:1, start_x:end_x:1, :], lidar[start_y:end_y:1, start_x:end_x:1, :]), axis=2)
     return value
+
+
+# @jit(nopython=True)
+def get_data_point_func_hsi(casi, lidar, neighborhood, point_x, point_y):
+    start_x = point_x  # point[0]
+    start_y = point_y  # point[1]
+    end_x = start_x + (2 * neighborhood) + 1
+    end_y = start_y + (2 * neighborhood) + 1
+    return casi[start_y:end_y:1, start_x:end_x:1, :]
 
 
 def training_nn_iterator(data_set, augmentation_info, batch_size, num_epochs, device, prefetch_size):

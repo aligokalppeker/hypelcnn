@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from enum import Enum
 
 
 class SampleSet:
@@ -7,6 +8,12 @@ class SampleSet:
         self.validation_targets = validation_targets
         self.training_targets = training_targets
         self.test_targets = test_targets
+
+
+class LoadingMode(Enum):
+    ORIGINAL = ""
+    SHADOWED = "shadowed"
+    DESHADOWED = "deshadowed"
 
 
 class DataLoader(ABC):
@@ -20,10 +27,6 @@ class DataLoader(ABC):
 
     @abstractmethod
     def load_shadow_map(self, neighborhood, data_set):
-        pass
-
-    @abstractmethod
-    def get_point_value(self, data_set, point):
         pass
 
     @abstractmethod

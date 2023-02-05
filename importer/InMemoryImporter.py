@@ -31,7 +31,7 @@ class InMemoryImporter(DataImporter):
 
         index = 0
         for point in targets:
-            data_as_matrix[index] = loader.get_point_value(data_set, point)
+            data_as_matrix[index] = data_set.get_data_point(point[0], point[1])
             label_as_matrix[index] = point[2]
             index = index + 1
 

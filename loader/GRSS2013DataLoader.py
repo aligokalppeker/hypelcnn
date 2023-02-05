@@ -3,12 +3,12 @@ from functools import partial
 import numpy
 from tifffile import imread
 
-from gan.shadow_data_models import shadowdata_generator_model
-from loader.DataLoader import DataLoader, SampleSet
 from common.common_nn_ops import read_targets_from_image, shuffle_test_data_using_ratio, load_shadow_map_common, \
-    DataSet, get_data_point_func
+    BasicDataSet
 from gan.gan_utilities import create_gan_struct, create_simple_shadow_struct
+from gan.shadow_data_models import shadowdata_generator_model
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
+from loader.DataLoader import DataLoader, SampleSet
 
 
 class GRSS2013DataLoader(DataLoader):
@@ -19,8 +19,8 @@ class GRSS2013DataLoader(DataLoader):
     def load_data(self, neighborhood, normalize):
         casi = imread(self.get_model_base_dir() + "2013_IEEE_GRSS_DF_Contest_CASI.tif")
         lidar = imread(self.get_model_base_dir() + "2013_IEEE_GRSS_DF_Contest_LiDAR.tif")[:, :, numpy.newaxis]
-        data_set = DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
-                           normalize=normalize)
+        data_set = BasicDataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
+                                normalize=normalize)
 
         _, shadow_ratio = self.load_shadow_map(neighborhood, data_set)
         generator_fn = partial(shadowdata_generator_model, create_only_encoder=False, is_training=False)
@@ -56,9 +56,6 @@ class GRSS2013DataLoader(DataLoader):
 
     def get_model_base_dir(self):
         return self.base_dir + '/2013_DFTC/'
-
-    def get_point_value(self, data_set, point):
-        return get_data_point_func(data_set.casi, data_set.lidar, data_set.neighborhood, point[0], point[1])
 
     def get_samples_color_list(self):
         color_list = numpy.zeros([15, 3], numpy.uint8)

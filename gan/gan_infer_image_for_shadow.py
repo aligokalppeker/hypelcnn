@@ -72,7 +72,7 @@ def main(_):
         for first_idx in range(0, screen_size_first_dim):
             for second_idx in range(0, screen_size_sec_dim):
                 input_data = numpy.expand_dims(
-                    loader.get_point_value(data_set, [second_idx, first_idx])[:, :, 0:band_size], axis=0)
+                    data_set.get_data_point(second_idx, first_idx)[:, :, 0:band_size], axis=0)
 
                 if not conv_only_convenient_pixs or shadow_map[first_idx, second_idx] == sign_to_filter_in_shadow_map:
                     generated_y_data = sess.run(output_tensor, feed_dict={input_tensor: input_data})

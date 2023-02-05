@@ -2,9 +2,46 @@ import numpy
 from numba import jit
 from tifffile import imread
 
-from loader.DataLoader import DataLoader, SampleSet
 from common.common_nn_ops import shuffle_test_data_using_ratio, shuffle_training_data_using_ratio, \
-    shuffle_training_data_using_size, DataSet
+    shuffle_training_data_using_size, BasicDataSet
+from loader.DataLoader import DataLoader, SampleSet
+
+
+class GRSS2018DataSet(BasicDataSet):
+
+    @staticmethod
+    @jit(nopython=True)
+    def __assign_loop(casi, lidar, lidar_start_x, lidar_start_y, start_x, start_y, size, total_band_count, result):
+        last_element_index = total_band_count - 1
+        for x_index in range(0, size):
+            for y_index in range(0, size):
+                result[y_index, x_index, 0:last_element_index] = \
+                    casi[start_y + int(y_index * 0.5), start_x + int(x_index * 0.5), :]
+                result[y_index, x_index, last_element_index] = \
+                    lidar[lidar_start_y + y_index, lidar_start_x + x_index, 0]
+
+    @staticmethod
+    @jit(nopython=True, fastmath=True)
+    def __calculate_position(neighborhood, point, scale):
+        actual_padding = int(neighborhood * scale)
+        start_y = int(point[1] * scale) + neighborhood - actual_padding  # delta padding - actual padding
+        start_x = int(point[0] * scale) + neighborhood - actual_padding  # delta padding - actual padding
+        return start_x, start_y
+
+    def get_data_point(self, point_x, point_y):
+        neighborhood = self.neighborhood
+        size = neighborhood * 2 + 1
+        total_band_count = self.casi.shape[2] + 1
+        result = numpy.empty([size, size, total_band_count], dtype=self.casi.dtype)
+
+        point = [point_x, point_y]
+        start_x, start_y = self.__calculate_position(neighborhood, point, 0.5)
+        lidar_start_x, lidar_start_y = self.__calculate_position(neighborhood, point, 1)
+
+        self.__assign_loop(self.casi, self.lidar,
+                           lidar_start_x, lidar_start_y, start_x, start_y,
+                           size, total_band_count, result)
+        return result
 
 
 class GRSS2018DataLoader(DataLoader):
@@ -16,7 +53,8 @@ class GRSS2018DataLoader(DataLoader):
         casi = imread(self.get_model_base_dir() + "20170218_UH_CASI_S4_NAD83.tiff")[:, :, 0:-2]
         lidar = imread(self.get_model_base_dir() + "UH17c_GEF051.tif")[:, :, numpy.newaxis]
         lidar[numpy.where(lidar > 300)] = 0  # Eliminate unacceptable values
-        return DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood, normalize=normalize)
+        return GRSS2018DataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
+                               normalize=normalize)
 
     @staticmethod
     def print_stats(data):
@@ -67,7 +105,7 @@ class GRSS2018DataLoader(DataLoader):
         color_list[2, :] = [0, 137, 69]
         # Evergreen Tree
         color_list[3, :] = [0, 69, 0]
-        # Decidious Tree, self assigned
+        # Decidious Tree, self-assigned
         color_list[4, :] = [255, 0, 0]
         # Soil, Bare Earth
         color_list[5, :] = [172, 125, 11]
@@ -75,15 +113,15 @@ class GRSS2018DataLoader(DataLoader):
         color_list[6, :] = [0, 190, 194]
         # Residential buildings
         color_list[7, :] = [120, 0, 0]
-        # Commercial, Non residential buildings
+        # Commercial, Non-residential buildings
         color_list[8, :] = [216, 217, 247]
         # Road
         color_list[9, :] = [121, 121, 121]
-        # Sidewalks, self assigned
+        # Sidewalks, self-assigned
         color_list[10, :] = [255, 255, 0]
-        # Crosswalks, self assigned
+        # Crosswalks, self-assigned
         color_list[11, :] = [0, 155, 50]
-        # Major thoroughfares, self assigned
+        # Major thoroughfares, self-assigned
         color_list[12, :] = [0, 55, 55]
         # Highway
         color_list[13, :] = [205, 172, 127]
@@ -97,45 +135,12 @@ class GRSS2018DataLoader(DataLoader):
         color_list[17, :] = [0, 237, 0]
         # Trains
         color_list[18, :] = [207, 18, 56]
-        # Stadium Seats, self assigned
+        # Stadium Seats, self-assigned
         color_list[19, :] = [0, 0, 255]
         return color_list
 
     def get_model_base_dir(self):
         return self.base_dir + '/2018_DFTC/'
-
-    def get_point_value(self, data_set, point):
-        neighborhood = data_set.neighborhood
-        size = neighborhood * 2 + 1
-        total_band_count = data_set.casi.shape[2] + 1
-        result = numpy.empty([size, size, total_band_count], dtype=data_set.casi.dtype)
-
-        start_x, start_y = self.__calculate_position(neighborhood, point, 0.5)
-        lidar_start_x, lidar_start_y = self.__calculate_position(neighborhood, point, 1)
-
-        self.__assign_loop(data_set.casi, data_set.lidar,
-                           lidar_start_x, lidar_start_y, start_x, start_y,
-                           size, total_band_count, result)
-        return result
-
-    @staticmethod
-    @jit(nopython=True)
-    def __assign_loop(casi, lidar, lidar_start_x, lidar_start_y, start_x, start_y, size, total_band_count, result):
-        last_element_index = total_band_count - 1
-        for x_index in range(0, size):
-            for y_index in range(0, size):
-                result[y_index, x_index, 0:last_element_index] = \
-                    casi[start_y + int(y_index * 0.5), start_x + int(x_index * 0.5), :]
-                result[y_index, x_index, last_element_index] = \
-                    lidar[lidar_start_y + y_index, lidar_start_x + x_index, 0]
-
-    @staticmethod
-    @jit(nopython=True, fastmath=True)
-    def __calculate_position(neighborhood, point, scale):
-        actual_padding = int(neighborhood * scale)
-        start_y = int(point[1] * scale) + neighborhood - actual_padding  # delta padding - actual padding
-        start_x = int(point[0] * scale) + neighborhood - actual_padding  # delta padding - actual padding
-        return start_x, start_y
 
     def get_band_measurements(self):
         return numpy.linspace(380, 1050, num=48)
