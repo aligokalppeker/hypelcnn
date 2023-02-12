@@ -14,6 +14,7 @@ class LoadingMode(Enum):
     ORIGINAL = ""
     SHADOWED = "shadowed"
     DESHADOWED = "deshadowed"
+    MIXED = "mixed"
 
 
 class DataLoader(ABC):
