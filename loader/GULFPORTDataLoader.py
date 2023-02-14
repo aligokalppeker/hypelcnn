@@ -17,11 +17,11 @@ class GULFPORTDataLoader(DataLoader):
     def load_data(self, neighborhood, normalize):
         return self._load_data_utility(self._hsi_file, self._lidar_file, neighborhood, normalize)
 
-    def _load_data_utility(self, hsi_file, lidar_file, neighborhood, normalize):
+    def _load_data_utility(self, hsi_file, lidar_file, neighborhood, normalize, casi_min=None, casi_max=None):
         casi = imread(self.get_model_base_dir() + hsi_file)
         lidar = numpy.expand_dims(imread(self.get_model_base_dir() + lidar_file), axis=2)
         return BasicDataSet(shadow_creator_dict=None, casi=casi, lidar=lidar, neighborhood=neighborhood,
-                            normalize=normalize)
+                            normalize=normalize, casi_min=casi_min, casi_max=casi_max)
 
     def load_samples(self, train_data_ratio, test_data_ratio):
         result = self.read_targets("muulf_gt.tif")

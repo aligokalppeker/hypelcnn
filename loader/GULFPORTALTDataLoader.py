@@ -54,10 +54,10 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
                                            self._lidar_file + self._file_ext,
                                            neighborhood, normalize)
 
-        def _load_augmented_data(load_mode_val):
+        def _load_augmented_data(load_mode_val, casi_min, casi_max):
             return self._load_data_utility(self._hsi_file + "_" + load_mode_val + self._file_ext,
                                            self._lidar_file + self._file_ext,
-                                           neighborhood, normalize)
+                                           neighborhood, normalize, casi_min=casi_min, casi_max=casi_max)
 
         if self._load_mode is LoadingMode.ORIGINAL:
             data_set = _load_original_data()
@@ -65,11 +65,16 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
             data_set = _load_augmented_data(self._load_mode.value)
         elif self._load_mode is LoadingMode.MIXED:
             original_data_inst = _load_original_data()
-            shadowed_data_inst = _load_augmented_data(LoadingMode.SHADOWED.value)
-            deshadowed_data_inst = _load_augmented_data(LoadingMode.DESHADOWED.value)
+            shadowed_data_inst = _load_augmented_data(LoadingMode.SHADOWED.value,
+                                                      original_data_inst.casi_min,
+                                                      original_data_inst.casi_max)
+            deshadowed_data_inst = _load_augmented_data(LoadingMode.DESHADOWED.value,
+                                                        original_data_inst.casi_min,
+                                                        original_data_inst.casi_max)
             data_set = MultiDataSet(original_data_inst,
                                     shadowed_data_inst,
-                                    deshadowed_data_inst)
+                                    shadowed_data_inst,
+                                    shadowed_data_inst)
         else:
             data_set = _load_original_data()
 
