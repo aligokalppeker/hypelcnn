@@ -62,7 +62,10 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
         if self._load_mode is LoadingMode.ORIGINAL:
             data_set = _load_original_data()
         elif self._load_mode is LoadingMode.SHADOWED or self._load_mode is LoadingMode.DESHADOWED:
-            data_set = _load_augmented_data(self._load_mode.value)
+            original_data_inst = _load_original_data()
+            data_set = _load_augmented_data(self._load_mode.value,
+                                            original_data_inst.casi_min,
+                                            original_data_inst.casi_max)
         elif self._load_mode is LoadingMode.MIXED:
             original_data_inst = _load_original_data()
             shadowed_data_inst = _load_augmented_data(LoadingMode.SHADOWED.value,
