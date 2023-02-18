@@ -35,6 +35,7 @@ def perform_an_episode(flags, algorithm_params, model, base_log_path):
                                          perform_shadow_augmentation=flags.augment_data_with_shadow is not None,
                                          perform_rotation_augmentation=flags.augment_data_with_rotation,
                                          perform_reflection_augmentation=flags.augment_data_with_reflection,
+                                         perform_spectral_augmentation=flags.augment_data_with_spectral,
                                          augmentation_random_threshold=flags.augmentation_random_threshold)
 
     batch_size = algorithm_params["batch_size"]
@@ -129,6 +130,9 @@ def add_parse_cmds_for_app(parser):
     parser.add_argument("--augment_data_with_rotation", nargs="?", const=True, type=type_ensure_strtobool,
                         default=False,
                         help="If true, input data is augmented with synthetic rotational(90 degrees) input.")
+    parser.add_argument("--augment_data_with_spectral", nargs="?", const=True, type=float,
+                        default=None,
+                        help="If given, input data is augmented with spectral ratio.")
     parser.add_argument("--augment_data_with_shadow", nargs="?", const=True, type=str,
                         default=None,
                         help="Given a method name, input data is augmented with shadow data(cycle_gan or simple")

@@ -4,9 +4,8 @@ from abc import ABC, abstractmethod
 from statistics import mean
 import numpy
 import tensorflow as tf
-from numba import jit
 from sklearn.model_selection import StratifiedShuffleSplit
-from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import control_flow_ops, random_ops
 from tensorflow.python.ops.metrics_impl import metric_variable
 from tensorflow.python.training import summary_io
 from tensorflow.python.data.experimental import shuffle_and_repeat, prefetch_to_device
@@ -157,10 +156,11 @@ class MetricOpsHolder:
 
 class AugmentationInfo:
     def __init__(self, shadow_struct, perform_shadow_augmentation, perform_rotation_augmentation,
-                 perform_reflection_augmentation, augmentation_random_threshold):
+                 perform_spectral_augmentation, perform_reflection_augmentation, augmentation_random_threshold):
         self.perform_reflection_augmentation = perform_reflection_augmentation
         self.perform_rotation_augmentation = perform_rotation_augmentation
         self.perform_shadow_augmentation = perform_shadow_augmentation
+        self.perform_spectral_augmentation = perform_spectral_augmentation
         self.shadow_struct = shadow_struct
         self.augmentation_random_threshold = augmentation_random_threshold
 
@@ -191,7 +191,8 @@ def training_nn_iterator(data_set, augmentation_info, batch_size, num_epochs, de
     main_cycle_data_set = add_augmentation_graph(main_cycle_data_set, augmentation_info,
                                                  perform_rotation_augmentation_random,
                                                  perform_shadow_augmentation_random,
-                                                 perform_reflection_augmentation_random)
+                                                 perform_reflection_augmentation_random,
+                                                 perform_spectral_augmentation_random)
 
     main_cycle_data_set = main_cycle_data_set.batch(batch_size)
     main_cycle_data_set = main_cycle_data_set.prefetch(prefetch_size)
@@ -372,7 +373,8 @@ def create_graph(training_data_set, testing_data_set, validation_data_set, class
     return cross_entropy, learning_rate, testing_nn_params, train_nn_params, validation_nn_params, train_step
 
 
-def add_augmentation_graph(main_cycle_dataset, augmentation_info, rotation_method, shadow_method, flip_method):
+def add_augmentation_graph(main_cycle_dataset, augmentation_info, rotation_method, shadow_method, flip_method,
+                           spectral_method):
     if augmentation_info.perform_rotation_augmentation:
         main_cycle_dataset = main_cycle_dataset.map(
             lambda param_x, param_y_: rotation_method(param_x, param_y_, augmentation_info),
@@ -384,6 +386,10 @@ def add_augmentation_graph(main_cycle_dataset, augmentation_info, rotation_metho
     if augmentation_info.perform_reflection_augmentation:
         main_cycle_dataset = main_cycle_dataset.map(
             lambda param_x, param_y_: flip_method(param_x, param_y_, augmentation_info),
+            num_parallel_calls=4)
+    if augmentation_info.perform_spectral_augmentation:
+        main_cycle_dataset = main_cycle_dataset.map(
+            lambda param_x, param_y_: spectral_method(param_x, param_y_, augmentation_info),
             num_parallel_calls=4)
     return main_cycle_dataset
 
@@ -413,6 +419,16 @@ def perform_shadow_augmentation_random(images, labels, augmentation_info):
                 images = tf.cond(pred=tf.less(rand_number, augmentation_info.augmentation_random_threshold),
                                  true_fn=_gen_func,
                                  false_fn=lambda: images)
+    return images, labels
+
+
+def perform_spectral_augmentation_random(images, labels, augmentation_info):
+    with tf.compat.v1.name_scope("spectral_augmentation"):
+        with tf.device("/cpu:0"):
+            delta = random_ops.random_uniform([images.get_shape()[-1].value],
+                                              -augmentation_info.perform_spectral_augmentation,
+                                              augmentation_info.perform_spectral_augmentation)
+            images = images + delta
     return images, labels
 
 
