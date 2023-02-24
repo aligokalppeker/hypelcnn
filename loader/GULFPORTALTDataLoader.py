@@ -11,10 +11,11 @@ from gan.shadow_data_models import shadowdata_generator_model
 from gan.wrappers.cycle_gan_wrapper import CycleGANInferenceWrapper
 from loader.DataLoader import SampleSet, LoadingMode
 from loader.GULFPORTDataLoader import GULFPORTDataLoader
+from typing import Tuple
 
 
 class MultiDataSet(DataSet):
-    _data_sets: tuple[BasicDataSet, ...]
+    _data_sets: Tuple[BasicDataSet]
     _primary_data_set: BasicDataSet
 
     def __init__(self, *data_sets: BasicDataSet) -> None:
@@ -89,7 +90,7 @@ class GULFPORTALTDataLoader(GULFPORTDataLoader):
             "dcl_gan": create_gan_struct(CycleGANInferenceWrapper(generator_fn), self.get_model_base_dir(),
                                          "shadow_gen_model/dcl_gan/model.ckpt-3000"),
             "dcl_cycle_gan": create_gan_struct(CycleGANInferenceWrapper(generator_fn), self.get_model_base_dir(),
-                                               "shadow_gen_model/dcl_cycle_gan/model.ckpt-11652"),
+                                               "shadow_gen_model/dcl_cycle_gan/v1/model.ckpt-3000"),
             "simple": create_simple_shadow_struct(shadow_ratio)}
         return data_set
 
