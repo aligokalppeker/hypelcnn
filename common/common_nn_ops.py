@@ -437,7 +437,6 @@ def perform_reflection_augmentation_random(images, labels, augmentation_info):
         with tf.device("/cpu:0"):
             images = tf.image.random_flip_left_right(images)
             images = tf.image.random_flip_up_down(images)
-
     return images, labels
 
 

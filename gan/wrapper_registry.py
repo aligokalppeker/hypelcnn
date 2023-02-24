@@ -12,7 +12,7 @@ from gan.wrappers.gan_wrapper import GANInferenceWrapper, GANWrapper
 
 def get_sampling_map():
     sampling_method_map = {"target": TargetBasedSampler(margin=5),
-                           "random": RandomBasedSampler(multiply_shadowed_data=False),
+                           "random": RandomBasedSampler(multiply_shadowed_data=True),
                            "neighbour": NeighborhoodBasedSampler(neighborhood_size=20, margin=2),
                            "dummy": DummySampler(element_count=2000, fill_value=0.5, coefficient=2)}
     return sampling_method_map

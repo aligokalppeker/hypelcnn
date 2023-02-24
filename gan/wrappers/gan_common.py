@@ -81,7 +81,7 @@ class BestRatioHolder:
                 self.data_holder = json.load(read_file)
             print(f"Best ratio file {file_address} is loaded.", self.data_holder)
         except IOError:
-            print(f"File {file_address} file found. No best ratio is loaded.")
+            print(f"File {file_address} file not found. No best ratio is loaded.")
         except JSONDecodeError:
             print(f"File {file_address} file can not be decoded. No best ratio is loaded.")
 
@@ -175,12 +175,10 @@ class ValidationHook(BaseValidationHook):
         self._best_mean_div_addr = os.path.join(self._log_dir, f"best_ratio_{name_suffix}.json")
         self.best_mean_div_holder.load(self._best_mean_div_addr)
         self._bands = loader.get_band_measurements()
-        self._data_sample_list = load_samples_for_testing(loader, data_set, sample_count, neighborhood,
+        self._data_sample_list = load_samples_for_testing(data_set, sample_count, neighborhood,
                                                           shadow_map, fetch_shadows=fetch_shadows)
-        self._div_tensor_mean, self._div_tensor_upper, self._ratio_tensor, self._mean_tensor, self._std_tensor = create_stats_tensor(
-            self._infer_model,
-            self._input_tensor,
-            shadow_ratio)
+        self._div_tensor_mean, self._div_tensor_upper, self._ratio_tensor, self._mean_tensor, self._std_tensor = \
+            create_stats_tensor(self._infer_model, self._input_tensor, shadow_ratio)
         self._div_mean_summ = scalar(f"divergence_{name_suffix}", self._div_tensor_mean, collections=["custom"])
 
         for idx, _data_sample in enumerate(self._data_sample_list):
@@ -361,7 +359,7 @@ def calculate_stats_from_samples(sess, data_sample_list, images_x_input_tensor, 
     return divergence
 
 
-def load_samples_for_testing(loader, data_set, sample_count, neighborhood, shadow_map, fetch_shadows):
+def load_samples_for_testing(data_set, sample_count, neighborhood, shadow_map, fetch_shadows):
     # neighborhood aware indices finder
     band_size = data_set.get_casi_band_count()
     data_sample_list = []

@@ -182,7 +182,8 @@ class TargetBasedSampler(Sampler):
                 else:
                     shadow_data_as_matrix = numpy.vstack([shadow_data_as_matrix, shadow_point_expanded_values])
             else:
-                print("Shadow target key is not found in normal target list:", target_key)
+                print(f"Target key is not found in read target image during "
+                      f"target based sampling:{target_key}")
         return normal_data_as_matrix, shadow_data_as_matrix
 
 
