@@ -176,6 +176,9 @@ def get_log_suffix(flags):
         suffix = suffix + \
                  f"_{flags.augment_data_with_shadow}" + \
                  f"_aug{flags.augmentation_random_threshold:.2f}".replace(".", "")
+    if flags.augment_data_with_spectral is not None:
+        suffix = suffix + \
+                 f"_spectral{flags.augment_data_with_spectral:.3f}".replace(".", "")
 
     return replace_abbrs(suffix, abbreviations)
 
