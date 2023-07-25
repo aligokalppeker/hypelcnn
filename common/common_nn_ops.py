@@ -427,7 +427,7 @@ def perform_spectral_augmentation_random(images, labels, augmentation_info):
         with tf.device("/cpu:0"):
             delta = random_ops.random_uniform([images.get_shape()[-1].value],
                                               -augmentation_info.perform_spectral_augmentation,
-                                              augmentation_info.perform_spectral_augmentation)
+                                              0)
             images = images + delta
     return images, labels
 
