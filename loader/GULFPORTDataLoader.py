@@ -15,7 +15,8 @@ class GULFPORTDataLoader(DataLoader):
         self._file_ext = ".tif"
 
     def load_data(self, neighborhood, normalize):
-        return self._load_data_utility(self._hsi_file, self._lidar_file, neighborhood, normalize)
+        return self._load_data_utility(self._hsi_file + self._file_ext, self._lidar_file + self._file_ext, neighborhood,
+                                       normalize)
 
     def _load_data_utility(self, hsi_file, lidar_file, neighborhood, normalize, casi_min=None, casi_max=None):
         casi = imread(self.get_model_base_dir() + hsi_file)
