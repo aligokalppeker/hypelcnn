@@ -5,6 +5,7 @@ from scipy import ndimage
 
 from loader.DataLoader import SampleSet
 
+numpy.int = int
 
 class Sampler(ABC):
     @abstractmethod
