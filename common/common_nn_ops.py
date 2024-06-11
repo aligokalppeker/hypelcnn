@@ -18,7 +18,7 @@ from tqdm import tqdm
 from common.common_ops import get_class, is_integer_num
 
 INVALID_TARGET_VALUE = 255
-
+numpy.int = int
 
 class DataSet(ABC):
     @abstractmethod
