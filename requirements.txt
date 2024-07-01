@@ -12,6 +12,6 @@ imageio>=2.9.0
 colour-science>=0.3.7
 opencv-python>=4.0.0
 tf-slim==1.1.0
-tensorflow-addons==0.17.1
+tensorflow-addons==0.20.0
 numpy>=1.21.0
 optuna>=3.0.0

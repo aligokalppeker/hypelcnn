@@ -82,6 +82,8 @@ class AVONDataLoader(DataLoader):
     def read_each_target(self, target_image_path, target_no):
         from imageio.v2 import imread
         image = imread(self.get_model_base_dir() + target_image_path)[BLANK_OFFSET:-BLANK_OFFSET, :]
+        if image.dtype == bool:
+            image = image.astype(numpy.uint8) * 255
         targets = ((image / 255).astype(int) * target_no) - 1
         return read_targets_from_image(targets, self.get_class_count())
 
