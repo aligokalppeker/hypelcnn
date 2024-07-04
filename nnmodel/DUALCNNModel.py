@@ -2,24 +2,11 @@ import tensorflow as tf
 from tensorflow.python.ops.gen_nn_ops import leaky_relu
 from tf_slim import conv2d, dropout, flatten, fully_connected, arg_scope
 
-from nnmodel.NNModel import NNModel
 from common.common_nn_ops import ModelOutputTensors
+from nnmodel.NNModel import NNModel
 
 
 class DUALCNNModel(NNModel):
-
-    # TODO: Move to hyper param json files
-    # def get_hyper_param_space(self, trial):
-    #     return {
-    #         "drop_out_ratio": trial.suggest_float("drop_out_ratio", 0.1, 0.5),
-    #         "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3),
-    #         "lrelu_alpha": trial.suggest_float("lrelu_alpha", 0.1, 0.2),
-    #         "learning_rate_decay_factor": 0.96,
-    #         "learning_rate_decay_step": 350,
-    #         "filter_count": trial.suggest_categorical("filter_count", [100, 200, 400, 800]),
-    #         "batch_size": trial.suggest_categorical("batch_size", [32, 48, 64, 96]),
-    #         "optimizer": "AdamOptimizer"
-    #     }
 
     def create_tensor_graph(self, model_input_params, class_count, algorithm_params):
         with tf.device(model_input_params.device_id):
@@ -34,9 +21,11 @@ class DUALCNNModel(NNModel):
                                            value=model_input_params.x)
 
                 hs_lidar_diff = algorithm_params["hs_lidar_diff"]
-                hs_net = self._create_hs_tensor_branch(algorithm_params,
-                                                       hs_lidar_groups[0][:, hs_lidar_diff:-hs_lidar_diff,
-                                                       hs_lidar_diff:-hs_lidar_diff, :])
+                data = hs_lidar_groups[0][:, hs_lidar_diff:-hs_lidar_diff, hs_lidar_diff:-hs_lidar_diff, :] if \
+                    hs_lidar_groups[0].get_shape()[1].value > 1 or \
+                    hs_lidar_groups[0].get_shape()[2].value > 1 else hs_lidar_groups[0]
+
+                hs_net = self._create_hs_tensor_branch(algorithm_params, data)
                 lidar_net = self._create_lidar_tensor_branch(hs_lidar_groups[1])
 
                 net = tf.concat(axis=1, values=[flatten(hs_net), flatten(lidar_net)])
