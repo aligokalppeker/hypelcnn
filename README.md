@@ -95,4 +95,20 @@ Works with Python 3.7-3.10. Library dependencies are put in "requirements.txt".
 
 - Source code documentation.
 - TF 2.x Eager Mode transition.
+
+# Citation
+If you use this in your research, please cite the paper:
+
+```bibtex
+@article{peker2024shadow,
+  title={Shadow-aware terrain classification: advancing hyperspectral image sensing through generative adversarial networks and correlated sample synthesis},
+  author={Peker, Ali Gokalp and Yuksel, Seniha Esen and Cinbis, Ramazan Gokberk and Cetin, Yasemin Yardimci},
+  journal={Journal of Applied Remote Sensing},
+  volume={18},
+  number={3},
+  pages={038506--038506},
+  year={2024},
+  publisher={Society of Photo-Optical Instrumentation Engineers}
+}
+```
 - Pytorch implementation.
