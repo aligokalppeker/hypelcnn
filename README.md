@@ -91,11 +91,6 @@ Works with Python 3.7-3.10. Library dependencies are put in "requirements.txt".
   - cmd_parser.py : Common cmd parsers and flags.
 - notebook.ipynb : Sample notebook for executing the developed ML models.
 
-# In progress
-
-- Source code documentation.
-- TF 2.x Eager Mode transition.
-
 # Citation
 If you use this in your research, please cite the paper:
 
@@ -111,4 +106,3 @@ If you use this in your research, please cite the paper:
   publisher={Society of Photo-Optical Instrumentation Engineers}
 }
 ```
-- Pytorch implementation.
